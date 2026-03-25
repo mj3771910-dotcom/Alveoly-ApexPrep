@@ -11,11 +11,14 @@ import signupIllustration from "../assets/signup-illustration.png";
 import { useAuth } from "../context/AuthContext";
 import API from "../api/axios";
 
+import { GoogleLogin } from "@react-oauth/google";
+
 const SignUpPage = () => {
-  const { register } = useAuth();
+  const { register, googleLogin } = useAuth();
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [courses, setCourses] = useState([]);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -43,16 +46,15 @@ const SignUpPage = () => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
+  // ================= EMAIL/PASSWORD SIGNUP =================
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     if (!form.courseId) {
       alert("Please select a course");
       return;
     }
 
     setLoading(true);
-
     try {
       await register(form);
       navigate("/student/dashboard");
@@ -63,8 +65,28 @@ const SignUpPage = () => {
     }
   };
 
-  const handleGoogleSignUp = () => {
-    window.location.href = `${import.meta.env.VITE_API_URL}/api/auth/google`;
+  // ================= GOOGLE SIGNUP =================
+  const handleGoogleSignUp = async (credentialResponse) => {
+    try {
+      setGoogleLoading(true);
+
+      const idToken = credentialResponse?.credential;
+      if (!idToken) throw new Error("No Google credential received");
+
+      const userData = await googleLogin(idToken);
+
+      // Redirect based on course selection
+      if (!userData.courseId) {
+        navigate("/select-course");
+      } else {
+        navigate("/student/dashboard");
+      }
+    } catch (err) {
+      console.error("Google signup error:", err);
+      alert(err.message || "Google signup failed");
+    } finally {
+      setGoogleLoading(false);
+    }
   };
 
   return (
@@ -94,21 +116,23 @@ const SignUpPage = () => {
             <h2 className="text-3xl font-bold text-gray-800 mb-2">
               Create Your Account 🚀
             </h2>
-
             <p className="text-gray-500 mb-6">
               Start your AI-powered learning journey today
             </p>
 
-            {/* GOOGLE */}
-            <button
-              onClick={handleGoogleSignUp}
-              className="flex items-center justify-center gap-3 w-full border rounded-lg py-3 mb-6 hover:shadow-md transition bg-white"
-            >
-              <FcGoogle size={22} />
-              <span className="font-medium text-gray-700">
-                Continue with Google
-              </span>
-            </button>
+            {/* GOOGLE LOGIN */}
+            <div className="mb-4">
+              <GoogleLogin
+                onSuccess={handleGoogleSignUp}
+                onError={() => alert("Google signup failed")}
+                useOneTap={false}
+              />
+              {googleLoading && (
+                <p className="text-sm text-gray-500 mt-2 text-center">
+                  Signing in with Google...
+                </p>
+              )}
+            </div>
 
             <div className="text-center text-gray-400 mb-6 text-sm">
               OR
