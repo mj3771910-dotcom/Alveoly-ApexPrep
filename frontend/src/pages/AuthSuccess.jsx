@@ -1,56 +1,40 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import API from "../api/axios";
+import API from "../api/api";
 
 const AuthSuccess = () => {
   const navigate = useNavigate();
   const { handleGoogleLogin } = useAuth();
-
   const [courses, setCourses] = useState([]);
   const [selectedCourse, setSelectedCourse] = useState("");
   const [loading, setLoading] = useState(true);
-
   const [token, setToken] = useState("");
 
   useEffect(() => {
     const authFlow = async () => {
       const params = new URLSearchParams(window.location.search);
-      const googleToken = params.get("token"); // Google ID token
+      const jwtToken = params.get("token");
+      if (!jwtToken) return navigate("/login", { replace: true });
 
-      if (!googleToken) {
-        navigate("/login", { replace: true });
-        return;
-      }
+      setToken(jwtToken);
+      localStorage.setItem("token", jwtToken);
 
       try {
-        // 1️⃣ Exchange Google token for backend JWT
-        const { data } = await API.post("/auth/google-login", { idToken: googleToken });
+        // Fetch current user from backend
+        const { data: user } = await API.get("/auth/me", {
+          headers: { Authorization: `Bearer ${jwtToken}` },
+        });
 
-        const backendToken = data.token;
-        const user = data.user;
+        await handleGoogleLogin(jwtToken, user);
 
-        localStorage.setItem("token", backendToken);
-        setToken(backendToken);
+        if (user.role === "admin") return navigate("/admin", { replace: true });
+        if (user.role === "student" && user.courseId) return navigate("/student/dashboard", { replace: true });
 
-        await handleGoogleLogin(backendToken, user); // store in context
-
-        // 2️⃣ Redirect based on role/course
-        if (user.role === "admin") {
-          navigate("/admin", { replace: true });
-          return;
-        }
-
-        if (user.role === "student" && user.courseId) {
-          navigate("/student/dashboard", { replace: true });
-          return;
-        }
-
-        if (user.role === "student" && !user.courseId) {
-          const { data: coursesData } = await API.get("/courses");
-          setCourses(coursesData);
-          setLoading(false);
-        }
+        // Student without course
+        const { data: coursesData } = await API.get("/courses");
+        setCourses(coursesData);
+        setLoading(false);
       } catch (err) {
         console.error("Auth success error:", err);
         navigate("/login", { replace: true });
@@ -60,25 +44,21 @@ const AuthSuccess = () => {
     authFlow();
   }, [navigate, handleGoogleLogin]);
 
-  // ================= ASSIGN COURSE =================
   const handleAssignCourse = async () => {
     if (!selectedCourse) return alert("Select a course!");
 
     try {
-      // Assign course
       await API.put(
         "/auth/me/course",
         { courseId: selectedCourse },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      // Refetch updated user
       const { data: updatedUser } = await API.get("/auth/me", {
         headers: { Authorization: `Bearer ${token}` },
       });
 
       await handleGoogleLogin(token, updatedUser);
-
       navigate("/student/dashboard", { replace: true });
     } catch (err) {
       console.error(err);
@@ -86,7 +66,6 @@ const AuthSuccess = () => {
     }
   };
 
-  // ================= UI =================
   if (loading) return <p>Logging you in...</p>;
 
   if (courses.length > 0) {
@@ -102,9 +81,7 @@ const AuthSuccess = () => {
           >
             <option value="">-- Choose your course --</option>
             {courses.map((c) => (
-              <option key={c._id} value={c._id}>
-                {c.name}
-              </option>
+              <option key={c._id} value={c._id}>{c.name}</option>
             ))}
           </select>
 
