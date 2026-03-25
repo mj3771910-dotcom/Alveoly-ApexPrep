@@ -26,13 +26,19 @@ const app = express();
 const allowedOrigins = [
   "http://localhost:5173",
   "https://alveolyapexprep.academy",
-];
+  process.env.CLIENT_URL, // ✅ allow env-based frontend
+].filter(Boolean);
 
 app.use(
   cors({
     origin: (origin, callback) => {
+      // Allow requests with no origin (mobile apps, Postman, etc.)
       if (!origin) return callback(null, true);
-      if (allowedOrigins.includes(origin)) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
       console.error("❌ CORS blocked:", origin);
       return callback(new Error("CORS not allowed"));
     },
@@ -41,23 +47,12 @@ app.use(
 );
 
 // ================= SECURITY HEADERS =================
-// Apply COOP/COEP headers first to avoid Google One Tap issues
 app.use((req, res, next) => {
-  res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
-  res.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
-  next();
-});
+  // ✅ Allow Google OAuth popups (fixes COOP error)
+  res.setHeader("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
 
-// ================= PREFLIGHT =================
-app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
-  res.header("Access-Control-Allow-Credentials", "true");
-  res.header(
-    "Access-Control-Allow-Headers",
-    "Origin, X-Requested-With, Content-Type, Accept, Authorization"
-  );
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  if (req.method === "OPTIONS") return res.sendStatus(200);
+  // ❌ DO NOT add Cross-Origin-Embedder-Policy (breaks Google login)
+
   next();
 });
 
@@ -83,5 +78,10 @@ app.use("/api/stat", statsRoutes);
 app.use("/api/student", studentRoutes);
 app.use("/api/testimonials", testimonialRoutes);
 app.use("/api/messages", messageRoutes);
+
+// ================= HEALTH CHECK =================
+app.get("/", (req, res) => {
+  res.status(200).json({ status: "OK", message: "API is running 🚀" });
+});
 
 export default app;
