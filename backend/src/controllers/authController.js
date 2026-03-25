@@ -3,6 +3,48 @@ import bcrypt from "bcryptjs";
 import generateToken from "../utils/generateToken.js";
 import crypto from "crypto";
 
+import { OAuth2Client } from "google-auth-library";
+
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+// ================= GOOGLE LOGIN =================
+export const googleLogin = async (req, res) => {
+  try {
+    const { idToken } = req.body; // frontend sends Google idToken
+
+    if (!idToken) return res.status(400).json({ message: "Google token required" });
+
+    // Verify Google token
+    const ticket = await client.verifyIdToken({
+      idToken,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+    const email = payload.email;
+    const name = payload.name;
+
+    let user = await User.findOne({ email });
+
+    // Create new user if doesn't exist
+    if (!user) {
+      user = await User.create({ name, email });
+    }
+
+    // Generate backend JWT
+    const token = jwt.sign(
+      { id: user._id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    res.json({ token, user });
+  } catch (err) {
+    console.error("GOOGLE LOGIN ERROR:", err);
+    res.status(401).json({ message: "Invalid Google token" });
+  }
+};
+
 // ================= REGISTER =================
 export const register = async (req, res) => {
   try {

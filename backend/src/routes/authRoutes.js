@@ -7,7 +7,8 @@ import {
   getMyInfo,
   resetPassword,
   forgotPassword,
-  googleCallback, // ✅ IMPORT THIS
+  googleCallback,
+  googleLogin, // ✅ IMPORT THIS
 } from "../controllers/authController.js";
 import { protect } from "../middleware/authMiddleware.js";
 
@@ -20,6 +21,9 @@ router.put("/me/course", protect, assignCourse);
 router.get("/me", protect, getMyInfo);
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password/:token", resetPassword);
+
+
+router.post("/google-login", googleLogin); // ✅ frontend sends Google idToken here
 
 // GOOGLE LOGIN
 router.get(
