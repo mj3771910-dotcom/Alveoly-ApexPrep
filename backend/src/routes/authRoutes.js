@@ -1,6 +1,14 @@
 import express from "express";
 import passport from "passport";
-import { register, login, assignCourse, getMyInfo, resetPassword, forgotPassword } from "../controllers/authController.js";
+import {
+  register,
+  login,
+  assignCourse,
+  getMyInfo,
+  resetPassword,
+  forgotPassword,
+  googleCallback, // ✅ IMPORT THIS
+} from "../controllers/authController.js";
 import { protect } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
@@ -9,7 +17,7 @@ const router = express.Router();
 router.post("/register", register);
 router.post("/login", login);
 router.put("/me/course", protect, assignCourse);
-router.get("/me", protect, getMyInfo)
+router.get("/me", protect, getMyInfo);
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password/:token", resetPassword);
 
@@ -19,18 +27,11 @@ router.get(
   passport.authenticate("google", { scope: ["profile", "email"] })
 );
 
-// GOOGLE CALLBACK
+// ✅ GOOGLE CALLBACK (CLEAN)
 router.get(
   "/google/callback",
   passport.authenticate("google", { session: false }),
-  (req, res) => {
-    const { token } = req.user;
-
-    // ✅ SINGLE REDIRECT
-    res.redirect(
-      `http://localhost:5173/auth-success?token=${token}`
-    );
-  }
+  googleCallback // ✅ USE CONTROLLER
 );
 
 export default router;
