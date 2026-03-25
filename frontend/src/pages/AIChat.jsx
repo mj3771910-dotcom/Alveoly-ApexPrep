@@ -3,22 +3,24 @@ import axios from "../api/axios";
 import { io } from "socket.io-client";
 import { FaRobot, FaUser, FaTrash } from "react-icons/fa";
 
-const [socket, setSocket] = useState(null);
-
-useEffect(() => {
-  const newSocket = io("https://alveoly-apexprep-backend.onrender.com", {
-    transports: ["websocket"], // optional but improves reliability on Render
-     withCredentials: true,
-  });
-
-  setSocket(newSocket);
-
-  return () => {
-    newSocket.disconnect();
-  };
-}, []);
-
 const AIChat = () => {
+   // ✅ MOVE SOCKET HERE
+  const [socket, setSocket] = useState(null);
+
+  useEffect(() => {
+    const newSocket = io("https://alveoly-apexprep-backend.onrender.com", {
+      transports: ["websocket"],
+      withCredentials: true,
+    });
+
+    console.log("🟢 Connected:", newSocket.id);
+
+    setSocket(newSocket);
+
+    return () => {
+      newSocket.disconnect();
+    };
+  }, []);
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
   const [fromDB, setFromDB] = useState(false);
