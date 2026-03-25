@@ -4,6 +4,8 @@ import axios from "../api/axios";
 import { io } from "socket.io-client";
 import { FaBookOpen } from "react-icons/fa";
 
+const socket = io("https://alveoly-apexprep-backend.onrender.com");
+
 const StudentCourses = () => {
   const navigate = useNavigate();
   const [courses, setCourses] = useState([]);

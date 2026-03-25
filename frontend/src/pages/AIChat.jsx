@@ -3,6 +3,8 @@ import axios from "../api/axios";
 import { io } from "socket.io-client";
 import { FaRobot, FaUser, FaTrash } from "react-icons/fa";
 
+const socket = io("https://alveoly-apexprep-backend.onrender.com");
+
 const AIChat = () => {
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");

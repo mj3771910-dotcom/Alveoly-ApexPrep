@@ -3,6 +3,7 @@ import axios from "../api/axios";
 import { io } from "socket.io-client";
 import { FaEdit, FaTrash, FaRobot } from "react-icons/fa";
 
+const socket = io("https://alveoly-apexprep-backend.onrender.com");
 
 const AIAdmin = () => {
   const [question, setQuestion] = useState("");
