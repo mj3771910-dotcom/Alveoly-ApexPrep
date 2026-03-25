@@ -18,10 +18,7 @@ const CLIENT_URL = process.env.CLIENT_URL;
 const httpServer = createServer(app);
 
 // ================= SOCKET.IO =================
-const allowedOrigins = [
-  "http://localhost:5173",
-  CLIENT_URL,
-].filter(Boolean);
+const allowedOrigins = ["http://localhost:5173", CLIENT_URL].filter(Boolean);
 
 export const io = new Server(httpServer, {
   cors: {
@@ -49,17 +46,12 @@ io.on("connection", (socket) => {
     console.log("🛠️ Admin joined");
   });
 
-  socket.on("error", (err) => {
-    console.error("❌ Socket error:", err.message);
-  });
-
-  socket.on("connect_error", (err) => {
-    console.error("❌ Connection error:", err.message);
-  });
-
   socket.on("disconnect", (reason) => {
     console.log(`🔴 Client disconnected (${socket.id}):`, reason);
   });
+
+  socket.on("error", (err) => console.error("❌ Socket error:", err.message));
+  socket.on("connect_error", (err) => console.error("❌ Connection error:", err.message));
 });
 
 // ================= PASSPORT =================
@@ -67,19 +59,13 @@ app.use(passport.initialize());
 
 // ================= HEALTH CHECK =================
 app.get("/", (req, res) => {
-  res.status(200).json({
-    status: "OK",
-    message: "API is running 🚀",
-  });
+  res.status(200).json({ status: "OK", message: "API is running 🚀" });
 });
 
 // ================= GLOBAL ERROR HANDLER =================
 app.use((err, req, res, next) => {
   console.error("🔥 Server Error:", err.message);
-
-  res.status(500).json({
-    message: err.message || "Internal Server Error",
-  });
+  res.status(500).json({ message: err.message || "Internal Server Error" });
 });
 
 // ================= START SERVER =================

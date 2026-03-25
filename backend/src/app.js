@@ -22,7 +22,7 @@ import messageRoutes from "./routes/messageRoutes.js";
 
 const app = express();
 
-// ================= CORS (FIXED HERE) =================
+// ================= CORS =================
 const allowedOrigins = [
   "http://localhost:5173",
   "https://alveolyapexprep.academy",
@@ -30,22 +30,25 @@ const allowedOrigins = [
 
 app.use(
   cors({
-    origin: function (origin, callback) {
-      // allow mobile apps / postman
+    origin: (origin, callback) => {
       if (!origin) return callback(null, true);
-
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      } else {
-        console.error("❌ CORS blocked:", origin);
-        return callback(null, false); // ⚠️ don't throw error
-      }
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      console.error("❌ CORS blocked:", origin);
+      return callback(new Error("CORS not allowed"));
     },
     credentials: true,
   })
 );
 
-// ✅ HANDLE PREFLIGHT (CRITICAL)
+// ================= SECURITY HEADERS =================
+// Apply COOP/COEP headers first to avoid Google One Tap issues
+app.use((req, res, next) => {
+  res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
+  res.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
+  next();
+});
+
+// ================= PREFLIGHT =================
 app.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
   res.header("Access-Control-Allow-Credentials", "true");
@@ -53,15 +56,8 @@ app.use((req, res, next) => {
     "Access-Control-Allow-Headers",
     "Origin, X-Requested-With, Content-Type, Accept, Authorization"
   );
-  res.header(
-    "Access-Control-Allow-Methods",
-    "GET, POST, PUT, DELETE, OPTIONS"
-  );
-
-  if (req.method === "OPTIONS") {
-    return res.sendStatus(200);
-  }
-
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  if (req.method === "OPTIONS") return res.sendStatus(200);
   next();
 });
 
