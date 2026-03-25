@@ -128,17 +128,18 @@ function App() {
           </Route>
 
           {/* ================= ADMIN ================= */}
-
-          <Route
+           <Route path="/admin" element={<AdminDashboard />} />
+           <Route path="/" element={<AdminLayout />} />
+          {/* <Route
             path="/admin"
             element={
               <ProtectedRoute role="admin">
                 <AdminLayout />
               </ProtectedRoute>
             }
-          >
+          > */}
             {/* Dashboard */}
-            <Route index element={<AdminDashboard />} />
+            {/* <Route index element={<AdminDashboard />} /> */}
 
             {/* AI */}
             <Route path="ai" element={<AIAdmin />} />
