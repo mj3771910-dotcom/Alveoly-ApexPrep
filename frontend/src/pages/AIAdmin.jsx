@@ -14,21 +14,22 @@ const AIAdmin = () => {
   const [loading, setLoading] = useState(false);
 
   // ✅ INIT SOCKET (SAFE)
-  useEffect(() => {
-    const newSocket = io("https://alveoly-apexprep-backend.onrender.com", {
-      transports: ["websocket"],
-      withCredentials: true,
-    });
+ useEffect(() => {
+  const newSocket = io("https://alveoly-apexprep-backend.onrender.com", {
+    transports: ["websocket"],
+    withCredentials: true,
+  });
 
+  newSocket.on("connect", () => {
     console.log("🟢 Admin Connected:", newSocket.id);
+  });
 
-    setSocket(newSocket);
+  setSocket(newSocket);
 
-    return () => {
-      newSocket.disconnect();
-    };
-  }, []);
-
+  return () => {
+    newSocket.disconnect();
+  };
+}, []);
 
   useEffect(() => {
     const fetchQA = async () => {
@@ -42,23 +43,31 @@ const AIAdmin = () => {
     fetchQA();
   }, []);
 
-  useEffect(() => {
-    socket.on("newQA", (qa) => setHistory((prev) => [qa, ...prev]));
-    socket.on("updateQA", (qa) =>
-      setHistory((prev) =>
-        prev.map((item) => (item.id === qa.id ? qa : item))
-      )
-    );
-    socket.on("deleteQA", (id) =>
-      setHistory((prev) => prev.filter((item) => item.id !== id))
-    );
+ useEffect(() => {
+  if (!socket) return; // 🛑 VERY IMPORTANT
 
-    return () => {
-      socket.off("newQA");
-      socket.off("updateQA");
-      socket.off("deleteQA");
-    };
-  }, []);
+  socket.on("newQA", (qa) => {
+    setHistory((prev) => [qa, ...prev]);
+  });
+
+  socket.on("updateQA", (qa) => {
+    setHistory((prev) =>
+      prev.map((item) => (item.id === qa.id ? qa : item))
+    );
+  });
+
+  socket.on("deleteQA", (id) => {
+    setHistory((prev) =>
+      prev.filter((item) => item.id !== id)
+    );
+  });
+
+  return () => {
+    socket.off("newQA");
+    socket.off("updateQA");
+    socket.off("deleteQA");
+  };
+}, [socket]); // ✅ DEPEND ON SOCKET
 
   const handleSave = async () => {
     if (!question.trim() || !manualAnswer.trim()) return;
