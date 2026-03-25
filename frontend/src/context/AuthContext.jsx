@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import API from "../api/api";
-import socket from "../api/socket.js"; // ✅ Global socket
+import socket from "../api/socket.js";
 
 const AuthContext = createContext();
 
@@ -10,14 +10,33 @@ export const AuthProvider = ({ children }) => {
 
   // ================= SOCKET =================
   const connectSocket = (userData) => {
-    if (userData?._id) {
+    if (!userData?._id) return;
+
+    if (!socket.connected) {
       socket.connect();
-      socket.emit("join:user", userData._id);
     }
+
+    socket.emit("join:user", userData._id);
   };
 
   const disconnectSocket = () => {
-    if (socket.connected) socket.disconnect();
+    if (socket.connected) {
+      socket.disconnect();
+    }
+  };
+
+  // ================= SET AUTH (CENTRALIZED) =================
+  const setAuth = (token, userData) => {
+    localStorage.setItem("token", token);
+    setUser(userData);
+    connectSocket(userData);
+  };
+
+  // ================= CLEAR AUTH =================
+  const clearAuth = () => {
+    localStorage.removeItem("token");
+    disconnectSocket();
+    setUser(null);
   };
 
   // ================= FETCH CURRENT USER =================
@@ -27,23 +46,15 @@ export const AuthProvider = ({ children }) => {
 
       if (!token) {
         setUser(null);
-        setLoading(false);
         return;
       }
 
-      const res = await API.get("/auth/me"); // Axios interceptor adds token automatically
+      const res = await API.get("/auth/me");
       setUser(res.data);
-
-      // Connect socket
       connectSocket(res.data);
-
     } catch (err) {
       console.error("Fetch user error:", err);
-
-      // Invalid/expired token
-      localStorage.removeItem("token");
-      setUser(null);
-
+      clearAuth(); // ✅ clean reset on failure
     } finally {
       setLoading(false);
     }
@@ -53,14 +64,14 @@ export const AuthProvider = ({ children }) => {
     fetchUser();
   }, []);
 
-  // ================= EMAIL / PASSWORD LOGIN =================
+  // ================= LOGIN =================
   const login = async (form) => {
     try {
       const res = await API.post("/auth/login", form);
-      const token = res.data.token;
+      const { token, user: userData } = res.data;
 
-      localStorage.setItem("token", token);
-      await fetchUser(); // Fetch user data + connect socket
+      setAuth(token, userData);
+      return userData;
     } catch (err) {
       console.error("Login error:", err);
       throw err;
@@ -71,10 +82,10 @@ export const AuthProvider = ({ children }) => {
   const register = async (form) => {
     try {
       const res = await API.post("/auth/register", form);
-      const token = res.data.token;
+      const { token, user: userData } = res.data;
 
-      localStorage.setItem("token", token);
-      await fetchUser();
+      setAuth(token, userData);
+      return userData;
     } catch (err) {
       console.error("Register error:", err);
       throw err;
@@ -82,17 +93,13 @@ export const AuthProvider = ({ children }) => {
   };
 
   // ================= GOOGLE LOGIN =================
-  // idToken: Google credential token
   const googleLogin = async (idToken) => {
     try {
       const res = await API.post("/auth/google-login", { idToken });
       const { token, user: userData } = res.data;
 
-      localStorage.setItem("token", token);
-      setUser(userData);
-      connectSocket(userData);
-
-      return userData; // For redirect logic in frontend
+      setAuth(token, userData);
+      return userData;
     } catch (err) {
       console.error("Google login error:", err);
       throw err;
@@ -101,21 +108,19 @@ export const AuthProvider = ({ children }) => {
 
   // ================= LOGOUT =================
   const logout = () => {
-    localStorage.removeItem("token");
-    disconnectSocket();
-    setUser(null);
+    clearAuth();
   };
 
   return (
     <AuthContext.Provider
       value={{
         user,
-        setUser,
         loading,
         login,
         register,
+        googleLogin,
         logout,
-        googleLogin, // ✅ Use this in LoginPage
+        setUser, // optional (keep if needed elsewhere)
       }}
     >
       {children}
