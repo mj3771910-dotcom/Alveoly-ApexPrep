@@ -3,14 +3,32 @@ import axios from "../api/axios";
 import { io } from "socket.io-client";
 import { FaEdit, FaTrash, FaRobot } from "react-icons/fa";
 
-const socket = io("https://alveoly-apexprep-backend.onrender.com");
-
 const AIAdmin = () => {
+  // ✅ ADD SOCKET STATE
+  const [socket, setSocket] = useState(null);
+
   const [question, setQuestion] = useState("");
   const [manualAnswer, setManualAnswer] = useState("");
   const [editingId, setEditingId] = useState(null);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  // ✅ INIT SOCKET (SAFE)
+  useEffect(() => {
+    const newSocket = io("https://alveoly-apexprep-backend.onrender.com", {
+      transports: ["websocket"],
+      withCredentials: true,
+    });
+
+    console.log("🟢 Admin Connected:", newSocket.id);
+
+    setSocket(newSocket);
+
+    return () => {
+      newSocket.disconnect();
+    };
+  }, []);
+
 
   useEffect(() => {
     const fetchQA = async () => {

@@ -13,6 +13,7 @@ import { useParams } from "react-router-dom";
 const StudentTrial = () => {
   const { user } = useAuth();
   const { courseId, subjectId } = useParams();
+  const navigate = useNavigate();
 
   const [questions, setQuestions] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -374,12 +375,13 @@ Explain the correct answer like a nursing tutor.
               })}
             </div>
 
-            <button
-              onClick={() => setShowResult(false)}
-              className="mt-6 w-full bg-blue-600 text-white py-2 rounded"
-            >
-              Close
-            </button>
+             {/* ✅ CLOSE BUTTON NAVIGATES TO PROGRESS */}
+        <button
+          onClick={() => navigate("/student/progress")}
+          className="mt-6 w-full bg-blue-600 text-white py-2 rounded"
+        >
+          Close & View Progress
+        </button>
           </div>
         </div>
       )}
