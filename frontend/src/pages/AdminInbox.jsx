@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import API from "../api/axios";
+import API from "../api/api";
 import emailjs from "@emailjs/browser";
 import { FaEnvelope, FaReply } from "react-icons/fa";
 

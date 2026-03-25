@@ -2,8 +2,8 @@
 import axios from "axios";
 
 const API = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000/api",
-  withCredentials: true, // ✅ important if using cookies/auth sessions
+  baseURL: import.meta.env.VITE_API_URL + "/api", // ✅ FIX
+  withCredentials: true,
 });
 
 // Attach token automatically

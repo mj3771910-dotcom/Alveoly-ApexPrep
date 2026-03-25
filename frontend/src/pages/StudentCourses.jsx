@@ -4,10 +4,6 @@ import axios from "../api/axios";
 import { io } from "socket.io-client";
 import { FaBookOpen } from "react-icons/fa";
 
-const BASE_URL = (
-  import.meta.env.VITE_API_URL || "http://localhost:5000"
-).replace("/api", "");
-
 const StudentCourses = () => {
   const navigate = useNavigate();
   const [courses, setCourses] = useState([]);

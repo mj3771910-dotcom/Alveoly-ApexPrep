@@ -3,10 +3,6 @@ import axios from "../api/axios";
 import { io } from "socket.io-client";
 import { FaRobot, FaUser, FaTrash } from "react-icons/fa";
 
-const BASE_URL = (
-  import.meta.env.VITE_API_URL || "http://localhost:5000"
-).replace("/api", "");
-
 const AIChat = () => {
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");

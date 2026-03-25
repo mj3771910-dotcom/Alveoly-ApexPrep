@@ -1,11 +1,7 @@
 import { useState, useEffect } from "react";
 import { io } from "socket.io-client";
 import { FaPlus, FaEdit, FaTrash, FaTimes } from "react-icons/fa";
-import axios from "../api/axios"; // your axios instance
-
-const BASE_URL = (
-  import.meta.env.VITE_API_URL || "http://localhost:5000"
-).replace("/api", "");
+import axios from "../api/api"; // your axios instance
 
 const AdminCourses = () => {
   const [courses, setCourses] = useState([]);
