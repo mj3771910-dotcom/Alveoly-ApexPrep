@@ -17,8 +17,8 @@ export const googleLogin = async (req, res) => {
       .then(ticket => ticket.getPayload());
 
     const { email, name } = payload;
-    let user = await User.findOne({ email });
 
+    let user = await User.findOne({ email });
     if (!user) {
       user = await User.create({ name, email });
     }
@@ -33,7 +33,7 @@ export const googleLogin = async (req, res) => {
   }
 };
 
-// ================= REGISTER =================
+// ================= EMAIL/PASSWORD REGISTER =================
 export const register = async (req, res) => {
   try {
     const { name, email, password, courseId } = req.body;
@@ -44,8 +44,8 @@ export const register = async (req, res) => {
     if (userExists) return res.status(400).json({ message: "User already exists" });
 
     const hashedPassword = await bcrypt.hash(password, 10);
-
     const user = await User.create({ name, email, password: hashedPassword, courseId });
+
     res.status(201).json({ token: generateToken(user), user });
   } catch (err) {
     console.error("REGISTER ERROR:", err);
@@ -53,7 +53,7 @@ export const register = async (req, res) => {
   }
 };
 
-// ================= LOGIN =================
+// ================= EMAIL/PASSWORD LOGIN =================
 export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
