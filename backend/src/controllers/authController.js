@@ -1,4 +1,3 @@
-// src/controllers/authController.js
 import User from "../models/User.js";
 import bcrypt from "bcryptjs";
 import generateToken from "../utils/generateToken.js";
@@ -25,31 +24,12 @@ export const googleLogin = async (req, res) => {
     }
 
     const token = generateToken(user);
+    const requiresCourse = !user.courseId;
 
-    res.json({ token, user });
+    res.json({ token, user, requiresCourse });
   } catch (err) {
     console.error("GOOGLE LOGIN ERROR:", err);
     res.status(401).json({ message: "Invalid Google token" });
-  }
-};
-
-// ================= GOOGLE CALLBACK =================
-export const googleCallback = async (req, res) => {
-  try {
-    const { user } = req; // Passport attaches user
-    if (!user) throw new Error("No user from Google");
-
-    const token = generateToken(user);
-    const requiresCourse = !user.courseId;
-    const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
-
-    return res.redirect(
-      `${CLIENT_URL}/auth-success?token=${token}&requiresCourse=${requiresCourse}`
-    );
-  } catch (err) {
-    console.error("GOOGLE CALLBACK ERROR:", err);
-    const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
-    return res.redirect(`${CLIENT_URL}/login`);
   }
 };
 

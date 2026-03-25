@@ -1,5 +1,4 @@
 import express from "express";
-import passport from "passport";
 import {
   register,
   login,
@@ -7,8 +6,7 @@ import {
   getMyInfo,
   resetPassword,
   forgotPassword,
-  googleCallback,
-  googleLogin, // ✅ IMPORT THIS
+  googleLogin,
 } from "../controllers/authController.js";
 import { protect } from "../middleware/authMiddleware.js";
 
@@ -22,20 +20,7 @@ router.get("/me", protect, getMyInfo);
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password/:token", resetPassword);
 
-
-router.post("/google-login", googleLogin); // ✅ frontend sends Google idToken here
-
-// GOOGLE LOGIN
-router.get(
-  "/google",
-  passport.authenticate("google", { scope: ["profile", "email"] })
-);
-
-// ✅ GOOGLE CALLBACK (CLEAN)
-router.get(
-  "/google/callback",
-  passport.authenticate("google", { session: false }),
-  googleCallback // ✅ USE CONTROLLER
-);
+// GOOGLE LOGIN (frontend sends idToken)
+router.post("/google-login", googleLogin);
 
 export default router;
