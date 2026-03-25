@@ -7,8 +7,6 @@ const BASE_URL = (
   import.meta.env.VITE_API_URL || "http://localhost:5000"
 ).replace("/api", "");
 
-const socket = io(BASE_URL);
-
 const AIChat = () => {
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
