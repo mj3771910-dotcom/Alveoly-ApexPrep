@@ -3,7 +3,20 @@ import axios from "../api/axios";
 import { io } from "socket.io-client";
 import { FaRobot, FaUser, FaTrash } from "react-icons/fa";
 
-const socket = io("https://alveoly-apexprep-backend.onrender.com");
+const [socket, setSocket] = useState(null);
+
+useEffect(() => {
+  const newSocket = io("https://alveoly-apexprep-backend.onrender.com", {
+    transports: ["websocket"], // optional but improves reliability on Render
+     withCredentials: true,
+  });
+
+  setSocket(newSocket);
+
+  return () => {
+    newSocket.disconnect();
+  };
+}, []);
 
 const AIChat = () => {
   const [question, setQuestion] = useState("");
@@ -52,19 +65,24 @@ const AIChat = () => {
   }, []);
 
   useEffect(() => {
-    socket.on("newQA", (qa) => setQaList((prev) => [qa, ...prev]));
-    socket.on("updateQA", (qa) =>
-      setQaList((prev) => prev.map((item) => (item.id === qa.id ? qa : item)))
-    );
-    socket.on("deleteQA", (id) =>
-      setQaList((prev) => prev.filter((item) => item.id !== id))
-    );
-    return () => {
-      socket.off("newQA");
-      socket.off("updateQA");
-      socket.off("deleteQA");
-    };
-  }, []);
+  if (!socket) return;
+
+  socket.on("newQA", (qa) => setQaList((prev) => [qa, ...prev]));
+
+  socket.on("updateQA", (qa) =>
+    setQaList((prev) => prev.map((item) => (item.id === qa.id ? qa : item)))
+  );
+
+  socket.on("deleteQA", (id) =>
+    setQaList((prev) => prev.filter((item) => item.id !== id))
+  );
+
+  return () => {
+    socket.off("newQA");
+    socket.off("updateQA");
+    socket.off("deleteQA");
+  };
+}, [socket]);
 
   useEffect(() => {
     const fetchPlansAndSub = async () => {
