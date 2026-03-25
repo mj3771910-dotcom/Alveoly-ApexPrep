@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+
 import authRoutes from "./routes/authRoutes.js";
 import aiRoutes from "./routes/aiRoutes.js";
 import aiPlanRoutes from "./routes/aiPlanRoutes.js";
@@ -21,13 +22,40 @@ import messageRoutes from "./routes/messageRoutes.js";
 
 const app = express();
 
+// ================= CORS (FIXED HERE) =================
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://alveolyapexprep.academy",
+];
+
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      // allow mobile apps / postman
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      } else {
+        console.error("❌ CORS blocked:", origin);
+        return callback(null, false); // ⚠️ don't throw error
+      }
+    },
+    credentials: true,
+  })
+);
+
+// ✅ HANDLE PREFLIGHT (CRITICAL)
+app.options("*", cors());
+
+// ================= MIDDLEWARE =================
 app.use(express.json());
 
-// ROUTES
+// ================= ROUTES =================
 app.use("/api/auth", authRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/ai-subscriptions", aiSubscriptionRoutes);
-app.use("/api/ai-plans", aiPlanRoutes); 
+app.use("/api/ai-plans", aiPlanRoutes);
 app.use("/api/courses", courseRoutes);
 app.use("/api/subjects", subjectRoutes);
 app.use("/api/questions", questionRoutes);
