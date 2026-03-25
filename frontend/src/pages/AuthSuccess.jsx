@@ -26,27 +26,26 @@ const AuthSuccess = () => {
       setToken(tokenFromUrl);
 
       try {
-        // ✅ Get user FIRST
+        // 1️⃣ Fetch user using token
         const { data: user } = await API.get("/auth/me", {
           headers: { Authorization: `Bearer ${tokenFromUrl}` },
         });
 
-        // ✅ Store in context
-        handleGoogleLogin(tokenFromUrl, user);
+        // 2️⃣ Store in context
+        await handleGoogleLogin(tokenFromUrl, user);
 
-        // ✅ ADMIN
+        // 3️⃣ Redirect based on role
         if (user.role === "admin") {
           navigate("/admin", { replace: true });
           return;
         }
 
-        // ✅ STUDENT WITH COURSE
         if (user.role === "student" && user.courseId) {
           navigate("/student/dashboard", { replace: true });
           return;
         }
 
-        // ✅ STUDENT WITHOUT COURSE
+        // 4️⃣ Student without course
         if (user.role === "student" && !user.courseId) {
           const { data } = await API.get("/courses");
           setCourses(data);
@@ -68,31 +67,29 @@ const AuthSuccess = () => {
     if (!selectedCourse) return alert("Select a course!");
 
     try {
-      // ✅ Assign course
+      // Assign course
       await API.put(
         "/auth/me/course",
         { courseId: selectedCourse },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      // 🔥 IMPORTANT: REFETCH UPDATED USER
+      // Refetch updated user
       const { data: updatedUser } = await API.get("/auth/me", {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      // 🔥 UPDATE CONTEXT WITH NEW USER
-      handleGoogleLogin(token, updatedUser);
+      // Update context
+      await handleGoogleLogin(token, updatedUser);
 
-      // ✅ NOW GO TO DASHBOARD
+      // Redirect
       navigate("/student/dashboard", { replace: true });
-
     } catch (err) {
       console.error(err);
       alert("Failed to assign course");
     }
   };
 
-  // ================= UI =================
   if (loading) return <p>Logging you in...</p>;
 
   if (courses.length > 0) {
