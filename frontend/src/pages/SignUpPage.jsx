@@ -31,16 +31,27 @@ const SignUpPage = () => {
 
   // FETCH COURSES
   useEffect(() => {
-    const fetchCourses = async () => {
-      try {
-        const res = await API.get("/courses");
+  const fetchCourses = async () => {
+    try {
+      const res = await API.get("/courses");
+      if (res.data.length > 0) {
         setCourses(res.data);
-      } catch (err) {
-        console.error("Failed to fetch courses:", err);
+      } else {
+        throw new Error("No courses");
       }
-    };
-    fetchCourses();
-  }, []);
+    } catch (err) {
+      console.warn("Using fallback courses");
+
+      setCourses([
+        { _id: "temp1", name: "Physiology" },
+        { _id: "temp2", name: "Anatomy" },
+        { _id: "temp3", name: "Pharmacology" },
+      ]);
+    }
+  };
+
+  fetchCourses();
+}, []);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
