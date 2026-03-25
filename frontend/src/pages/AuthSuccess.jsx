@@ -14,46 +14,51 @@ const AuthSuccess = () => {
   const [token, setToken] = useState("");
 
   useEffect(() => {
-  const authFlow = async () => {
-    const params = new URLSearchParams(window.location.search);
-    const tokenFromUrl = params.get("token");
+    const authFlow = async () => {
+      const params = new URLSearchParams(window.location.search);
+      const googleToken = params.get("token"); // Google ID token
 
-    if (!tokenFromUrl) {
-      navigate("/login", { replace: true });
-      return;
-    }
-
-    // ✅ STORE TOKEN FIRST
-    localStorage.setItem("token", tokenFromUrl);
-
-    try {
-      // Now interceptor will attach token automatically
-      const { data: user } = await API.get("/auth/me");
-
-      await handleGoogleLogin(tokenFromUrl, user);
-
-      if (user.role === "admin") {
-        navigate("/admin", { replace: true });
-        return;
-      }
-      if (user.role === "student" && user.courseId) {
-        navigate("/student/dashboard", { replace: true });
+      if (!googleToken) {
+        navigate("/login", { replace: true });
         return;
       }
 
-      if (user.role === "student" && !user.courseId) {
-        const { data } = await API.get("/courses");
-        setCourses(data);
-        setLoading(false);
-      }
-    } catch (err) {
-      console.error("Auth success error:", err);
-      navigate("/login", { replace: true });
-    }
-  };
+      try {
+        // 1️⃣ Exchange Google token for backend JWT
+        const { data } = await API.post("/auth/google-login", { idToken: googleToken });
 
-  authFlow();
-}, [navigate, handleGoogleLogin]);
+        const backendToken = data.token;
+        const user = data.user;
+
+        localStorage.setItem("token", backendToken);
+        setToken(backendToken);
+
+        await handleGoogleLogin(backendToken, user); // store in context
+
+        // 2️⃣ Redirect based on role/course
+        if (user.role === "admin") {
+          navigate("/admin", { replace: true });
+          return;
+        }
+
+        if (user.role === "student" && user.courseId) {
+          navigate("/student/dashboard", { replace: true });
+          return;
+        }
+
+        if (user.role === "student" && !user.courseId) {
+          const { data: coursesData } = await API.get("/courses");
+          setCourses(coursesData);
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error("Auth success error:", err);
+        navigate("/login", { replace: true });
+      }
+    };
+
+    authFlow();
+  }, [navigate, handleGoogleLogin]);
 
   // ================= ASSIGN COURSE =================
   const handleAssignCourse = async () => {
@@ -72,10 +77,8 @@ const AuthSuccess = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      // Update context
       await handleGoogleLogin(token, updatedUser);
 
-      // Redirect
       navigate("/student/dashboard", { replace: true });
     } catch (err) {
       console.error(err);
@@ -83,6 +86,7 @@ const AuthSuccess = () => {
     }
   };
 
+  // ================= UI =================
   if (loading) return <p>Logging you in...</p>;
 
   if (courses.length > 0) {

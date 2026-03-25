@@ -23,6 +23,7 @@ export const AuthProvider = ({ children }) => {
   const fetchUser = async () => {
     try {
       const token = localStorage.getItem("token");
+
       if (!token) {
         setUser(null);
         setLoading(false);
@@ -36,10 +37,14 @@ export const AuthProvider = ({ children }) => {
 
       // Connect socket
       connectSocket(res.data);
+
     } catch (err) {
       console.error("Fetch user error:", err);
+
+      // Token invalid or expired
       localStorage.removeItem("token");
       setUser(null);
+
     } finally {
       setLoading(false);
     }
@@ -78,16 +83,17 @@ export const AuthProvider = ({ children }) => {
   };
 
   // ================= GOOGLE LOGIN =================
-  // token: JWT from server
+  // token: backend JWT returned from /auth/google-login
+  // userData: optional pre-fetched user object
   const handleGoogleLogin = async (token, userData = null) => {
     localStorage.setItem("token", token);
 
-    // If user data is already available, use it
     if (userData) {
+      // Use provided user object (from /auth/google-login)
       setUser(userData);
       connectSocket(userData);
     } else {
-      // Otherwise fetch full user from /auth/me
+      // Fetch user from backend
       await fetchUser();
     }
   };
