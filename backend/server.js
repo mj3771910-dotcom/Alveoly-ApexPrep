@@ -5,39 +5,50 @@ import app from "./src/app.js";
 import { createServer } from "http";
 import { Server } from "socket.io";
 import passport from "./config/passport.js";
+import cors from "cors";
 
 dotenv.config();
+
+// ================= INIT =================
 connectDB();
 
 const PORT = process.env.PORT || 5000;
+const CLIENT_URL = process.env.CLIENT_URL;
 
-// ================= SOCKET SERVER =================
-const httpServer = createServer(app);
-
-// Allow multiple origins (important for live + local)
+// ================= CORS (HTTP) =================
 const allowedOrigins = [
   "http://localhost:5173",
-  process.env.CLIENT_URL, // your production frontend
+  CLIENT_URL,
 ].filter(Boolean);
 
-export const io = new Server(httpServer, {
-  cors: {
+app.use(
+  cors({
     origin: (origin, callback) => {
-      // allow requests with no origin (like mobile apps, curl, etc.)
       if (!origin) return callback(null, true);
 
       if (allowedOrigins.includes(origin)) {
         return callback(null, true);
       } else {
-        console.error("❌ CORS blocked origin:", origin);
+        console.error("❌ CORS blocked:", origin);
         return callback(new Error("Not allowed by CORS"));
       }
     },
+    credentials: true,
+  })
+);
+
+// ================= HTTP SERVER =================
+const httpServer = createServer(app);
+
+// ================= SOCKET.IO =================
+export const io = new Server(httpServer, {
+  cors: {
+    origin: allowedOrigins,
     methods: ["GET", "POST"],
     credentials: true,
   },
-  transports: ["websocket", "polling"], // fallback support
-  pingTimeout: 60000,   // prevent random disconnects on slow networks
+  transports: ["websocket", "polling"],
+  pingTimeout: 60000,
   pingInterval: 25000,
 });
 
@@ -76,9 +87,21 @@ io.on("connection", (socket) => {
 // ================= PASSPORT =================
 app.use(passport.initialize());
 
-// ================= HEALTH CHECK (VERY IMPORTANT FOR DEPLOYMENT) =================
+// ================= HEALTH CHECK =================
 app.get("/", (req, res) => {
-  res.send("API is running...");
+  res.status(200).json({
+    status: "OK",
+    message: "API is running 🚀",
+  });
+});
+
+// ================= GLOBAL ERROR HANDLER =================
+app.use((err, req, res, next) => {
+  console.error("🔥 Server Error:", err.message);
+
+  res.status(500).json({
+    message: err.message || "Internal Server Error",
+  });
 });
 
 // ================= START SERVER =================
