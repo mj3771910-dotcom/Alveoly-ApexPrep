@@ -3,7 +3,9 @@ import { io } from "socket.io-client";
 import { FaPlus, FaEdit, FaTrash, FaTimes, FaSave } from "react-icons/fa";
 import axios from "../api/axios";
 
-const socket = io(import.meta.env.VITE_API_URL?.replace("/api", "") || "http://localhost:5000");
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
+const socket = io(BASE_URL);
 
 const AdminQuestions = () => {
   const [courses, setCourses] = useState([]);
