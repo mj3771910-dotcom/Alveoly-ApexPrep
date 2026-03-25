@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import helmet from "helmet";
 
 import authRoutes from "./routes/authRoutes.js";
 import aiRoutes from "./routes/aiRoutes.js";
@@ -22,17 +23,24 @@ import messageRoutes from "./routes/messageRoutes.js";
 
 const app = express();
 
+// ================= SECURITY (HELMET) =================
+app.use(
+  helmet({
+    crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }, // ✅ FIX Google login
+    crossOriginEmbedderPolicy: false, // 🔥 CRITICAL (prevents COEP error)
+  })
+);
+
 // ================= CORS =================
 const allowedOrigins = [
   "http://localhost:5173",
   "https://alveolyapexprep.academy",
-  process.env.CLIENT_URL, // ✅ allow env-based frontend
+  process.env.CLIENT_URL,
 ].filter(Boolean);
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (mobile apps, Postman, etc.)
       if (!origin) return callback(null, true);
 
       if (allowedOrigins.includes(origin)) {
@@ -46,13 +54,11 @@ app.use(
   })
 );
 
-// ================= SECURITY HEADERS =================
+// ================= EXTRA SAFETY (FORCE OVERRIDE) =================
 app.use((req, res, next) => {
-  // ✅ Allow Google OAuth popups (fixes COOP error)
+  // 🔥 Ensure nothing overrides this later
+  res.removeHeader("Cross-Origin-Embedder-Policy");
   res.setHeader("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
-
-  // ❌ DO NOT add Cross-Origin-Embedder-Policy (breaks Google login)
-
   next();
 });
 
