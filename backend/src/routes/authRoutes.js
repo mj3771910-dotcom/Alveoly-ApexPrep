@@ -8,13 +8,13 @@ import {
   resetPassword,
   forgotPassword,
   googleCallback,
-  googleLogin, // ✅ IMPORT THIS
+  googleLogin,
 } from "../controllers/authController.js";
 import { protect } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// EMAIL AUTH
+// Email/Password
 router.post("/register", register);
 router.post("/login", login);
 router.put("/me/course", protect, assignCourse);
@@ -22,20 +22,19 @@ router.get("/me", protect, getMyInfo);
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password/:token", resetPassword);
 
+// Google login via frontend ID token
+router.post("/google-login", googleLogin);
 
-router.post("/google-login", googleLogin); // ✅ frontend sends Google idToken here
-
-// GOOGLE LOGIN
+// OAuth redirect flow
 router.get(
   "/google",
   passport.authenticate("google", { scope: ["profile", "email"] })
 );
 
-// ✅ GOOGLE CALLBACK (CLEAN)
 router.get(
   "/google/callback",
   passport.authenticate("google", { session: false }),
-  googleCallback // ✅ USE CONTROLLER
+  googleCallback
 );
 
 export default router;

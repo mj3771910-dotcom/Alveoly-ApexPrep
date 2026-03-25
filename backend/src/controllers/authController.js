@@ -1,20 +1,26 @@
 import User from "../models/User.js";
 import bcrypt from "bcryptjs";
-import generateToken from "../utils/generateToken.js";
+import jwt from "jsonwebtoken";
 import crypto from "crypto";
-
 import { OAuth2Client } from "google-auth-library";
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
-// ================= GOOGLE LOGIN =================
+// ================= JWT GENERATOR =================
+export const generateToken = (user) => {
+  return jwt.sign(
+    { id: user._id, role: user.role },
+    process.env.JWT_SECRET,
+    { expiresIn: "7d" }
+  );
+};
+
+// ================= GOOGLE LOGIN (ID TOKEN) =================
 export const googleLogin = async (req, res) => {
   try {
-    const { idToken } = req.body; // frontend sends Google idToken
-
+    const { idToken } = req.body;
     if (!idToken) return res.status(400).json({ message: "Google token required" });
 
-    // Verify Google token
     const ticket = await client.verifyIdToken({
       idToken,
       audience: process.env.GOOGLE_CLIENT_ID,
@@ -26,22 +32,37 @@ export const googleLogin = async (req, res) => {
 
     let user = await User.findOne({ email });
 
-    // Create new user if doesn't exist
     if (!user) {
       user = await User.create({ name, email });
     }
 
-    // Generate backend JWT
-    const token = jwt.sign(
-      { id: user._id, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: "7d" }
-    );
+    const token = generateToken(user);
 
     res.json({ token, user });
   } catch (err) {
     console.error("GOOGLE LOGIN ERROR:", err);
     res.status(401).json({ message: "Invalid Google token" });
+  }
+};
+
+// ================= GOOGLE CALLBACK (REDIRECT FLOW) =================
+export const googleCallback = async (req, res) => {
+  try {
+    const { user } = req;
+    const token = generateToken(user);
+
+    const requiresCourse = !user.courseId;
+
+    const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
+
+    // Redirect with JWT as query param
+    return res.redirect(
+      `${CLIENT_URL}/auth-success?token=${token}&requiresCourse=${requiresCourse}`
+    );
+  } catch (err) {
+    console.error("GOOGLE CALLBACK ERROR:", err);
+    const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
+    return res.redirect(`${CLIENT_URL}/login`);
   }
 };
 
@@ -153,32 +174,6 @@ export const getMyInfo = async (req, res) => {
   } catch (err) {
     console.error("GET USER ERROR:", err);
     res.status(500).json({ message: "Server error" });
-  }
-};
-
-// ================= GOOGLE CALLBACK =================
-export const googleCallback = async (req, res) => {
-  try {
-    const { user } = req;
-    const token = generateToken(user);
-
-    const requiresCourse = !user.courseId;
-
-    // ✅ USE ENV (VERY IMPORTANT FOR RENDER)
-    const CLIENT_URL =
-      process.env.CLIENT_URL || "http://localhost:5173";
-
-    return res.redirect(
-      `${CLIENT_URL}/auth-success?token=${token}&requiresCourse=${requiresCourse}`
-    );
-
-  } catch (err) {
-    console.error("GOOGLE CALLBACK ERROR:", err);
-
-    const CLIENT_URL =
-      process.env.CLIENT_URL || "http://localhost:5173";
-
-    return res.redirect(`${CLIENT_URL}/login`);
   }
 };
 
