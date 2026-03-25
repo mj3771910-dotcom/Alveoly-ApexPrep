@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import API from "../api/api";
-import socket from "../api/socket.js"; // ✅ Socket connection
+import socket from "../api/socket.js"; // ✅ Global socket
 
 const AuthContext = createContext();
 
@@ -11,15 +11,16 @@ export const AuthProvider = ({ children }) => {
   // ================= SOCKET =================
   const connectSocket = (userData) => {
     if (userData?._id) {
+      socket.connect();
       socket.emit("join:user", userData._id);
     }
   };
 
   const disconnectSocket = () => {
-    socket.disconnect();
+    if (socket.connected) socket.disconnect();
   };
 
-  // ================= FETCH USER =================
+  // ================= FETCH CURRENT USER =================
   const fetchUser = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -30,9 +31,7 @@ export const AuthProvider = ({ children }) => {
         return;
       }
 
-      // Axios interceptor automatically adds token
-      const res = await API.get("/auth/me");
-
+      const res = await API.get("/auth/me"); // Axios interceptor adds token automatically
       setUser(res.data);
 
       // Connect socket
@@ -41,7 +40,7 @@ export const AuthProvider = ({ children }) => {
     } catch (err) {
       console.error("Fetch user error:", err);
 
-      // Token invalid or expired
+      // Invalid/expired token
       localStorage.removeItem("token");
       setUser(null);
 
@@ -54,14 +53,14 @@ export const AuthProvider = ({ children }) => {
     fetchUser();
   }, []);
 
-  // ================= LOGIN =================
+  // ================= EMAIL / PASSWORD LOGIN =================
   const login = async (form) => {
     try {
       const res = await API.post("/auth/login", form);
       const token = res.data.token;
 
       localStorage.setItem("token", token);
-      await fetchUser();
+      await fetchUser(); // Fetch user data + connect socket
     } catch (err) {
       console.error("Login error:", err);
       throw err;
@@ -83,18 +82,20 @@ export const AuthProvider = ({ children }) => {
   };
 
   // ================= GOOGLE LOGIN =================
-  // token: backend JWT returned from /auth/google-login
-  // userData: optional pre-fetched user object
-  const handleGoogleLogin = async (token, userData = null) => {
-    localStorage.setItem("token", token);
+  // idToken: Google credential token
+  const googleLogin = async (idToken) => {
+    try {
+      const res = await API.post("/auth/google-login", { idToken });
+      const { token, user: userData } = res.data;
 
-    if (userData) {
-      // Use provided user object (from /auth/google-login)
+      localStorage.setItem("token", token);
       setUser(userData);
       connectSocket(userData);
-    } else {
-      // Fetch user from backend
-      await fetchUser();
+
+      return userData; // For redirect logic in frontend
+    } catch (err) {
+      console.error("Google login error:", err);
+      throw err;
     }
   };
 
@@ -110,11 +111,11 @@ export const AuthProvider = ({ children }) => {
       value={{
         user,
         setUser,
+        loading,
         login,
         register,
         logout,
-        loading,
-        handleGoogleLogin,
+        googleLogin, // ✅ Use this in LoginPage
       }}
     >
       {children}

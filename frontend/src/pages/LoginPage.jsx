@@ -31,15 +31,9 @@ const LoginPage = () => {
 
     try {
       await login(form);
-
       const token = localStorage.getItem("token");
       const payload = JSON.parse(atob(token.split(".")[1]));
-
-      if (payload.role === "admin") {
-        navigate("/admin");
-      } else {
-        navigate("/student/dashboard");
-      }
+      navigate(payload.role === "admin" ? "/admin" : "/student/dashboard");
     } catch (err) {
       alert(err.response?.data?.message || "Login failed");
     } finally {
@@ -63,22 +57,15 @@ const LoginPage = () => {
       if (!res.ok) throw new Error(data.message || "Google login failed");
 
       localStorage.setItem("token", data.token);
-
-      // Redirect based on course assignment
-      if (!data.user.courseId) {
-        navigate("/select-course");
-      } else {
-        navigate("/student/dashboard");
-      }
+      navigate(!data.user.courseId ? "/select-course" : "/student/dashboard");
     } catch (err) {
       alert(err.message);
     }
   };
 
   return (
-    <div className="bg-gray-50 min-h-screen text-gray-800 flex flex-col">
+    <div className="bg-gray-50 min-h-screen flex flex-col">
       <Navbar />
-
       <section className="flex-1 flex items-center justify-center py-20 px-4">
         <motion.div
           initial={{ opacity: 0, y: 50 }}
@@ -86,35 +73,20 @@ const LoginPage = () => {
           transition={{ duration: 0.6 }}
           className="bg-white shadow-xl rounded-2xl max-w-5xl w-full md:flex overflow-hidden"
         >
-          {/* LEFT */}
+          {/* LEFT IMAGE */}
           <div className="hidden md:flex md:w-1/2 items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-8">
-            <img
-              src={loginIllustration}
-              alt="Login illustration"
-              className="w-full max-w-sm"
-            />
+            <img src={loginIllustration} alt="Login illustration" className="w-full max-w-sm" />
           </div>
 
-          {/* RIGHT */}
+          {/* RIGHT FORM */}
           <div className="w-full md:w-1/2 p-10 flex flex-col justify-center">
-            <h2 className="text-3xl font-bold text-gray-800 mb-2">
-              Welcome Back 👋
-            </h2>
+            <h2 className="text-3xl font-bold text-gray-800 mb-2">Welcome Back 👋</h2>
+            <p className="text-gray-500 mb-6">Login to continue your learning journey</p>
 
-            <p className="text-gray-500 mb-6">
-              Login to continue your learning journey
-            </p>
-
-            {/* GOOGLE LOGIN */}
-            <GoogleLogin
-              onSuccess={handleGoogleLogin}
-              onError={() => alert("Google login failed")}
-              useOneTap
-            />
+            <GoogleLogin onSuccess={handleGoogleLogin} onError={() => alert("Google login failed")} useOneTap={false} />
 
             <div className="text-center text-gray-400 mb-6 text-sm">OR</div>
 
-            {/* FORM */}
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="relative">
                 <FaEnvelope className="absolute left-3 top-4 text-gray-400" />
@@ -140,44 +112,26 @@ const LoginPage = () => {
                   required
                   className="w-full pl-10 pr-10 py-3 rounded-lg border focus:ring-2 focus:ring-blue-500 outline-none"
                 />
-                <span
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-4 cursor-pointer text-gray-500"
-                >
+                <span onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-4 cursor-pointer text-gray-500">
                   {showPassword ? <FaEyeSlash /> : <FaEye />}
                 </span>
               </div>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className={`w-full py-3 rounded-lg text-white font-semibold transition ${
-                  loading ? "bg-gray-400" : "bg-blue-600 hover:bg-blue-700"
-                }`}
-              >
+              <button type="submit" disabled={loading} className={`w-full py-3 rounded-lg text-white font-semibold transition ${loading ? "bg-gray-400" : "bg-blue-600 hover:bg-blue-700"}`}>
                 {loading ? "Logging in..." : "Login"}
               </button>
             </form>
 
             <p className="mt-6 text-center text-gray-500 text-sm">
-              Don't have an account?{" "}
-              <Link to="/signup" className="text-blue-600 font-semibold">
-                Sign Up
-              </Link>
+              Don't have an account? <Link to="/signup" className="text-blue-600 font-semibold">Sign Up</Link>
             </p>
 
             <p className="mt-2 text-center text-sm">
-              <Link
-                to="/forgot-password"
-                className="text-blue-600 hover:underline"
-              >
-                Forgot Password?
-              </Link>
+              <Link to="/forgot-password" className="text-blue-600 hover:underline">Forgot Password?</Link>
             </p>
           </div>
         </motion.div>
       </section>
-
       <Footer />
     </div>
   );
