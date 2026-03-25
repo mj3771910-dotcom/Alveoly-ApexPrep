@@ -1,3 +1,4 @@
+// src/controllers/authController.js
 import User from "../models/User.js";
 import bcrypt from "bcryptjs";
 import generateToken from "../utils/generateToken.js";
@@ -12,7 +13,9 @@ export const googleLogin = async (req, res) => {
     const { idToken } = req.body;
     if (!idToken) return res.status(400).json({ message: "Google token required" });
 
-    const payload = await client.verifyIdToken({ idToken, audience: process.env.GOOGLE_CLIENT_ID }).then(ticket => ticket.getPayload());
+    const payload = await client
+      .verifyIdToken({ idToken, audience: process.env.GOOGLE_CLIENT_ID })
+      .then(ticket => ticket.getPayload());
 
     const { email, name } = payload;
     let user = await User.findOne({ email });
@@ -27,6 +30,26 @@ export const googleLogin = async (req, res) => {
   } catch (err) {
     console.error("GOOGLE LOGIN ERROR:", err);
     res.status(401).json({ message: "Invalid Google token" });
+  }
+};
+
+// ================= GOOGLE CALLBACK =================
+export const googleCallback = async (req, res) => {
+  try {
+    const { user } = req; // Passport attaches user
+    if (!user) throw new Error("No user from Google");
+
+    const token = generateToken(user);
+    const requiresCourse = !user.courseId;
+    const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
+
+    return res.redirect(
+      `${CLIENT_URL}/auth-success?token=${token}&requiresCourse=${requiresCourse}`
+    );
+  } catch (err) {
+    console.error("GOOGLE CALLBACK ERROR:", err);
+    const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
+    return res.redirect(`${CLIENT_URL}/login`);
   }
 };
 
@@ -76,7 +99,12 @@ export const assignCourse = async (req, res) => {
     const { courseId } = req.body;
     if (!courseId) return res.status(400).json({ message: "Course required" });
 
-    const user = await User.findByIdAndUpdate(req.user._id, { courseId }, { new: true }).populate("courseId", "_id name");
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      { courseId },
+      { new: true }
+    ).populate("courseId", "_id name");
+
     res.json(user);
   } catch (err) {
     console.error("ASSIGN COURSE ERROR:", err);
