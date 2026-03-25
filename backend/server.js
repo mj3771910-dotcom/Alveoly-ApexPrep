@@ -4,7 +4,6 @@ import connectDB from "./config/db.js";
 import app from "./src/app.js";
 import { createServer } from "http";
 import { Server } from "socket.io";
-import passport from "./config/passport.js";
 
 dotenv.config();
 
@@ -51,11 +50,10 @@ io.on("connection", (socket) => {
   });
 
   socket.on("error", (err) => console.error("❌ Socket error:", err.message));
-  socket.on("connect_error", (err) => console.error("❌ Connection error:", err.message));
+  socket.on("connect_error", (err) =>
+    console.error("❌ Connection error:", err.message)
+  );
 });
-
-// ================= PASSPORT =================
-app.use(passport.initialize());
 
 // ================= HEALTH CHECK =================
 app.get("/", (req, res) => {
