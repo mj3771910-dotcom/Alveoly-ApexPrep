@@ -1,27 +1,34 @@
 import { io } from "socket.io-client";
 
-const SERVER_URL =
-  import.meta.env.VITE_API_URL || "http://localhost:5000";
+const SERVER_URL = (
+  import.meta.env.VITE_API_URL || "http://localhost:5000"
+).replace("/api", "");
 
-const socket = io(SERVER_URL, {
-  transports: ["websocket", "polling"],
-  withCredentials: true,
-  reconnection: true,
-  reconnectionAttempts: 5,
-  reconnectionDelay: 1000,
-  timeout: 20000,
-});
+let socket;
 
-socket.on("connect", () => {
-  console.log("🟢 Connected:", socket.id);
-});
+export const getSocket = () => {
+  if (!socket) {
+    socket = io(SERVER_URL, {
+      transports: ["websocket"],
+      withCredentials: true,
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      timeout: 20000,
+    });
 
-socket.on("disconnect", (reason) => {
-  console.log("🔴 Disconnected:", reason);
-});
+    socket.on("connect", () => {
+      console.log("🟢 Connected:", socket.id);
+    });
 
-socket.on("connect_error", (err) => {
-  console.error("❌ Socket error:", err.message);
-});
+    socket.on("disconnect", (reason) => {
+      console.log("🔴 Disconnected:", reason);
+    });
 
-export default socket;
+    socket.on("connect_error", (err) => {
+      console.error("❌ Socket error:", err.message);
+    });
+  }
+
+  return socket;
+};

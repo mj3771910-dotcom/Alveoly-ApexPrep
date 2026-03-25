@@ -1,22 +1,27 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
 import { FaTrash } from "react-icons/fa";
+import axios from "../api/axios";
 
 const AdminUsers = () => {
   const [users, setUsers] = useState([]);
-  const token = localStorage.getItem("token");
+  const [loading, setLoading] = useState(false);
 
+  // ================= FETCH USERS =================
   const fetchUsers = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/users", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      setLoading(true);
+      const res = await axios.get("/users");
 
-      setUsers(res.data);
+      if (Array.isArray(res.data)) {
+        setUsers(res.data);
+      } else {
+        setUsers([]);
+      }
     } catch (err) {
       console.error(err);
+      alert("Failed to fetch users");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -24,37 +29,43 @@ const AdminUsers = () => {
     fetchUsers();
   }, []);
 
+  // ================= ROLE CHANGE =================
   const handleRoleChange = async (id, role) => {
-    try {
-      await axios.put(
-        `http://localhost:5000/api/users/${id}/role`,
-        { role },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+    if (loading) return;
 
-      fetchUsers();
+    try {
+      setLoading(true);
+
+      await axios.put(`/users/${id}/role`, { role });
+
+      // ✅ Optimistic update (no refetch needed)
+      setUsers((prev) =>
+        prev.map((u) => (u._id === id ? { ...u, role } : u))
+      );
     } catch (err) {
       console.error(err);
+      alert("Failed to update role");
+    } finally {
+      setLoading(false);
     }
   };
 
+  // ================= DELETE =================
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure?")) return;
 
     try {
-      await axios.delete(`http://localhost:5000/api/users/${id}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      setLoading(true);
 
-      fetchUsers();
+      await axios.delete(`/users/${id}`);
+
+      // ✅ Instant UI update
+      setUsers((prev) => prev.filter((u) => u._id !== id));
     } catch (err) {
       console.error(err);
+      alert("Failed to delete user");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -71,8 +82,15 @@ const AdminUsers = () => {
         </p>
       </div>
 
-      {/* EMPTY STATE */}
-      {users.length === 0 && (
+      {/* LOADING */}
+      {loading && (
+        <p className="text-center text-gray-500 mb-4">
+          Loading...
+        </p>
+      )}
+
+      {/* EMPTY */}
+      {!loading && users.length === 0 && (
         <div className="bg-white p-10 rounded-xl shadow-sm text-center">
           <p className="text-gray-500 text-lg">
             No users found 👤
@@ -81,78 +99,74 @@ const AdminUsers = () => {
       )}
 
       {/* TABLE */}
-      <div className="overflow-x-auto bg-white shadow-sm rounded-xl border">
-        <table className="min-w-full text-sm">
-          
-          {/* HEAD */}
-          <thead className="bg-gray-50 text-gray-600 uppercase text-xs">
-            <tr>
-              <th className="p-4 text-left">User</th>
-              <th className="p-4 text-left">Email</th>
-              <th className="p-4 text-left">Course</th>
-              <th className="p-4 text-left">Role</th>
-              <th className="p-4 text-left">Action</th>
-            </tr>
-          </thead>
-
-          {/* BODY */}
-          <tbody>
-            {users.map((user) => (
-              <tr
-                key={user._id}
-                className="border-t hover:bg-gray-50 transition"
-              >
-                
-                {/* USER */}
-                <td className="p-4 flex items-center gap-3">
-                  <div className="w-10 h-10 flex items-center justify-center rounded-full bg-blue-100 text-blue-600 font-bold">
-                    {user.name?.charAt(0).toUpperCase()}
-                  </div>
-                  <span className="font-medium text-gray-800">
-                    {user.name}
-                  </span>
-                </td>
-
-                {/* EMAIL */}
-                <td className="p-4 text-gray-600">
-                  {user.email}
-                </td>
-
-                {/* COURSE */}
-                <td className="p-4 text-gray-600">
-                  {user.courseId?.name || "None"}
-                </td>
-
-                {/* ROLE */}
-                <td className="p-4">
-                  <select
-                    value={user.role}
-                    onChange={(e) =>
-                      handleRoleChange(user._id, e.target.value)
-                    }
-                    className="border px-3 py-1 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                  >
-                    <option value="student">Student</option>
-                    <option value="admin">Admin</option>
-                  </select>
-                </td>
-
-                {/* ACTION */}
-                <td className="p-4">
-                  <button
-                    onClick={() => handleDelete(user._id)}
-                    className="flex items-center gap-2 bg-red-100 text-red-600 px-3 py-1 rounded-lg hover:bg-red-200 transition"
-                  >
-                    <FaTrash />
-                    Delete
-                  </button>
-                </td>
+      {users.length > 0 && (
+        <div className="overflow-x-auto bg-white shadow-sm rounded-xl border">
+          <table className="min-w-full text-sm">
+            
+            <thead className="bg-gray-50 text-gray-600 uppercase text-xs">
+              <tr>
+                <th className="p-4 text-left">User</th>
+                <th className="p-4 text-left">Email</th>
+                <th className="p-4 text-left">Course</th>
+                <th className="p-4 text-left">Role</th>
+                <th className="p-4 text-left">Action</th>
               </tr>
-            ))}
-          </tbody>
+            </thead>
 
-        </table>
-      </div>
+            <tbody>
+              {users.map((user) => (
+                <tr
+                  key={user._id}
+                  className="border-t hover:bg-gray-50 transition"
+                >
+                  
+                  <td className="p-4 flex items-center gap-3">
+                    <div className="w-10 h-10 flex items-center justify-center rounded-full bg-blue-100 text-blue-600 font-bold">
+                      {user.name?.charAt(0).toUpperCase()}
+                    </div>
+                    <span className="font-medium text-gray-800">
+                      {user.name}
+                    </span>
+                  </td>
+
+                  <td className="p-4 text-gray-600">
+                    {user.email}
+                  </td>
+
+                  <td className="p-4 text-gray-600">
+                    {user.courseId?.name || "None"}
+                  </td>
+
+                  <td className="p-4">
+                    <select
+                      value={user.role}
+                      onChange={(e) =>
+                        handleRoleChange(user._id, e.target.value)
+                      }
+                      className="border px-3 py-1 rounded-lg"
+                    >
+                      <option value="student">Student</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </td>
+
+                  <td className="p-4">
+                    <button
+                      onClick={() => handleDelete(user._id)}
+                      className="flex items-center gap-2 bg-red-100 text-red-600 px-3 py-1 rounded-lg hover:bg-red-200"
+                    >
+                      <FaTrash />
+                      Delete
+                    </button>
+                  </td>
+
+                </tr>
+              ))}
+            </tbody>
+
+          </table>
+        </div>
+      )}
     </div>
   );
 };
