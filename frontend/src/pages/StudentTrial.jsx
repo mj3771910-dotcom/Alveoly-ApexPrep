@@ -8,7 +8,7 @@ import {
   FaCheck,
 } from "react-icons/fa";
 import { useAuth } from "../context/AuthContext";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 
 const StudentTrial = () => {
   const { user } = useAuth();
@@ -339,7 +339,7 @@ Explain the correct answer like a nursing tutor.
             {/* RATIONALE */}
             <div className="mt-6 space-y-4">
               {questions.map((q, index) => {
-                const userAns = answers[q._id] ? "bg-green-500 text-white" : "bg-gray-200";
+                const userAns = answers[q._id];
                 const correct = q.correctAnswer;
 
                 return (
