@@ -132,9 +132,9 @@ function App() {
           <Route
             path="/admin"
             element={
-              
+              <ProtectedRoute role="admin">
                 <AdminLayout />
-              
+              </ProtectedRoute>
             }
           >
             {/* Dashboard */}
@@ -146,7 +146,7 @@ function App() {
             {/* Core Management */}
             <Route path="subjects" element={<ProtectedRoute role="admin"><AdminSubjects /></ProtectedRoute>} />
             <Route path="questions" element={<ProtectedRoute role="admin"><AdminQuestions /></ProtectedRoute>} />
-            <Route path="courses" element={<AdminCourses />} />
+            <Route path="courses" element={<ProtectedRoute role="admin"><AdminCourses /></ProtectedRoute>} />
             <Route path="payments" element={<ProtectedRoute role="admin"><AdminPayments /></ProtectedRoute>} />
             <Route path="users" element={<ProtectedRoute role="admin"><AdminUsers /></ProtectedRoute>} />
             <Route path="plans" element={<ProtectedRoute role="admin"><AdminPlans /></ProtectedRoute>} />
