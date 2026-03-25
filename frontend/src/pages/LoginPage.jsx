@@ -4,6 +4,8 @@ import { motion } from "framer-motion";
 import { FcGoogle } from "react-icons/fc";
 import { FaEye, FaEyeSlash, FaEnvelope, FaLock } from "react-icons/fa";
 
+import { GoogleLogin } from "@react-oauth/google";
+
 import Navbar from "./Navbar";
 import Footer from "./Footer";
 import loginIllustration from "../assets/login-illustration.png";
@@ -22,6 +24,7 @@ const LoginPage = () => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
+  // ✅ EMAIL / PASSWORD LOGIN
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -44,8 +47,32 @@ const LoginPage = () => {
     }
   };
 
-  const handleGoogleLogin = () => {
-   window.location.href = `${import.meta.env.VITE_API_URL}/api/auth/google`;
+  // ✅ GOOGLE LOGIN
+  const handleGoogleLogin = async (credentialResponse) => {
+    try {
+      const idToken = credentialResponse.credential;
+      if (!idToken) return;
+
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/google-login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Google login failed");
+
+      localStorage.setItem("token", data.token);
+
+      // Redirect based on course assignment
+      if (!data.user.courseId) {
+        navigate("/select-course");
+      } else {
+        navigate("/student/dashboard");
+      }
+    } catch (err) {
+      alert(err.message);
+    }
   };
 
   return (
@@ -70,8 +97,6 @@ const LoginPage = () => {
 
           {/* RIGHT */}
           <div className="w-full md:w-1/2 p-10 flex flex-col justify-center">
-            
-            {/* HEADER */}
             <h2 className="text-3xl font-bold text-gray-800 mb-2">
               Welcome Back 👋
             </h2>
@@ -81,27 +106,18 @@ const LoginPage = () => {
             </p>
 
             {/* GOOGLE LOGIN */}
-            <button
-              onClick={handleGoogleLogin}
-              className="flex items-center justify-center gap-3 w-full border rounded-lg py-3 mb-6 hover:shadow-md transition bg-white"
-            >
-              <FcGoogle size={22} />
-              <span className="font-medium text-gray-700">
-                Continue with Google
-              </span>
-            </button>
+            <GoogleLogin
+              onSuccess={handleGoogleLogin}
+              onError={() => alert("Google login failed")}
+              useOneTap
+            />
 
-            <div className="text-center text-gray-400 mb-6 text-sm">
-              OR
-            </div>
+            <div className="text-center text-gray-400 mb-6 text-sm">OR</div>
 
             {/* FORM */}
             <form onSubmit={handleSubmit} className="space-y-4">
-              
-              {/* EMAIL */}
               <div className="relative">
                 <FaEnvelope className="absolute left-3 top-4 text-gray-400" />
-
                 <input
                   type="email"
                   name="email"
@@ -113,10 +129,8 @@ const LoginPage = () => {
                 />
               </div>
 
-              {/* PASSWORD */}
               <div className="relative">
                 <FaLock className="absolute left-3 top-4 text-gray-400" />
-
                 <input
                   type={showPassword ? "text" : "password"}
                   name="password"
@@ -126,7 +140,6 @@ const LoginPage = () => {
                   required
                   className="w-full pl-10 pr-10 py-3 rounded-lg border focus:ring-2 focus:ring-blue-500 outline-none"
                 />
-
                 <span
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-4 cursor-pointer text-gray-500"
@@ -135,21 +148,17 @@ const LoginPage = () => {
                 </span>
               </div>
 
-              {/* SUBMIT */}
               <button
                 type="submit"
                 disabled={loading}
                 className={`w-full py-3 rounded-lg text-white font-semibold transition ${
-                  loading
-                    ? "bg-gray-400"
-                    : "bg-blue-600 hover:bg-blue-700"
+                  loading ? "bg-gray-400" : "bg-blue-600 hover:bg-blue-700"
                 }`}
               >
                 {loading ? "Logging in..." : "Login"}
               </button>
             </form>
 
-            {/* LINKS */}
             <p className="mt-6 text-center text-gray-500 text-sm">
               Don't have an account?{" "}
               <Link to="/signup" className="text-blue-600 font-semibold">
