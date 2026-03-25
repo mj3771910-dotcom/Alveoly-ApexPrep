@@ -14,27 +14,28 @@ const AuthSuccess = () => {
   useEffect(() => {
     const authFlow = async () => {
       const params = new URLSearchParams(window.location.search);
-      const jwtToken = params.get("token");
-      if (!jwtToken) return navigate("/login", { replace: true });
+      const googleToken = params.get("token"); // Backend JWT
 
-      setToken(jwtToken);
-      localStorage.setItem("token", jwtToken);
+      if (!googleToken) {
+        navigate("/login", { replace: true });
+        return;
+      }
 
       try {
-        // Fetch current user from backend
-        const { data: user } = await API.get("/auth/me", {
-          headers: { Authorization: `Bearer ${jwtToken}` },
-        });
+        localStorage.setItem("token", googleToken);
+        setToken(googleToken);
 
-        await handleGoogleLogin(jwtToken, user);
+        const { data: user } = await API.get("/auth/me");
+        await handleGoogleLogin(googleToken, user);
 
         if (user.role === "admin") return navigate("/admin", { replace: true });
-        if (user.role === "student" && user.courseId) return navigate("/student/dashboard", { replace: true });
+        if (user.courseId) return navigate("/student/dashboard", { replace: true });
 
-        // Student without course
+        // Student without course -> fetch courses
         const { data: coursesData } = await API.get("/courses");
         setCourses(coursesData);
         setLoading(false);
+
       } catch (err) {
         console.error("Auth success error:", err);
         navigate("/login", { replace: true });
@@ -48,16 +49,8 @@ const AuthSuccess = () => {
     if (!selectedCourse) return alert("Select a course!");
 
     try {
-      await API.put(
-        "/auth/me/course",
-        { courseId: selectedCourse },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      const { data: updatedUser } = await API.get("/auth/me", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
+      await API.put("/auth/me/course", { courseId: selectedCourse });
+      const { data: updatedUser } = await API.get("/auth/me");
       await handleGoogleLogin(token, updatedUser);
       navigate("/student/dashboard", { replace: true });
     } catch (err) {
@@ -67,38 +60,22 @@ const AuthSuccess = () => {
   };
 
   if (loading) return <p>Logging you in...</p>;
-
   if (courses.length > 0) {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div className="bg-white p-6 rounded-xl max-w-md w-full">
           <h2 className="text-xl font-bold mb-4">Select Your Course</h2>
-
           <select
             className="w-full p-3 border rounded mb-4"
             value={selectedCourse}
             onChange={(e) => setSelectedCourse(e.target.value)}
           >
             <option value="">-- Choose your course --</option>
-            {courses.map((c) => (
-              <option key={c._id} value={c._id}>{c.name}</option>
-            ))}
+            {courses.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
           </select>
-
           <div className="flex justify-between">
-            <button
-              onClick={() => navigate("/login", { replace: true })}
-              className="px-4 py-2 rounded bg-red-500 text-white"
-            >
-              Cancel
-            </button>
-
-            <button
-              onClick={handleAssignCourse}
-              className="px-4 py-2 rounded bg-blue-600 text-white"
-            >
-              Confirm
-            </button>
+            <button onClick={() => navigate("/login", { replace: true })} className="px-4 py-2 rounded bg-red-500 text-white">Cancel</button>
+            <button onClick={handleAssignCourse} className="px-4 py-2 rounded bg-blue-600 text-white">Confirm</button>
           </div>
         </div>
       </div>
