@@ -80,7 +80,7 @@ function App() {
           <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
 
           {/* ✅ GOOGLE SUCCESS HANDLER */}
-          <Route path="/auth-success" element={<AuthSuccess />} />
+          <Route path="/select-course" element={<AuthSuccess />} />
 
           {/* SUPPORT */}
           <Route path="/help" element={<HelpCenterPage />} />
