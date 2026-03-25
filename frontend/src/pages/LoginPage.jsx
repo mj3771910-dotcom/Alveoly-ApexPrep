@@ -1,15 +1,12 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FcGoogle } from "react-icons/fc";
-import { FaEye, FaEyeSlash, FaEnvelope, FaLock } from "react-icons/fa";
-
+import { FaEnvelope, FaLock, FaEye, FaEyeSlash } from "react-icons/fa";
 import { GoogleLogin } from "@react-oauth/google";
 
 import Navbar from "./Navbar";
 import Footer from "./Footer";
 import loginIllustration from "../assets/login-illustration.png";
-
 import { useAuth } from "../context/AuthContext";
 
 const LoginPage = () => {
@@ -20,15 +17,12 @@ const LoginPage = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
+  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
-  // ✅ EMAIL / PASSWORD LOGIN
+  // EMAIL / PASSWORD LOGIN
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-
     try {
       await login(form);
       const token = localStorage.getItem("token");
@@ -41,7 +35,7 @@ const LoginPage = () => {
     }
   };
 
-  // ✅ GOOGLE LOGIN
+  // GOOGLE LOGIN
   const handleGoogleLogin = async (credentialResponse) => {
     try {
       const idToken = credentialResponse.credential;
@@ -73,17 +67,19 @@ const LoginPage = () => {
           transition={{ duration: 0.6 }}
           className="bg-white shadow-xl rounded-2xl max-w-5xl w-full md:flex overflow-hidden"
         >
-          {/* LEFT IMAGE */}
           <div className="hidden md:flex md:w-1/2 items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-8">
             <img src={loginIllustration} alt="Login illustration" className="w-full max-w-sm" />
           </div>
 
-          {/* RIGHT FORM */}
           <div className="w-full md:w-1/2 p-10 flex flex-col justify-center">
             <h2 className="text-3xl font-bold text-gray-800 mb-2">Welcome Back 👋</h2>
             <p className="text-gray-500 mb-6">Login to continue your learning journey</p>
 
-            <GoogleLogin onSuccess={handleGoogleLogin} onError={() => alert("Google login failed")} useOneTap={false} />
+            <GoogleLogin
+              onSuccess={handleGoogleLogin}
+              onError={() => alert("Google login failed")}
+              useOneTap={false} // prevents multiple GSI initializations
+            />
 
             <div className="text-center text-gray-400 mb-6 text-sm">OR</div>
 
@@ -125,7 +121,6 @@ const LoginPage = () => {
             <p className="mt-6 text-center text-gray-500 text-sm">
               Don't have an account? <Link to="/signup" className="text-blue-600 font-semibold">Sign Up</Link>
             </p>
-
             <p className="mt-2 text-center text-sm">
               <Link to="/forgot-password" className="text-blue-600 hover:underline">Forgot Password?</Link>
             </p>
