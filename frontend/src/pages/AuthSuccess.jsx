@@ -14,53 +14,46 @@ const AuthSuccess = () => {
   const [token, setToken] = useState("");
 
   useEffect(() => {
-    const authFlow = async () => {
-      const params = new URLSearchParams(window.location.search);
-      const tokenFromUrl = params.get("token");
+  const authFlow = async () => {
+    const params = new URLSearchParams(window.location.search);
+    const tokenFromUrl = params.get("token");
 
-      if (!tokenFromUrl) {
-        navigate("/login", { replace: true });
+    if (!tokenFromUrl) {
+      navigate("/login", { replace: true });
+      return;
+    }
+
+    // ✅ STORE TOKEN FIRST
+    localStorage.setItem("token", tokenFromUrl);
+
+    try {
+      // Now interceptor will attach token automatically
+      const { data: user } = await API.get("/auth/me");
+
+      await handleGoogleLogin(tokenFromUrl, user);
+
+      if (user.role === "admin") {
+        navigate("/admin", { replace: true });
+        return;
+      }
+      if (user.role === "student" && user.courseId) {
+        navigate("/student/dashboard", { replace: true });
         return;
       }
 
-      setToken(tokenFromUrl);
-
-      try {
-        // 1️⃣ Fetch user using token
-        const { data: user } = await API.get("/auth/me", {
-          headers: { Authorization: `Bearer ${tokenFromUrl}` },
-        });
-
-        // 2️⃣ Store in context
-        await handleGoogleLogin(tokenFromUrl, user);
-
-        // 3️⃣ Redirect based on role
-        if (user.role === "admin") {
-          navigate("/admin", { replace: true });
-          return;
-        }
-
-        if (user.role === "student" && user.courseId) {
-          navigate("/student/dashboard", { replace: true });
-          return;
-        }
-
-        // 4️⃣ Student without course
-        if (user.role === "student" && !user.courseId) {
-          const { data } = await API.get("/courses");
-          setCourses(data);
-          setLoading(false);
-          return;
-        }
-
-      } catch (err) {
-        console.error("Auth success error:", err);
-        navigate("/login", { replace: true });
+      if (user.role === "student" && !user.courseId) {
+        const { data } = await API.get("/courses");
+        setCourses(data);
+        setLoading(false);
       }
-    };
+    } catch (err) {
+      console.error("Auth success error:", err);
+      navigate("/login", { replace: true });
+    }
+  };
 
-    authFlow();
-  }, [navigate, handleGoogleLogin]);
+  authFlow();
+}, [navigate, handleGoogleLogin]);
 
   // ================= ASSIGN COURSE =================
   const handleAssignCourse = async () => {
