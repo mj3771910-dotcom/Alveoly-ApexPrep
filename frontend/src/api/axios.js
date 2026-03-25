@@ -2,8 +2,8 @@
 import axios from "axios";
 
 const API = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
-  withCredentials: true, // ✅ REQUIRED
+  baseURL: "https://alveoly-apexprep-backend.onrender.com/api", // ✅ ADD /api
+  withCredentials: true,
 });
 
 API.interceptors.request.use(
