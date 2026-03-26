@@ -1,13 +1,31 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-   <url>
-      <loc>https://alveolyapexprep.academy/</loc>
-   </url>
-   <url>
-      <loc>https://alveolyapexprep.academy/features</loc>
-   </url>
-   <url>
-      <loc>https://alveolyapexprep.academy/subjects</loc>
-   </url>
-   <!-- add other important pages -->
+  <url>
+    <loc>https://alveolyapexprep.academy/</loc>
+  </url>
+  <url>
+    <loc>https://alveolyapexprep.academy/features</loc>
+  </url>
+  <url>
+    <loc>https://alveolyapexprep.academy/subjects</loc>
+  </url>
+  <url>
+    <loc>https://alveolyapexprep.academy/pricing</loc>
+  </url>
+  <url>
+    <loc>https://alveolyapexprep.academy/testimonials</loc>
+  </url>
+  <url>
+    <loc>https://alveolyapexprep.academy/about</loc>
+  </url>
+  <url>
+    <loc>https://alveolyapexprep.academy/contact</loc>
+  </url>
+  <url>
+    <loc>https://alveolyapexprep.academy/login</loc>
+  </url>
+  <url>
+    <loc>https://alveolyapexprep.academy/signup</loc>
+  </url>
+  <!-- add any other key pages here -->
 </urlset>
