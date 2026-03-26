@@ -107,123 +107,118 @@ const AIAdmin = () => {
   };
 
   return (
-  <div className="min-h-screen bg-gray-50 px-3 sm:px-6 py-6">
-    
-    <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div className="min-h-screen bg-gray-100 px-3 sm:px-6 py-4">
+      
+      {/* MAIN */}
+      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-      {/* ================= FORM ================= */}
-      <div className="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border 
-                      lg:sticky lg:top-6 h-fit">
+        {/* ================= FORM ================= */}
+        <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm w-full
+                        lg:sticky lg:top-6 h-fit">
 
-        <h2 className="text-xl sm:text-2xl font-semibold mb-6 flex items-center gap-2 text-gray-700">
-          <FaRobot className="text-blue-600" /> AI Training Panel
-        </h2>
+          <h2 className="text-lg sm:text-2xl font-bold mb-4 flex items-center gap-2">
+            <FaRobot /> AI Training Panel
+          </h2>
 
-        {/* QUESTION */}
-        <div className="mb-5">
-          <label className="text-xs sm:text-sm text-gray-500 mb-1 block">
-            Question
-          </label>
-          <textarea
-            className="w-full border border-gray-300 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm resize-none"
-            rows="3"
-            placeholder="Enter question..."
-            value={question}
-            onChange={(e) => setQuestion(e.target.value)}
-          />
+          {/* QUESTION */}
+          <div className="mb-4">
+            <label className="text-xs sm:text-sm text-gray-600 mb-1 block">
+              Question
+            </label>
+            <textarea
+              className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+              rows="3"
+              placeholder="Enter question..."
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+            />
+          </div>
+
+          {/* ANSWER */}
+          <div className="mb-4">
+            <label className="text-xs sm:text-sm text-gray-600 mb-1 block">
+              Manual Answer
+            </label>
+            <textarea
+              className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+              rows="4"
+              placeholder="Enter manual answer..."
+              value={manualAnswer}
+              onChange={(e) => setManualAnswer(e.target.value)}
+            />
+          </div>
+
+          {/* BUTTON */}
+          <button
+            onClick={handleSave}
+            disabled={loading}
+            className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium 
+                       hover:bg-blue-700 transition text-sm"
+          >
+            {loading
+              ? "Processing..."
+              : editingId
+              ? "Update QA"
+              : "Add QA"}
+          </button>
         </div>
 
-        {/* ANSWER */}
-        <div className="mb-5">
-          <label className="text-xs sm:text-sm text-gray-500 mb-1 block">
-            Manual Answer
-          </label>
-          <textarea
-            className="w-full border border-gray-300 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm resize-none"
-            rows="4"
-            placeholder="Enter manual answer..."
-            value={manualAnswer}
-            onChange={(e) => setManualAnswer(e.target.value)}
-          />
-        </div>
+        {/* ================= HISTORY ================= */}
+        <div className="w-full">
 
-        {/* BUTTON */}
-        <button
-          onClick={handleSave}
-          disabled={loading}
-          className="w-full bg-blue-600 text-white py-3 rounded-xl font-medium 
-                     hover:bg-blue-700 transition disabled:opacity-50"
-        >
-          {loading
-            ? "Processing..."
-            : editingId
-            ? "Update QA"
-            : "Add QA"}
-        </button>
-      </div>
-
-      {/* ================= HISTORY ================= */}
-      <div className="w-full">
-
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg sm:text-xl font-semibold text-gray-800">
+          <h3 className="text-lg sm:text-xl font-semibold mb-4 text-gray-800">
             AI Knowledge Base
           </h3>
-          <span className="text-xs text-gray-400">
-            {history.length} entries
-          </span>
-        </div>
 
-        {history.length === 0 ? (
-          <div className="bg-white p-8 rounded-2xl shadow-sm border text-center">
-            <FaRobot className="mx-auto text-3xl text-gray-300 mb-3" />
-            <p className="text-gray-500 text-sm">
-              No training data yet 🤖
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-4">
+          {history.length === 0 ? (
+            <div className="bg-white p-6 rounded-xl shadow-sm text-center">
+              <p className="text-gray-500 text-sm">
+                No training data yet 🤖
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
 
-            {history.map((item) => (
-              <div
-                key={item.id}
-                className="bg-white p-4 sm:p-5 rounded-2xl border shadow-sm hover:shadow-md transition"
-              >
-                {/* QUESTION */}
-                <p className="font-semibold text-gray-800 mb-2 text-sm leading-relaxed">
-                  Q: {item.question}
-                </p>
+              {history.map((item) => (
+                <div
+                  key={item.id}
+                  className="bg-white p-4 sm:p-5 rounded-xl shadow-sm hover:shadow-md transition"
+                >
+                  {/* QUESTION */}
+                  <p className="font-semibold text-gray-800 mb-2 text-sm">
+                    Q: {item.question}
+                  </p>
 
-                {/* ANSWER */}
-                <p className="text-gray-600 text-xs sm:text-sm mb-4 leading-relaxed">
-                  A: {item.answer}
-                </p>
+                  {/* ANSWER */}
+                  <p className="text-gray-600 text-xs sm:text-sm mb-4">
+                    A: {item.answer}
+                  </p>
 
-                {/* ACTIONS */}
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    onClick={() => handleEdit(item)}
-                    className="flex items-center gap-2 bg-yellow-100 text-yellow-700 px-3 py-1.5 rounded-lg text-xs hover:bg-yellow-200 transition"
-                  >
-                    <FaEdit /> Edit
-                  </button>
+                  {/* ACTIONS */}
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => handleEdit(item)}
+                      className="flex items-center gap-2 bg-yellow-100 text-yellow-700 px-3 py-1 rounded-lg text-xs hover:bg-yellow-200"
+                    >
+                      <FaEdit /> Edit
+                    </button>
 
-                  <button
-                    onClick={() => handleDelete(item.id)}
-                    className="flex items-center gap-2 bg-red-100 text-red-600 px-3 py-1.5 rounded-lg text-xs hover:bg-red-200 transition"
-                  >
-                    <FaTrash /> Delete
-                  </button>
+                    <button
+                      onClick={() => handleDelete(item.id)}
+                      className="flex items-center gap-2 bg-red-100 text-red-600 px-3 py-1 rounded-lg text-xs hover:bg-red-200"
+                    >
+                      <FaTrash /> Delete
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
 
-          </div>
-        )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
 };
 
 export default AIAdmin;
