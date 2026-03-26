@@ -209,18 +209,17 @@ const AIChat = () => {
     }
   };
 
-  return (
-  <div className="h-screen flex flex-col bg-gray-50">
+ return (
+  <div className="bg-gray-50 min-h-screen flex flex-col">
 
     {/* HEADER */}
     <div className="sticky top-0 z-20 bg-white border-b px-4 py-3 flex items-center justify-between">
       
-      {/* LEFT */}
       <div className="flex items-center gap-3">
-        {/* HAMBURGER (mobile only) */}
+        {/* MOBILE MENU */}
         <button
           onClick={() => setSidebarOpen(true)}
-          className="md:hidden text-gray-600"
+          className="md:hidden text-gray-600 text-lg"
         >
           ☰
         </button>
@@ -230,7 +229,6 @@ const AIChat = () => {
         </h2>
       </div>
 
-      {/* RIGHT */}
       {subscription && (
         <span className="text-xs sm:text-sm bg-green-100 text-green-700 px-3 py-1 rounded-full">
           ⏱ {formatTime(timeLeft)}
@@ -238,14 +236,14 @@ const AIChat = () => {
       )}
     </div>
 
-    {/* BODY */}
-    <div className="flex flex-1 overflow-hidden">
+    {/* MAIN CONTENT (LIKE DASHBOARD) */}
+    <div className="flex-1 w-full max-w-6xl mx-auto flex gap-6 px-3 md:px-6 py-6">
 
-      {/* SIDEBAR (DESKTOP) */}
-      <div className="hidden md:flex md:w-72 bg-white border-r flex-col">
+      {/* DESKTOP SIDEBAR */}
+      <div className="hidden md:flex w-72 bg-white border rounded-2xl flex-col h-fit">
         <div className="p-4 font-semibold border-b">Chats</div>
 
-        <div className="flex-1 overflow-y-auto p-2 space-y-2">
+        <div className="p-2 space-y-2">
           {chats.map((chat) => (
             <div
               key={chat._id}
@@ -302,11 +300,11 @@ const AIChat = () => {
         </div>
       )}
 
-      {/* CHAT AREA */}
+      {/* CHAT SECTION */}
       <div className="flex-1 flex flex-col">
 
         {/* MESSAGES */}
-        <div className="flex-1 overflow-y-auto px-4 md:px-6 py-4 space-y-4">
+        <div className="space-y-4 mb-24">
           
           {!subscription && (
             <div className="bg-white p-6 rounded-2xl shadow-sm text-center max-w-md mx-auto">
@@ -356,24 +354,27 @@ const AIChat = () => {
           ))}
         </div>
 
-        {/* STICKY INPUT */}
-        <div className="sticky bottom-0 bg-white border-t p-3 flex gap-2">
-          <input
-            className="flex-1 border border-gray-300 rounded-full px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-            value={question}
-            onChange={(e) => setQuestion(e.target.value)}
-            placeholder="Ask a nursing question..."
-            disabled={!subscription}
-          />
+        {/* STICKY INPUT (NOW PERFECT) */}
+        <div className="fixed bottom-0 left-0 w-full bg-white border-t p-3">
+          <div className="max-w-6xl mx-auto flex gap-2 px-3 md:px-6">
+            <input
+              className="flex-1 border border-gray-300 rounded-full px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+              placeholder="Ask a nursing question..."
+              disabled={!subscription}
+            />
 
-          <button
-            onClick={handleAsk}
-            disabled={!subscription || loading}
-            className="bg-blue-600 text-white px-5 py-2 rounded-full hover:bg-blue-700 disabled:opacity-50"
-          >
-            {loading ? "..." : "Send"}
-          </button>
+            <button
+              onClick={handleAsk}
+              disabled={!subscription || loading}
+              className="bg-blue-600 text-white px-5 py-2 rounded-full hover:bg-blue-700 disabled:opacity-50"
+            >
+              {loading ? "..." : "Send"}
+            </button>
+          </div>
         </div>
+
       </div>
     </div>
   </div>
