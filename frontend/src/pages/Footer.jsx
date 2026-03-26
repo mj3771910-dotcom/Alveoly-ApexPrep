@@ -15,7 +15,7 @@ const Footer = () => {
         {/* BRAND */}
         <div>
           <h3 className="text-white font-bold text-xl mb-3">
-            Alveoly AI
+            Alveoly ApexPrep
           </h3>
           <p className="text-gray-400 text-sm leading-relaxed">
             AI-powered licensure prep platform helping nursing students succeed

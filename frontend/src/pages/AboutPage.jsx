@@ -44,7 +44,7 @@ const AboutPage = () => {
       {/* HERO */}
       <section className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-20 px-4 text-center">
         <h1 className="text-3xl sm:text-5xl font-bold mb-4">
-          About Alveoly AI
+          About Alveoly ApexPrep
         </h1>
         <p className="text-sm sm:text-lg max-w-2xl mx-auto opacity-90">
           Empowering nursing students with AI-driven learning,
