@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import axios from "../api/axios";
 import { io } from "socket.io-client";
-import { FaRobot, FaUser, FaTrash, FaBars } from "react-icons/fa";
+import { FaRobot, FaUser, FaTrash } from "react-icons/fa";
 
 const AIChat = () => {
+   // ✅ MOVE SOCKET HERE
   const [socket, setSocket] = useState(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     const newSocket = io("https://alveoly-apexprep-backend.onrender.com", {
@@ -13,11 +13,14 @@ const AIChat = () => {
       withCredentials: true,
     });
 
+    console.log("🟢 Connected:", newSocket.id);
+
     setSocket(newSocket);
 
-    return () => newSocket.disconnect();
+    return () => {
+      newSocket.disconnect();
+    };
   }, []);
-
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
   const [fromDB, setFromDB] = useState(false);
@@ -46,37 +49,42 @@ const AIChat = () => {
     const reference = params.get("reference");
 
     if (reference) {
-      axios.get(`/ai-subscriptions/verify?reference=${reference}`)
+      axios
+        .get(`/ai-subscriptions/verify?reference=${reference}`)
         .then((res) => {
+          alert("🎉 Subscription activated!");
           if (res.data.active) {
             setSubscription(res.data.subscription);
             const remaining =
               new Date(res.data.subscription.expiryDate) - new Date();
             setTimeLeft(Math.max(remaining, 0));
           }
-        });
+        })
+        .catch(() => alert("❌ Payment verification failed"));
 
       window.history.replaceState({}, document.title, "/student/ai");
     }
   }, []);
 
   useEffect(() => {
-    if (!socket) return;
+  if (!socket) return;
 
-    socket.on("newQA", (qa) => setQaList((prev) => [qa, ...prev]));
-    socket.on("updateQA", (qa) =>
-      setQaList((prev) => prev.map((item) => (item.id === qa.id ? qa : item)))
-    );
-    socket.on("deleteQA", (id) =>
-      setQaList((prev) => prev.filter((item) => item.id !== id))
-    );
+  socket.on("newQA", (qa) => setQaList((prev) => [qa, ...prev]));
 
-    return () => {
-      socket.off("newQA");
-      socket.off("updateQA");
-      socket.off("deleteQA");
-    };
-  }, [socket]);
+  socket.on("updateQA", (qa) =>
+    setQaList((prev) => prev.map((item) => (item.id === qa.id ? qa : item)))
+  );
+
+  socket.on("deleteQA", (id) =>
+    setQaList((prev) => prev.filter((item) => item.id !== id))
+  );
+
+  return () => {
+    socket.off("newQA");
+    socket.off("updateQA");
+    socket.off("deleteQA");
+  };
+}, [socket]);
 
   useEffect(() => {
     const fetchPlansAndSub = async () => {
@@ -139,6 +147,9 @@ const AIChat = () => {
         chatId: activeChatId,
       });
 
+      setAnswer(res.data.answer);
+      setFromDB(res.data.fromDB || false);
+
       let updatedChats;
       if (activeChatId) {
         updatedChats = chats.map((chat) =>
@@ -168,7 +179,7 @@ const AIChat = () => {
       setChats(updatedChats);
       setQuestion("");
     } catch (err) {
-      console.error(err);
+      setAnswer(err.response?.data?.message || "Error getting AI response");
     }
     setLoading(false);
   };
@@ -177,6 +188,7 @@ const AIChat = () => {
     try {
       await axios.delete(`/ai/student-history/${id}`);
       setChats((prev) => prev.filter((c) => c._id !== id));
+      if (activeChatId === id) setActiveChatId(null);
     } catch (err) {
       console.error(err);
     }
@@ -188,144 +200,134 @@ const AIChat = () => {
   };
 
   const handleSubscribe = async (planId) => {
-    const res = await axios.post("/ai-subscriptions", { planId });
-    window.location.href = res.data.authorization_url;
+    try {
+      const res = await axios.post("/ai-subscriptions", { planId });
+      window.location.href = res.data.authorization_url;
+    } catch (err) {
+      alert("Subscription failed. Try again.");
+    }
   };
 
- return (
-  <div className="h-screen flex bg-gray-100 overflow-hidden">
+  return (
+    <div className="flex h-screen bg-gray-100">
+      
+      {/* SIDEBAR */}
+      <div className="w-72 bg-white border-r flex flex-col">
+        <div className="p-4 font-bold text-lg border-b">💬 AI Chats</div>
 
-    {/* MOBILE MENU */}
-    <button
-      onClick={() => setSidebarOpen(!sidebarOpen)}
-      className="md:hidden fixed top-3 left-3 z-50 bg-white p-2 rounded shadow"
-    >
-      <FaBars />
-    </button>
-
-    {/* SIDEBAR */}
-    <div
-      className={`
-        fixed md:static z-40 top-0 left-0 h-full bg-white border-r w-64
-        transform ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
-        md:translate-x-0 transition-transform duration-300
-      `}
-    >
-      <div className="p-4 font-semibold border-b text-sm">💬 Chats</div>
-
-      <div className="h-[calc(100%-60px)] overflow-y-auto p-2 space-y-2">
-        {chats.map((chat) => (
-          <div
-            key={chat._id}
-            onClick={() => {
-              setActiveChatId(chat._id);
-              setSidebarOpen(false);
-            }}
-            className="p-2 rounded-lg cursor-pointer hover:bg-gray-100 flex justify-between items-center"
-          >
-            <p className="text-xs truncate w-[85%]">
-              {chat.messages[0]?.content}
-            </p>
-
-            <FaTrash
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDeleteChat(chat._id);
-              }}
-              className="text-red-400 text-xs"
-            />
-          </div>
-        ))}
-      </div>
-    </div>
-
-    {/* MAIN */}
-    <div className="flex-1 flex flex-col relative">
-
-      {/* HEADER */}
-      <div className="p-3 md:p-4 border-b bg-white flex justify-between items-center shrink-0">
-        <h2 className="font-semibold flex items-center gap-2 text-sm md:text-lg">
-          <FaRobot /> AI Tutor
-        </h2>
-
-        {subscription && (
-          <span className="text-xs bg-green-100 px-2 py-1 rounded-full">
-            {formatTime(timeLeft)}
-          </span>
-        )}
-      </div>
-
-      {/* CHAT AREA (ONLY SCROLL HERE) */}
-      <div className="flex-1 overflow-y-auto px-3 md:px-6 py-4 space-y-4 pb-24">
-
-        {!subscription && (
-          <div className="bg-white p-4 rounded-lg text-center">
-            <p className="mb-2 text-sm">Subscribe to use AI</p>
-            {plans.map((p) => (
-              <button
-                key={p._id}
-                onClick={() => handleSubscribe(p._id)}
-                className="block w-full bg-blue-600 text-white py-2 rounded mt-2 text-sm"
-              >
-                {p.name} - ${p.price}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {activeChat?.messages.map((msg, i) => (
-          <div
-            key={i}
-            className={`flex items-end gap-2 ${
-              msg.role === "user" ? "justify-end" : ""
-            }`}
-          >
-            {msg.role === "ai" && (
-              <div className="bg-gray-200 p-2 rounded-full text-xs">
-                <FaRobot />
-              </div>
-            )}
-
+        <div className="flex-1 overflow-y-auto p-2 space-y-2">
+          {chats.map((chat) => (
             <div
-              className={`max-w-[80%] md:max-w-xl px-3 py-2 md:px-4 md:py-3 rounded-2xl text-sm shadow-sm ${
-                msg.role === "user"
-                  ? "bg-blue-600 text-white"
-                  : "bg-white"
+              key={chat._id}
+              onClick={() => setActiveChatId(chat._id)}
+              className={`p-3 rounded-lg cursor-pointer transition flex justify-between items-center ${
+                activeChatId === chat._id
+                  ? "bg-blue-100"
+                  : "hover:bg-gray-100"
               }`}
             >
-              {msg.content}
-            </div>
+              <p className="text-sm truncate">
+                {chat.messages[0]?.content}
+              </p>
 
-            {msg.role === "user" && (
-              <div className="bg-blue-200 p-2 rounded-full text-xs">
-                <FaUser />
-              </div>
-            )}
-          </div>
-        ))}
+              <FaTrash
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDeleteChat(chat._id);
+                }}
+                className="text-red-400 hover:text-red-600"
+              />
+            </div>
+          ))}
+        </div>
       </div>
 
-      {/* INPUT (FIXED — DOES NOT MOVE) */}
-      <div className="absolute bottom-0 left-0 w-full bg-white border-t p-2 md:p-3 flex gap-2">
-        <input
-          className="flex-1 border rounded-full px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          value={question}
-          onChange={(e) => setQuestion(e.target.value)}
-          placeholder="Ask a question..."
-          disabled={!subscription}
-        />
+      {/* MAIN */}
+      <div className="flex-1 flex flex-col">
+        
+        {/* HEADER */}
+        <div className="p-4 border-b bg-white flex justify-between items-center">
+          <h2 className="font-semibold flex items-center gap-2">
+            <FaRobot /> AI Nursing Tutor
+          </h2>
 
-        <button
-          onClick={handleAsk}
-          disabled={!subscription || loading}
-          className="bg-blue-600 text-white px-4 md:px-5 rounded-full text-sm"
-        >
-          {loading ? "..." : "Send"}
-        </button>
+          {subscription && (
+            <span className="text-sm bg-green-100 text-green-700 px-3 py-1 rounded-full">
+              ⏱ {formatTime(timeLeft)}
+            </span>
+          )}
+        </div>
+
+        {/* CHAT AREA */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          
+          {!subscription && (
+            <div className="bg-white p-6 rounded-xl shadow-sm text-center">
+              <h3 className="font-semibold mb-3">Unlock AI Access</h3>
+              {plans.map((p) => (
+                <button
+                  key={p._id}
+                  onClick={() => handleSubscribe(p._id)}
+                  className="block w-full bg-blue-600 text-white py-2 rounded-lg mt-2 hover:bg-blue-700"
+                >
+                  {p.name} - ${p.price}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {activeChat?.messages.map((msg, i) => (
+            <div
+              key={i}
+              className={`flex items-start gap-3 ${
+                msg.role === "user" ? "justify-end" : ""
+              }`}
+            >
+              {msg.role === "ai" && (
+                <div className="bg-gray-200 p-2 rounded-full">
+                  <FaRobot />
+                </div>
+              )}
+
+              <div
+                className={`max-w-xl p-4 rounded-2xl text-sm shadow ${
+                  msg.role === "user"
+                    ? "bg-blue-600 text-white"
+                    : "bg-white"
+                }`}
+              >
+                {msg.content}
+              </div>
+
+              {msg.role === "user" && (
+                <div className="bg-blue-200 p-2 rounded-full">
+                  <FaUser />
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* INPUT */}
+        <div className="p-4 border-t bg-white flex gap-3">
+          <input
+            className="flex-1 border rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+            placeholder="Ask a nursing question..."
+            disabled={!subscription}
+          />
+          <button
+            onClick={handleAsk}
+            disabled={!subscription || loading}
+            className="bg-blue-600 text-white px-6 rounded-full hover:bg-blue-700"
+          >
+            {loading ? "..." : "Send"}
+          </button>
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
 };
 
 export default AIChat;
