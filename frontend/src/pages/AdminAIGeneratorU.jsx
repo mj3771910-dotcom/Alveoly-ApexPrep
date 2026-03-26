@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import axios from "../api/axios";
+import { FaTrash } from "react-icons/fa";
 
 const AIGenerator = () => {
   const [subject, setSubject] = useState("");
@@ -7,26 +8,21 @@ const AIGenerator = () => {
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState([]);
   const [activeId, setActiveId] = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // ✅ Fetch history from backend
   useEffect(() => {
     const fetchHistory = async () => {
       try {
         const res = await axios.get("/ai/history");
         setHistory(res.data);
-
-        if (res.data.length > 0) {
-          setActiveId(res.data[0]._id);
-        }
+        if (res.data.length > 0) setActiveId(res.data[0]._id);
       } catch (err) {
         console.error(err);
       }
     };
-
     fetchHistory();
   }, []);
 
-  // ✅ Generate questions (saved in backend)
   const handleGenerate = async () => {
     if (!subject.trim()) return;
 
@@ -48,13 +44,11 @@ const AIGenerator = () => {
 
   const activeItem = history.find((item) => item._id === activeId);
 
-  // ✅ Copy
   const handleCopy = () => {
     if (!activeItem) return;
     navigator.clipboard.writeText(activeItem.result);
   };
 
-  // ✅ PDF Export
   const handleDownloadPDF = () => {
     if (!activeItem) return;
 
@@ -65,8 +59,7 @@ const AIGenerator = () => {
           <title>${activeItem.subject}</title>
           <style>
             body { font-family: Arial; padding: 30px; }
-            h2 { margin-bottom: 20px; }
-            pre { white-space: pre-wrap; font-size: 14px; }
+            pre { white-space: pre-wrap; }
           </style>
         </head>
         <body>
@@ -78,139 +71,180 @@ const AIGenerator = () => {
     win.print();
   };
 
-  // ✅ Delete from backend
   const handleDelete = async (id) => {
     try {
       await axios.delete(`/ai/history/${id}`);
       setHistory((prev) => prev.filter((item) => item._id !== id));
-
-      if (activeId === id) {
-        setActiveId(null);
-      }
+      if (activeId === id) setActiveId(null);
     } catch (err) {
       console.error(err);
     }
   };
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      {/* ================= SIDEBAR ================= */}
-      <div className="w-72 bg-white border-r flex flex-col">
-        <div className="p-4 border-b font-semibold text-lg">
-          AI Generator
+    <div className="h-screen flex flex-col bg-gray-50">
+
+      {/* HEADER */}
+      <div className="sticky top-0 z-20 bg-white border-b px-4 py-3 flex justify-between items-center">
+        
+        <div className="flex items-center gap-3">
+          {/* HAMBURGER */}
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="md:hidden text-gray-600"
+          >
+            ☰
+          </button>
+
+          <h2 className="font-semibold text-gray-700">
+            🤖 AI Question Generator
+          </h2>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-3 space-y-2">
-          {history.length === 0 ? (
-            <p className="text-gray-400 text-sm">No history yet</p>
-          ) : (
-            history.map((item) => (
+        {activeItem && (
+          <div className="flex gap-2">
+            <button
+              onClick={handleCopy}
+              className="text-xs sm:text-sm bg-green-500 text-white px-3 py-1 rounded"
+            >
+              Copy
+            </button>
+            <button
+              onClick={handleDownloadPDF}
+              className="text-xs sm:text-sm bg-purple-500 text-white px-3 py-1 rounded"
+            >
+              PDF
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* BODY */}
+      <div className="flex flex-1 overflow-hidden">
+
+        {/* DESKTOP SIDEBAR */}
+        <div className="hidden md:flex md:w-72 bg-white border-r flex-col">
+          <div className="p-4 font-semibold border-b">History</div>
+
+          <div className="flex-1 overflow-y-auto p-2 space-y-2">
+            {history.map((item) => (
               <div
                 key={item._id}
                 onClick={() => setActiveId(item._id)}
-                className={`p-3 rounded-lg cursor-pointer transition ${
+                className={`group p-3 rounded-lg cursor-pointer flex justify-between ${
                   activeId === item._id
                     ? "bg-blue-100"
                     : "hover:bg-gray-100"
                 }`}
               >
-                <p className="text-sm font-medium truncate">
-                  {item.subject}
-                </p>
-                <p className="text-xs text-gray-400">
-                  {new Date(item.createdAt).toLocaleString()}
-                </p>
+                <div>
+                  <p className="text-sm truncate font-medium">
+                    {item.subject}
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    {new Date(item.createdAt).toLocaleString()}
+                  </p>
+                </div>
 
-                <button
+                <FaTrash
                   onClick={(e) => {
                     e.stopPropagation();
                     handleDelete(item._id);
                   }}
-                  className="text-red-500 text-xs mt-1 hover:underline"
-                >
-                  Delete
-                </button>
+                  className="text-gray-400 opacity-0 group-hover:opacity-100 hover:text-red-500"
+                />
               </div>
-            ))
-          )}
-        </div>
-      </div>
-
-      {/* ================= MAIN ================= */}
-      <div className="flex-1 flex flex-col">
-        {/* HEADER */}
-        <div className="bg-white border-b p-4 flex justify-between items-center">
-          <h2 className="font-semibold text-lg">
-            AI Question Generator 🤖
-          </h2>
-
-          {activeItem && (
-            <div className="flex gap-2">
-              <button
-                onClick={handleCopy}
-                className="px-3 py-1 text-sm bg-green-500 text-white rounded"
-              >
-                Copy
-              </button>
-
-              <button
-                onClick={handleDownloadPDF}
-                className="px-3 py-1 text-sm bg-purple-500 text-white rounded"
-              >
-                PDF
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* CONTENT */}
-        <div className="flex-1 overflow-y-auto p-6">
-          {loading ? (
-            <div className="text-center text-gray-400 mt-20">
-              Generating questions...
-            </div>
-          ) : activeItem ? (
-            <div className="max-w-3xl mx-auto bg-white p-6 rounded-xl shadow-sm">
-              <h3 className="text-lg font-semibold mb-4">
-                {activeItem.subject}
-              </h3>
-
-              <pre className="whitespace-pre-wrap text-sm leading-relaxed text-gray-800">
-                {activeItem.result}
-              </pre>
-            </div>
-          ) : (
-            <div className="text-center text-gray-400 mt-20">
-              Start by generating a question set 👇
-            </div>
-          )}
-        </div>
-
-        {/* INPUT */}
-        <div className="border-t bg-white p-4">
-          <div className="max-w-3xl mx-auto flex gap-2">
-            <input
-              type="text"
-              placeholder="Enter subject (e.g. Pharmacology)"
-              className="flex-1 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={subject}
-              onChange={(e) => setSubject(e.target.value)}
-            />
-
-            <input
-              type="number"
-              className="w-20 border rounded-lg px-2 py-2 text-sm"
-              value={count}
-              onChange={(e) => setCount(e.target.value)}
-            />
-
-            <button
-              onClick={handleGenerate}
-              className="bg-blue-600 text-white px-4 rounded-lg text-sm hover:bg-blue-700 transition"
-            >
-              {loading ? "..." : "Generate"}
-            </button>
+            ))}
           </div>
+        </div>
+
+        {/* MOBILE SIDEBAR */}
+        {sidebarOpen && (
+          <div className="fixed inset-0 z-30 flex">
+            <div className="w-72 bg-white h-full shadow-lg p-3">
+              <div className="flex justify-between mb-3">
+                <h3 className="font-semibold">History</h3>
+                <button onClick={() => setSidebarOpen(false)}>✕</button>
+              </div>
+
+              {history.map((item) => (
+                <div
+                  key={item._id}
+                  onClick={() => {
+                    setActiveId(item._id);
+                    setSidebarOpen(false);
+                  }}
+                  className="p-3 rounded-lg hover:bg-gray-100"
+                >
+                  {item.subject}
+                </div>
+              ))}
+            </div>
+
+            <div
+              className="flex-1 bg-black/30"
+              onClick={() => setSidebarOpen(false)}
+            />
+          </div>
+        )}
+
+        {/* MAIN CONTENT */}
+        <div className="flex-1 flex flex-col">
+
+          {/* SCROLL AREA */}
+          <div className="flex-1 overflow-y-auto px-4 md:px-6 py-4">
+
+            {loading ? (
+              <p className="text-center text-gray-400 mt-20">
+                Generating questions...
+              </p>
+            ) : activeItem ? (
+              <div className="max-w-3xl mx-auto bg-white p-6 rounded-2xl shadow-sm">
+                <h3 className="text-lg font-semibold mb-4">
+                  {activeItem.subject}
+                </h3>
+
+                <pre className="whitespace-pre-wrap text-sm text-gray-700 leading-relaxed">
+                  {activeItem.result}
+                </pre>
+              </div>
+            ) : (
+              <p className="text-center text-gray-400 mt-20">
+                Generate your first questions 👇
+              </p>
+            )}
+
+          </div>
+
+          {/* STICKY INPUT */}
+          <div className="sticky bottom-0 bg-white border-t p-3">
+            <div className="max-w-3xl mx-auto flex gap-2">
+              
+              <input
+                type="text"
+                placeholder="Enter subject..."
+                className="flex-1 border rounded-full px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+              />
+
+              <input
+                type="number"
+                className="w-20 border rounded-full px-3 py-2 text-sm"
+                value={count}
+                onChange={(e) => setCount(e.target.value)}
+              />
+
+              <button
+                onClick={handleGenerate}
+                className="bg-blue-600 text-white px-5 py-2 rounded-full hover:bg-blue-700"
+              >
+                {loading ? "..." : "Generate"}
+              </button>
+
+            </div>
+          </div>
+
         </div>
       </div>
     </div>
