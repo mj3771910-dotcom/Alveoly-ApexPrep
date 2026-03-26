@@ -209,125 +209,131 @@ const AIChat = () => {
   };
 
   return (
-    <div className="flex h-screen bg-gray-100">
-      
-      {/* SIDEBAR */}
-      <div className="w-72 bg-white border-r flex flex-col">
-        <div className="p-4 font-bold text-lg border-b">💬 AI Chats</div>
-
-        <div className="flex-1 overflow-y-auto p-2 space-y-2">
-          {chats.map((chat) => (
-            <div
-              key={chat._id}
-              onClick={() => setActiveChatId(chat._id)}
-              className={`p-3 rounded-lg cursor-pointer transition flex justify-between items-center ${
-                activeChatId === chat._id
-                  ? "bg-blue-100"
-                  : "hover:bg-gray-100"
-              }`}
-            >
-              <p className="text-sm truncate">
-                {chat.messages[0]?.content}
-              </p>
-
-              <FaTrash
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDeleteChat(chat._id);
-                }}
-                className="text-red-400 hover:text-red-600"
-              />
-            </div>
-          ))}
-        </div>
+  <div className="flex h-screen bg-gray-50 overflow-hidden">
+    
+    {/* SIDEBAR */}
+    <div className="hidden md:flex md:w-72 lg:w-80 bg-white border-r flex-col">
+      <div className="p-4 font-semibold text-lg border-b flex items-center gap-2">
+        💬 AI Chats
       </div>
 
-      {/* MAIN */}
-      <div className="flex-1 flex flex-col">
-        
-        {/* HEADER */}
-        <div className="p-4 border-b bg-white flex justify-between items-center">
-          <h2 className="font-semibold flex items-center gap-2">
-            <FaRobot /> AI Nursing Tutor
-          </h2>
-
-          {subscription && (
-            <span className="text-sm bg-green-100 text-green-700 px-3 py-1 rounded-full">
-              ⏱ {formatTime(timeLeft)}
-            </span>
-          )}
-        </div>
-
-        {/* CHAT AREA */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
-          
-          {!subscription && (
-            <div className="bg-white p-6 rounded-xl shadow-sm text-center">
-              <h3 className="font-semibold mb-3">Unlock AI Access</h3>
-              {plans.map((p) => (
-                <button
-                  key={p._id}
-                  onClick={() => handleSubscribe(p._id)}
-                  className="block w-full bg-blue-600 text-white py-2 rounded-lg mt-2 hover:bg-blue-700"
-                >
-                  {p.name} - ${p.price}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {activeChat?.messages.map((msg, i) => (
-            <div
-              key={i}
-              className={`flex items-start gap-3 ${
-                msg.role === "user" ? "justify-end" : ""
-              }`}
-            >
-              {msg.role === "ai" && (
-                <div className="bg-gray-200 p-2 rounded-full">
-                  <FaRobot />
-                </div>
-              )}
-
-              <div
-                className={`max-w-xl p-4 rounded-2xl text-sm shadow ${
-                  msg.role === "user"
-                    ? "bg-blue-600 text-white"
-                    : "bg-white"
-                }`}
-              >
-                {msg.content}
-              </div>
-
-              {msg.role === "user" && (
-                <div className="bg-blue-200 p-2 rounded-full">
-                  <FaUser />
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-
-        {/* INPUT */}
-        <div className="p-4 border-t bg-white flex gap-3">
-          <input
-            className="flex-1 border rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            value={question}
-            onChange={(e) => setQuestion(e.target.value)}
-            placeholder="Ask a nursing question..."
-            disabled={!subscription}
-          />
-          <button
-            onClick={handleAsk}
-            disabled={!subscription || loading}
-            className="bg-blue-600 text-white px-6 rounded-full hover:bg-blue-700"
+      <div className="flex-1 overflow-y-auto p-3 space-y-2">
+        {chats.map((chat) => (
+          <div
+            key={chat._id}
+            onClick={() => setActiveChatId(chat._id)}
+            className={`group p-3 rounded-xl cursor-pointer transition flex justify-between items-center ${
+              activeChatId === chat._id
+                ? "bg-blue-100"
+                : "hover:bg-gray-100"
+            }`}
           >
-            {loading ? "..." : "Send"}
-          </button>
-        </div>
+            <p className="text-sm truncate text-gray-700">
+              {chat.messages[0]?.content}
+            </p>
+
+            <FaTrash
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDeleteChat(chat._id);
+              }}
+              className="text-gray-400 opacity-0 group-hover:opacity-100 hover:text-red-500 transition"
+            />
+          </div>
+        ))}
       </div>
     </div>
-  );
+
+    {/* MAIN */}
+    <div className="flex-1 flex flex-col">
+      
+      {/* HEADER */}
+      <div className="sticky top-0 z-10 bg-white border-b px-4 py-3 flex justify-between items-center">
+        <h2 className="font-semibold flex items-center gap-2 text-gray-700">
+          <FaRobot className="text-blue-600" /> AI Nursing Tutor
+        </h2>
+
+        {subscription && (
+          <span className="text-xs md:text-sm bg-green-100 text-green-700 px-3 py-1 rounded-full">
+            ⏱ {formatTime(timeLeft)}
+          </span>
+        )}
+      </div>
+
+      {/* CHAT AREA */}
+      <div className="flex-1 overflow-y-auto px-3 md:px-6 py-4 space-y-4">
+        
+        {!subscription && (
+          <div className="bg-white p-6 rounded-2xl shadow-sm text-center max-w-md mx-auto">
+            <h3 className="font-semibold mb-4 text-gray-700">
+              Unlock AI Access
+            </h3>
+
+            {plans.map((p) => (
+              <button
+                key={p._id}
+                onClick={() => handleSubscribe(p._id)}
+                className="w-full bg-blue-600 text-white py-2.5 rounded-lg mt-2 hover:bg-blue-700 transition"
+              >
+                {p.name} - ${p.price}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {activeChat?.messages.map((msg, i) => (
+          <div
+            key={i}
+            className={`flex items-end gap-2 ${
+              msg.role === "user" ? "justify-end" : ""
+            }`}
+          >
+            {msg.role === "ai" && (
+              <div className="bg-gray-200 p-2 rounded-full">
+                <FaRobot className="text-gray-600" />
+              </div>
+            )}
+
+            <div
+              className={`max-w-[85%] md:max-w-xl px-4 py-3 rounded-2xl text-sm shadow-sm leading-relaxed ${
+                msg.role === "user"
+                  ? "bg-blue-600 text-white rounded-br-none"
+                  : "bg-white text-gray-700 rounded-bl-none"
+              }`}
+            >
+              {msg.content}
+            </div>
+
+            {msg.role === "user" && (
+              <div className="bg-blue-100 p-2 rounded-full">
+                <FaUser className="text-blue-600" />
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* INPUT */}
+      <div className="sticky bottom-0 bg-white border-t p-3 md:p-4 flex items-center gap-2">
+        <input
+          className="flex-1 border border-gray-300 rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          value={question}
+          onChange={(e) => setQuestion(e.target.value)}
+          placeholder="Ask a nursing question..."
+          disabled={!subscription}
+        />
+
+        <button
+          onClick={handleAsk}
+          disabled={!subscription || loading}
+          className="bg-blue-600 text-white px-5 py-2 rounded-full hover:bg-blue-700 transition disabled:opacity-50"
+        >
+          {loading ? "..." : "Send"}
+        </button>
+      </div>
+    </div>
+  </div>
+);
 };
 
 export default AIChat;
