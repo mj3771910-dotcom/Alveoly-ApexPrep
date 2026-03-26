@@ -12,6 +12,7 @@ import {
   FaLayerGroup,
   FaBookMedical,
   FaPersonBooth,
+  FaReply,
 } from "react-icons/fa";
 import { useAuth } from "../context/AuthContext";
 
@@ -91,7 +92,7 @@ const AdminLayout = () => {
           </Link>
 
           <Link onClick={() => setSidebarOpen(false)} to="/admin/in-box" className="flex items-center gap-2 hover:text-gray-200">
-            <FaBookMedical /> Testimonials
+            <FaReply /> Feedback
           </Link>
 
           <Link

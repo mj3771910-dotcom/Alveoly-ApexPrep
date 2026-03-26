@@ -11,7 +11,7 @@ import {
   FaWallet,
   FaRobot,
   FaTags,
-  FaGooglePlus, // ✅ NEW ICON FOR PLANS
+  FaCheck, // ✅ NEW ICON FOR PLANS
 } from "react-icons/fa";
 import { useAuth } from "../context/AuthContext";
 
@@ -78,7 +78,7 @@ const StudentLayout = () => {
           </Link>
 
            <Link to="/student/testimonials" onClick={() => setOpen(false)} className="flex items-center gap-2">
-            <FaGooglePlus /> Testimonials
+            <FaCheck /> Testimonials
           </Link>
 
         </nav>
