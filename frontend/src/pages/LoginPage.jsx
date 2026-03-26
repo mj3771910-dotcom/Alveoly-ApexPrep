@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { FaEnvelope, FaLock, FaEye, FaEyeSlash } from "react-icons/fa";
@@ -14,26 +14,28 @@ const LoginPage = () => {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [googleReady, setGoogleReady] = useState(false);
 
-  const { login, googleLogin, user } = useAuth();
+  const { login, googleLogin } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    setGoogleReady(true); // ✅ prevent multiple init issue
+  }, []);
 
   const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
 
-  // ================= EMAIL / PASSWORD LOGIN =================
+  // ================= EMAIL LOGIN =================
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      await login(form);
+      const user = await login(form);
 
-      // ✅ Use user from context instead of decoding token
-      const storedToken = localStorage.getItem("token");
-      if (storedToken) {
-        const payload = JSON.parse(atob(storedToken.split(".")[1]));
-        navigate(payload.role === "admin" ? "/admin" : "/student/dashboard");
+      if (user?.role === "admin") {
+        navigate("/admin");
       } else {
         navigate("/student/dashboard");
       }
@@ -45,25 +47,25 @@ const LoginPage = () => {
   };
 
   // ================= GOOGLE LOGIN =================
-  const handleGoogleLogin = async (credentialResponse) => {
+  const handleGoogleAuth = async (credentialResponse) => {
     try {
       setGoogleLoading(true);
 
       const idToken = credentialResponse?.credential;
       if (!idToken) throw new Error("No Google credential received");
 
-      // ✅ Use AuthContext (IMPORTANT FIX)
-      const userData = await googleLogin(idToken);
+      const res = await googleLogin(idToken);
 
-      // ✅ Redirect based on backend response
-      if (!userData.courseId) {
+      console.log("GOOGLE RESPONSE:", res);
+
+      if (res.requiresCourse) {
         navigate("/select-course");
       } else {
         navigate("/student/dashboard");
       }
     } catch (err) {
       console.error("Google login error:", err);
-      alert(err.message || "Google login failed");
+      alert(err.response?.data?.message || err.message || "Google login failed");
     } finally {
       setGoogleLoading(false);
     }
@@ -77,36 +79,31 @@ const LoginPage = () => {
         <motion.div
           initial={{ opacity: 0, y: 50 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
           className="bg-white shadow-xl rounded-2xl max-w-5xl w-full md:flex overflow-hidden"
         >
-          {/* LEFT IMAGE */}
+          {/* LEFT */}
           <div className="hidden md:flex md:w-1/2 items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-8">
-            <img
-              src={loginIllustration}
-              alt="Login illustration"
-              className="w-full max-w-sm"
-            />
+            <img src={loginIllustration} className="w-full max-w-sm" />
           </div>
 
-          {/* RIGHT FORM */}
+          {/* RIGHT */}
           <div className="w-full md:w-1/2 p-10 flex flex-col justify-center">
-            <h2 className="text-3xl font-bold text-gray-800 mb-2">
-              Welcome Back 👋
-            </h2>
+            <h2 className="text-3xl font-bold mb-2">Welcome Back 👋</h2>
             <p className="text-gray-500 mb-6">
               Login to continue your learning journey
             </p>
 
-            {/* GOOGLE LOGIN */}
-            <div className="mb-4">
-              <GoogleLogin
-                onSuccess={handleGoogleLogin}
-                onError={() => alert("Google login failed")}
-                useOneTap={false}
-              />
+            {/* GOOGLE */}
+            <div className="mb-4 text-center">
+              {googleReady && !googleLoading && (
+                <GoogleLogin
+                  onSuccess={handleGoogleAuth}
+                  onError={() => alert("Google login failed")}
+                />
+              )}
+
               {googleLoading && (
-                <p className="text-sm text-gray-500 mt-2 text-center">
+                <p className="text-sm text-gray-500 mt-2">
                   Signing in with Google...
                 </p>
               )}
@@ -123,9 +120,9 @@ const LoginPage = () => {
                   name="email"
                   value={form.email}
                   onChange={handleChange}
-                  placeholder="Email Address"
                   required
-                  className="w-full pl-10 pr-4 py-3 rounded-lg border focus:ring-2 focus:ring-blue-500 outline-none"
+                  placeholder="Email Address"
+                  className="w-full pl-10 py-3 border rounded-lg"
                 />
               </div>
 
@@ -136,44 +133,37 @@ const LoginPage = () => {
                   name="password"
                   value={form.password}
                   onChange={handleChange}
-                  placeholder="Password"
                   required
-                  className="w-full pl-10 pr-10 py-3 rounded-lg border focus:ring-2 focus:ring-blue-500 outline-none"
+                  placeholder="Password"
+                  className="w-full pl-10 pr-10 py-3 border rounded-lg"
                 />
                 <span
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-4 cursor-pointer text-gray-500"
+                  className="absolute right-3 top-4 cursor-pointer"
                 >
                   {showPassword ? <FaEyeSlash /> : <FaEye />}
                 </span>
               </div>
 
               <button
-                type="submit"
                 disabled={loading}
-                className={`w-full py-3 rounded-lg text-white font-semibold transition ${
-                  loading
-                    ? "bg-gray-400"
-                    : "bg-blue-600 hover:bg-blue-700"
+                className={`w-full py-3 text-white rounded-lg ${
+                  loading ? "bg-gray-400" : "bg-blue-600"
                 }`}
               >
                 {loading ? "Logging in..." : "Login"}
               </button>
             </form>
 
-            {/* LINKS */}
-            <p className="mt-6 text-center text-gray-500 text-sm">
+            <p className="mt-6 text-center text-sm">
               Don't have an account?{" "}
               <Link to="/signup" className="text-blue-600 font-semibold">
                 Sign Up
               </Link>
             </p>
 
-            <p className="mt-2 text-center text-sm">
-              <Link
-                to="/forgot-password"
-                className="text-blue-600 hover:underline"
-              >
+            <p className="text-center text-sm mt-2">
+              <Link to="/forgot-password" className="text-blue-600">
                 Forgot Password?
               </Link>
             </p>

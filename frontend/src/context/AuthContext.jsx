@@ -94,17 +94,18 @@ export const AuthProvider = ({ children }) => {
 
   // ================= GOOGLE LOGIN =================
   const googleLogin = async (idToken) => {
-    try {
-      const res = await API.post("/auth/google-login", { idToken });
-      const { token, user: userData } = res.data;
+  try {
+    const res = await API.post("/auth/google-login", { idToken });
+    const { token, user: userData, requiresCourse } = res.data;
 
-      setAuth(token, userData);
-      return userData;
-    } catch (err) {
-      console.error("Google login error:", err);
-      throw err;
-    }
-  };
+    setAuth(token, userData);
+
+    return { user: userData, requiresCourse }; // ✅ FIX
+  } catch (err) {
+    console.error("Google login error:", err);
+    throw err;
+  }
+};
 
   // ================= LOGOUT =================
   const logout = () => {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import emailjs from "@emailjs/browser";
 import Navbar from "./Navbar";
@@ -12,30 +12,79 @@ const ForgotPasswordPage = () => {
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // ✅ Initialize EmailJS once
+  useEffect(() => {
+    if (import.meta.env.VITE_EMAILJS_PUBLIC_KEY2) {
+      emailjs.init(import.meta.env.VITE_EMAILJS_PUBLIC_KEY2);
+    } else {
+      console.error("EmailJS PUBLIC KEY is missing in .env");
+    }
+  }, []);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!email) {
+      return alert("Please enter your email");
+    }
 
     try {
       setLoading(true);
 
+      // ✅ Call backend
       const res = await API.post("/auth/forgot-password", { email });
+
+      console.log("BACKEND RESPONSE:", res.data);
 
       const { email: userEmail, name, resetLink } = res.data;
 
-      await emailjs.send(
-  import.meta.env.VITE_EMAILJS_SERVICE_ID2,
-  import.meta.env.VITE_EMAILJS_TEMPLATE_ID2,
-  {
-    to_email: userEmail,   // MUST match template
-    name,
-    reset_link: resetLink,
-  },
-  import.meta.env.VITE_EMAILJS_PUBLIC_KEY2
-);
+      // ✅ Validate response
+      if (!userEmail || !resetLink) {
+        console.error("Invalid backend response:", res.data);
+        throw new Error("Failed to generate reset email data");
+      }
+
+      // ✅ Validate ENV variables
+      const serviceID = import.meta.env.VITE_EMAILJS_SERVICE_ID2;
+      const templateID = import.meta.env.VITE_EMAILJS_TEMPLATE_ID2;
+      const publicKey = import.meta.env.VITE_EMAILJS_PUBLIC_KEY2;
+
+      if (!serviceID || !templateID || !publicKey) {
+        console.error("Missing EmailJS ENV variables");
+        throw new Error("Email service not configured properly");
+      }
+
+      console.log("SENDING EMAIL WITH:", {
+        serviceID,
+        templateID,
+        userEmail,
+        name,
+        resetLink,
+      });
+
+      // ✅ Send email
+      const result = await emailjs.send(
+        serviceID,
+        templateID,
+        {
+          to_email: userEmail,
+          name: name || "User",
+          reset_link: resetLink,
+        },
+        publicKey
+      );
+
+      console.log("EMAILJS SUCCESS:", result);
 
       setSent(true);
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to send reset email");
+      console.error("EMAIL ERROR FULL:", err);
+
+      alert(
+        err.response?.data?.message ||
+          err.message ||
+          "Failed to send reset email"
+      );
     } finally {
       setLoading(false);
     }
@@ -62,7 +111,6 @@ const ForgotPasswordPage = () => {
 
           {/* RIGHT FORM */}
           <div className="w-full md:w-1/2 p-10 flex flex-col justify-center">
-            
             {!sent ? (
               <>
                 <h2 className="text-3xl font-bold text-gray-800 mb-2">
@@ -74,7 +122,6 @@ const ForgotPasswordPage = () => {
                 </p>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
-                  
                   <div className="relative">
                     <FaEnvelope className="absolute left-3 top-4 text-gray-400" />
 
@@ -92,7 +139,7 @@ const ForgotPasswordPage = () => {
                     disabled={loading}
                     className={`w-full py-3 rounded-lg text-white font-medium transition ${
                       loading
-                        ? "bg-gray-400"
+                        ? "bg-gray-400 cursor-not-allowed"
                         : "bg-blue-600 hover:bg-blue-700"
                     }`}
                   >
@@ -118,9 +165,7 @@ const ForgotPasswordPage = () => {
                   We’ve sent a password reset link to:
                 </p>
 
-                <p className="font-semibold text-gray-800 mb-4">
-                  {email}
-                </p>
+                <p className="font-semibold text-gray-800 mb-4">{email}</p>
 
                 <p className="text-sm text-gray-500">
                   Please check your inbox (and spam folder).

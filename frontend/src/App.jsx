@@ -2,7 +2,6 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
 // ✅ NEW
 import ProtectedRoute from "./components/ProtectedRoute";
-import AuthSuccess from "./pages/AuthSuccess";
 
 // PUBLIC PAGES
 import Home from "./pages/Home";
@@ -56,6 +55,7 @@ import AdminTestimonials from "./pages/AdminTestimonials";
 import StudentTestimonials from "./pages/StudentTestimonials";
 import AdminInbox from "./pages/AdminInbox";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
+import SelectCoursePage from "./pages/SelectCoursePage";
 
 function App() {
   return (
@@ -79,8 +79,6 @@ function App() {
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
 
-          {/* ✅ GOOGLE SUCCESS HANDLER */}
-          <Route path="/select-course" element={<AuthSuccess />} />
 
           {/* SUPPORT */}
           <Route path="/help" element={<HelpCenterPage />} />
@@ -91,6 +89,16 @@ function App() {
           <Route path="/terms" element={<TermsConditionsPage />} />
           <Route path="/cookies" element={<CookiePolicyPage />} />
           <Route path="/refund" element={<RefundPolicyPage />} />
+
+              <Route
+  path="/select-course"
+  element={
+    <ProtectedRoute role="student">
+      <SelectCoursePage />
+    </ProtectedRoute>
+  }
+/>
+
 
           {/* ================= STUDENT ================= */}
 
@@ -117,8 +125,8 @@ function App() {
             <Route path="dashboard" element={<StudentDashboard />} />
             <Route path="courses" element={<StudentCourses />} />
             <Route path="subjects" element={<StudentSubjects />} />
-            <Route path="/student/trial/:courseId/:subjectId" element={<StudentTrial />} />
-<Route path="/student/exams/:courseId/:subjectId" element={<StudentExams />} />
+            <Route path="trial/:courseId/:subjectId" element={<StudentTrial />} />
+<Route path="exams/:courseId/:subjectId" element={<StudentExams />} />
             <Route path="payments" element={<StudentPayments />} />
             <Route path="plans" element={<StudentPlans />} />
             <Route path="testimonials" element={<StudentTestimonials />} />
