@@ -1,3 +1,18 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ✅ PREVENT SCROLLBAR SHIFT */
+html {
+  overflow-y: scroll;
+}
+
+/* ✅ PREVENT HORIZONTAL JUMP */
+body {
+  overflow-x: hidden;
+}
+
+/* ✅ BETTER MOBILE BEHAVIOR (NO INPUT PUSH) */
+* {
+  -webkit-tap-highlight-color: transparent;
+}

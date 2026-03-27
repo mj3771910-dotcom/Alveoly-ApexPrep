@@ -210,7 +210,7 @@ const AIChat = () => {
   };
 
  return (
-  <div className="bg-gray-50 h-screen flex flex-col overflow-hidden">
+  <div className="bg-gray-50 h-[100dvh] flex flex-col overflow-hidden">
 
     {/* HEADER */}
     <div className="flex-shrink-0 bg-white border-b px-4 py-3 flex items-center justify-between">
@@ -236,10 +236,10 @@ const AIChat = () => {
     </div>
 
     {/* MAIN */}
-    <div className="flex-1 flex overflow-hidden w-full max-w-6xl mx-auto px-3 md:px-6 py-4 gap-6">
+    <div className="flex-1 flex overflow-hidden">
 
-      {/* DESKTOP SIDEBAR */}
-      <div className="hidden md:flex w-72 bg-white border rounded-2xl flex-col">
+      {/* SIDEBAR */}
+      <div className="hidden md:flex w-72 bg-white border-r flex-col">
         <div className="p-4 font-semibold border-b">Chats</div>
 
         <div className="flex-1 overflow-y-auto p-2 space-y-2">
@@ -271,7 +271,7 @@ const AIChat = () => {
 
       {/* MOBILE SIDEBAR */}
       {sidebarOpen && (
-        <div className="fixed inset-0 z-30 flex">
+        <div className="fixed inset-0 z-40 flex">
           <div className="w-72 bg-white h-full shadow-lg p-3">
             <div className="flex justify-between mb-3">
               <h3 className="font-semibold">Chats</h3>
@@ -299,11 +299,11 @@ const AIChat = () => {
         </div>
       )}
 
-      {/* CHAT SECTION */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      {/* CHAT AREA */}
+      <div className="flex-1 flex flex-col relative">
 
         {/* MESSAGES */}
-        <div className="flex-1 overflow-y-auto space-y-5 pr-1">
+        <div className="flex-1 overflow-y-auto px-4 md:px-10 py-6 space-y-6 pb-28">
 
           {!subscription && (
             <div className="bg-white p-6 rounded-2xl shadow-sm text-center max-w-md mx-auto">
@@ -324,28 +324,28 @@ const AIChat = () => {
           {activeChat?.messages.map((msg, i) => (
             <div
               key={i}
-              className={`flex items-end gap-2 ${
+              className={`flex gap-3 ${
                 msg.role === "user" ? "justify-end" : ""
               }`}
             >
               {msg.role === "ai" && (
-                <div className="bg-gray-200 p-2 rounded-full">
+                <div className="bg-gray-200 p-2 rounded-full h-fit">
                   <FaRobot />
                 </div>
               )}
 
               <div
-                className={`max-w-[85%] md:max-w-2xl px-4 py-3 rounded-2xl text-sm ${
+                className={`max-w-[85%] md:max-w-2xl px-4 py-3 rounded-2xl text-sm leading-relaxed ${
                   msg.role === "user"
                     ? "bg-blue-600 text-white rounded-br-none"
-                    : "bg-white text-gray-700 rounded-bl-none shadow-sm border"
+                    : "bg-white text-gray-800 border rounded-bl-none"
                 }`}
               >
                 {msg.content}
               </div>
 
               {msg.role === "user" && (
-                <div className="bg-blue-100 p-2 rounded-full">
+                <div className="bg-blue-100 p-2 rounded-full h-fit">
                   <FaUser />
                 </div>
               )}
@@ -353,25 +353,31 @@ const AIChat = () => {
           ))}
         </div>
 
-        {/* INPUT (FIXED PROPERLY) */}
-        <div className="flex-shrink-0 mt-3 bg-white border rounded-full px-3 py-2 flex items-center gap-2 shadow-sm">
-          
-          <input
-            className="flex-1 min-w-0 bg-transparent px-3 py-2 text-sm outline-none"
-            value={question}
-            onChange={(e) => setQuestion(e.target.value)}
-            placeholder="Ask a nursing question..."
-            disabled={!subscription}
-          />
+        {/* ✅ PERFECT FIXED INPUT (NO SHIFT EVER) */}
+        <div className="absolute bottom-0 left-0 right-0 bg-white/95 backdrop-blur border-t">
+          <div className="w-full max-w-4xl mx-auto px-3 md:px-6 py-3">
 
-          <button
-            onClick={handleAsk}
-            disabled={!subscription || loading}
-            className="shrink-0 bg-blue-600 text-white px-5 py-2 rounded-full hover:bg-blue-700 disabled:opacity-50"
-          >
-            {loading ? "..." : "Send"}
-          </button>
+            <div className="flex items-center gap-3 bg-gray-100 border border-gray-200 rounded-full px-4 py-2 focus-within:ring-2 focus-within:ring-blue-500 transition">
 
+              <input
+                className="flex-1 bg-transparent outline-none text-sm md:text-base px-2 py-2"
+                value={question}
+                onChange={(e) => setQuestion(e.target.value)}
+                placeholder="Ask a nursing question..."
+                disabled={!subscription}
+              />
+
+              <button
+                onClick={handleAsk}
+                disabled={!subscription || loading}
+                className="bg-blue-600 text-white px-5 py-2 rounded-full hover:bg-blue-700 disabled:opacity-50 transition"
+              >
+                {loading ? "..." : "Send"}
+              </button>
+
+            </div>
+
+          </div>
         </div>
 
       </div>
