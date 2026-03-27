@@ -213,7 +213,7 @@ const AIChat = () => {
   <div className="bg-gray-50 h-[100dvh] flex flex-col overflow-hidden">
 
     {/* HEADER */}
-    <div className="flex-shrink-0 bg-white border-b px-4 py-3 flex items-center justify-between">
+    <div className="flex-shrink-0 mt-3 bg-white border rounded-full px-3 py-2 flex items-center gap-2 shadow-sm w-full">
       
       <div className="flex items-center gap-3">
         <button
