@@ -98,10 +98,10 @@ const AIGenerator = () => {
   return (
   <div className="flex h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 overflow-hidden">
 
-    {/* ================= MOBILE SIDEBAR ================= */}
+    {/* MOBILE SIDEBAR */}
     {sidebarOpen && (
       <div className="fixed inset-0 z-40 flex">
-        <div className="w-72 bg-white/90 backdrop-blur-xl h-full shadow-2xl p-4">
+        <div className="w-72 max-w-[85%] bg-white/90 backdrop-blur-xl h-full shadow-2xl p-4">
           <div className="flex justify-between mb-4">
             <h3 className="font-bold text-gray-700">History</h3>
             <button onClick={() => setSidebarOpen(false)}>✕</button>
@@ -130,9 +130,8 @@ const AIGenerator = () => {
       </div>
     )}
 
-    {/* ================= SIDEBAR DESKTOP ================= */}
+    {/* DESKTOP SIDEBAR */}
     <div className="hidden md:flex md:w-72 flex-col border-r bg-white/80 backdrop-blur-xl">
-
       <div className="p-5 border-b font-bold text-gray-700 text-lg">
         AI Generator ✨
       </div>
@@ -172,13 +171,13 @@ const AIGenerator = () => {
       </div>
     </div>
 
-    {/* ================= MAIN ================= */}
+    {/* MAIN */}
     <div className="flex-1 flex flex-col">
 
       {/* HEADER */}
-      <div className="sticky top-0 z-30 backdrop-blur bg-white/70 border-b px-4 py-3 flex justify-between items-center shadow-sm">
+      <div className="sticky top-0 z-30 backdrop-blur bg-white/70 border-b px-3 sm:px-4 py-3 flex justify-between items-center shadow-sm">
         
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <button
             onClick={() => setSidebarOpen(true)}
             className="md:hidden text-gray-600 text-xl"
@@ -186,23 +185,23 @@ const AIGenerator = () => {
             ☰
           </button>
 
-          <h2 className="font-bold text-gray-800 text-lg">
-            AI Question Generator 🤖
+          <h2 className="font-bold text-gray-800 text-sm sm:text-lg">
+            AI Generator 🤖
           </h2>
         </div>
 
         {activeItem && (
-          <div className="flex gap-2">
+          <div className="flex gap-1 sm:gap-2">
             <button
               onClick={handleCopy}
-              className="px-3 py-1 text-xs bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-full shadow hover:scale-105 transition"
+              className="px-2 sm:px-3 py-1 text-[10px] sm:text-xs bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-full shadow"
             >
               Copy
             </button>
 
             <button
               onClick={handleDownloadPDF}
-              className="px-3 py-1 text-xs bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-full shadow hover:scale-105 transition"
+              className="px-2 sm:px-3 py-1 text-[10px] sm:text-xs bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-full shadow"
             >
               PDF
             </button>
@@ -211,42 +210,48 @@ const AIGenerator = () => {
       </div>
 
       {/* CONTENT */}
-      <div className="flex-1 overflow-y-auto px-4 py-6">
+      <div className="flex-1 overflow-y-auto px-2 sm:px-4 py-4 sm:py-6">
 
         {loading ? (
           <div className="flex justify-center mt-20">
             <div className="flex gap-1">
-              <span className="w-3 h-3 bg-gray-400 rounded-full animate-bounce"></span>
-              <span className="w-3 h-3 bg-gray-400 rounded-full animate-bounce delay-150"></span>
-              <span className="w-3 h-3 bg-gray-400 rounded-full animate-bounce delay-300"></span>
+              <span className="w-2 h-2 sm:w-3 sm:h-3 bg-gray-400 rounded-full animate-bounce"></span>
+              <span className="w-2 h-2 sm:w-3 sm:h-3 bg-gray-400 rounded-full animate-bounce delay-150"></span>
+              <span className="w-2 h-2 sm:w-3 sm:h-3 bg-gray-400 rounded-full animate-bounce delay-300"></span>
             </div>
           </div>
         ) : activeItem ? (
-          <div className="max-w-3xl mx-auto bg-white/90 backdrop-blur-xl p-6 rounded-2xl shadow-xl border">
 
-            <h3 className="text-lg font-bold mb-4 text-gray-800">
+          <div className="w-full max-w-full sm:max-w-2xl md:max-w-3xl mx-auto bg-white/90 backdrop-blur-xl p-3 sm:p-5 md:p-6 rounded-2xl shadow-xl border overflow-hidden">
+
+            <h3 className="text-sm sm:text-lg font-bold mb-3 sm:mb-4 text-gray-800">
               {activeItem.subject}
             </h3>
 
-            <pre className="whitespace-pre-wrap text-sm leading-relaxed text-gray-700">
-              {activeItem.result}
-            </pre>
+            {/* 🔥 FIXED MOBILE OVERFLOW */}
+            <div className="overflow-x-auto">
+              <pre className="whitespace-pre-wrap break-words text-xs sm:text-sm leading-relaxed text-gray-700">
+                {activeItem.result}
+              </pre>
+            </div>
+
           </div>
+
         ) : (
-          <div className="text-center text-gray-400 mt-20">
+          <div className="text-center text-gray-400 mt-20 text-sm">
             Start by generating a question set 👇
           </div>
         )}
       </div>
 
       {/* INPUT */}
-      <div className="border-t bg-white/80 backdrop-blur px-4 py-3">
-        <div className="max-w-3xl mx-auto flex items-center gap-2">
+      <div className="border-t bg-white/80 backdrop-blur px-2 sm:px-4 py-3">
+        <div className="w-full max-w-full sm:max-w-2xl md:max-w-3xl mx-auto flex items-center gap-2">
 
           <input
             type="text"
             placeholder="Enter subject..."
-            className="flex-1 h-11 border border-gray-300 rounded-full px-4 text-sm focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm"
+            className="flex-1 h-10 sm:h-11 border border-gray-300 rounded-full px-3 sm:px-4 text-xs sm:text-sm focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm"
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleGenerate()}
@@ -254,19 +259,20 @@ const AIGenerator = () => {
 
           <input
             type="number"
-            className="w-20 h-11 border border-gray-300 rounded-full px-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+            className="w-14 sm:w-20 h-10 sm:h-11 border border-gray-300 rounded-full px-2 sm:px-3 text-xs sm:text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
             value={count}
             onChange={(e) => setCount(e.target.value)}
           />
 
           <button
             onClick={handleGenerate}
-            className="h-11 px-5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-full hover:scale-105 transition shadow-md"
+            className="h-10 sm:h-11 px-3 sm:px-5 text-xs sm:text-sm bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-full shadow-md"
           >
-            {loading ? "..." : "Generate"}
+            {loading ? "..." : "Go"}
           </button>
         </div>
       </div>
+
     </div>
   </div>
 );
