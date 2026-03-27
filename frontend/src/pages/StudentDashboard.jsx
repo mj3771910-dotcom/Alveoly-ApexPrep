@@ -233,14 +233,6 @@ disableOverlayClose={true}
               : "No course assigned yet"}
           </p>
         </div>
-
-        {/* ✅ TOUR BUTTON */}
-        <button
-  onClick={() => setRunTour(true)}
-  className="text-sm bg-blue-50 text-blue-600 px-3 py-1 rounded hover:bg-blue-100 transition"
->
-  Take Tour
-</button>
       </div>
 
       {/* ================= STATS ================= */}

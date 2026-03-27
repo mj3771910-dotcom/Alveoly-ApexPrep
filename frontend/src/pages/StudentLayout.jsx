@@ -170,14 +170,6 @@ const StudentLayout = () => {
           </div>
 
           <div className="flex items-center gap-3">
-            {/* ✅ TOUR BUTTON */}
-            <button
-              onClick={() => setRunTour(true)}
-              className="text-sm bg-blue-50 text-blue-600 px-3 py-1 rounded hover:bg-blue-100"
-            >
-              Take Tour
-            </button>
-
             <button
               onClick={logout}
               className="flex items-center gap-2 bg-red-500 text-white px-4 py-1 rounded hover:bg-red-600 transition"
