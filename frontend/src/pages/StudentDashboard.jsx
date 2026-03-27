@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import Joyride from "react-joyride"; // ✅ NEW
 import { useNavigate } from "react-router-dom";
 import {
   FaBook,
@@ -26,23 +27,70 @@ const StudentDashboard = () => {
   const [selectedPlan, setSelectedPlan] = useState(null);
 
   const [stats, setStats] = useState({
-  totalQuestions: 0,
-  examsTaken: 0,
-  averagePerformance: 0,
-});
+    totalQuestions: 0,
+    examsTaken: 0,
+    averagePerformance: 0,
+  });
 
-  // ✅ UPDATED: Store expiry per plan
   const [myPlans, setMyPlans] = useState({});
-
-  // ✅ LIVE TIMER STATE
   const [now, setNow] = useState(new Date());
+
+  // ✅ TOUR STATE
+  const [runTour, setRunTour] = useState(false);
+
+  // ================= TOUR STEPS =================
+  const steps = [
+    {
+      target: "body",
+      placement: "center",
+      content: (
+        <div className="text-center">
+          <h2 className="text-lg font-bold mb-2">🎉 Welcome</h2>
+          <p className="text-sm text-gray-600">
+            Let’s quickly show you how to use your dashboard.
+          </p>
+        </div>
+      ),
+    },
+    {
+      target: ".stats-section",
+      content: "📊 Track your performance, exams, and progress here.",
+    },
+    {
+      target: ".quick-actions",
+      content: "⚡ Use these shortcuts to access subjects and exams quickly.",
+    },
+    {
+      target: ".course-card",
+      content: "📚 View your course and access subjects here.",
+    },
+    {
+      target: ".plans-section",
+      content: "💳 Manage your subscription and unlock premium content.",
+    },
+  ];
+
+  // ================= AUTO TOUR =================
+  useEffect(() => {
+    const seen = localStorage.getItem("seenDashboardTour");
+    if (!seen) {
+      setRunTour(true);
+    }
+  }, []);
+
+  const handleTourCallback = (data) => {
+    const { status } = data;
+    if (status === "finished" || status === "skipped") {
+      localStorage.setItem("seenDashboardTour", "true");
+      setRunTour(false);
+    }
+  };
 
   // ================= TIMER =================
   useEffect(() => {
     const interval = setInterval(() => {
       setNow(new Date());
     }, 1000);
-
     return () => clearInterval(interval);
   }, []);
 
@@ -53,27 +101,25 @@ const StudentDashboard = () => {
         const res = await API.get("/auth/me");
         setStudent(res.data);
       } catch (err) {
-        console.error("Failed to fetch student info:", err);
+        console.error(err);
       } finally {
         setLoading(false);
       }
     };
-
     fetchStudent();
   }, []);
 
   useEffect(() => {
-  const fetchStats = async () => {
-    try {
-      const res = await API.get("/student/stats");
-      setStats(res.data);
-    } catch (err) {
-      console.error("Stats error:", err);
-    }
-  };
-
-  fetchStats();
-}, []);
+    const fetchStats = async () => {
+      try {
+        const res = await API.get("/student/stats");
+        setStats(res.data);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchStats();
+  }, []);
 
   // ================= FETCH PLANS =================
   useEffect(() => {
@@ -82,37 +128,33 @@ const StudentDashboard = () => {
         const res = await API.get("/plans");
         setPlans(res.data);
       } catch (err) {
-        console.error("Failed to fetch plans", err);
+        console.error(err);
       } finally {
         setLoadingPlans(false);
       }
     };
-
     fetchPlans();
   }, []);
 
-  // ================= FETCH MY PAYMENTS =================
+  // ================= FETCH PAYMENTS =================
   useEffect(() => {
     const fetchMyPayments = async () => {
       try {
         const res = await API.get("/payments/mine");
-
         const map = {};
 
-res.data
-  .filter((p) => p.status === "success" && p.planId)
-  .forEach((p) => {
-    const existing = map[p.planId];
+        res.data
+          .filter((p) => p.status === "success" && p.planId)
+          .forEach((p) => {
+            const existing = map[p.planId];
+            if (!existing || new Date(p.expiresAt) > new Date(existing)) {
+              map[p.planId] = p.expiresAt;
+            }
+          });
 
-    // ✅ keep the latest expiry
-    if (!existing || new Date(p.expiresAt) > new Date(existing)) {
-      map[p.planId] = p.expiresAt;
-    }
-  });
-
-setMyPlans(map);
+        setMyPlans(map);
       } catch (err) {
-        console.error("Failed to fetch my payments", err);
+        console.error(err);
       }
     };
 
@@ -124,21 +166,15 @@ setMyPlans(map);
   const courseId =
     student?.courseId?._id || student?.courseId || null;
 
-  // ================= STATUS =================
   const getPlanStatus = (planId) => {
     const expiry = myPlans[planId];
-
     if (!expiry) return "none";
-
     return new Date(expiry) > now ? "active" : "expired";
   };
 
-  // ================= COUNTDOWN =================
   const getTimeLeft = (expiresAt) => {
     if (!expiresAt) return null;
-
     const diff = new Date(expiresAt) - now;
-
     if (diff <= 0) return "Expired";
 
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
@@ -149,21 +185,65 @@ setMyPlans(map);
   };
 
   return (
-    <div>
+    <div className="relative">
+
+      {/* ✅ TOUR COMPONENT */}
+      <Joyride
+        steps={steps}
+        run={runTour}
+        continuous
+        showSkipButton
+        showProgress
+        scrollToFirstStep
+        callback={handleTourCallback}
+        styles={{
+          options: {
+            primaryColor: "#2563eb",
+            textColor: "#1f2937",
+            zIndex: 10000,
+          },
+          tooltip: {
+            borderRadius: "12px",
+            padding: "16px",
+          },
+          buttonNext: {
+            backgroundColor: "#2563eb",
+            borderRadius: "6px",
+          },
+          buttonBack: {
+            color: "#6b7280",
+          },
+          buttonSkip: {
+            color: "#ef4444",
+          },
+        }}
+      />
+
       {/* ================= HEADER ================= */}
-      <div className="mb-8">
-        <h2 className="text-2xl font-bold">
-          Welcome back 👋 {student?.name}
-        </h2>
-        <p className="text-gray-500 text-sm">
-          {student?.courseId?.name
-            ? `You are enrolled in: ${student.courseId.name}`
-            : "No course assigned yet"}
-        </p>
+      <div className="mb-8 flex justify-between items-center">
+        <div>
+          <h2 className="text-2xl font-bold">
+            Welcome back 👋 {student?.name}
+          </h2>
+          <p className="text-gray-500 text-sm">
+            {student?.courseId?.name
+              ? `You are enrolled in: ${student.courseId.name}`
+              : "No course assigned yet"}
+          </p>
+        </div>
+
+        {/* ✅ TOUR BUTTON */}
+        <button
+          onClick={() => setRunTour(true)}
+          className="text-sm bg-blue-50 text-blue-600 px-3 py-1 rounded hover:bg-blue-100 transition"
+        >
+          Take Tour
+        </button>
       </div>
 
       {/* ================= STATS ================= */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-10">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-10 stats-section">
+        {/* unchanged */}
         <div className="bg-white p-6 rounded-2xl shadow flex gap-4">
           <FaBook className="text-blue-600 text-2xl" />
           <div>
@@ -202,7 +282,7 @@ setMyPlans(map);
       </div>
 
         {/* ================= QUICK ACTIONS ================= */}
-      <div className="grid md:grid-cols-3 gap-6 mb-10">
+      <div className="grid md:grid-cols-3 gap-6 mb-10 quick-actions">
         <div
           onClick={() => {
             if (!courseId) {
@@ -248,7 +328,7 @@ setMyPlans(map);
 
       {/* ================= COURSE CARD ================= */}
       {courseId && (
-        <div className="bg-white p-6 rounded-2xl shadow mb-10">
+        <div className="bg-white p-6 rounded-2xl shadow mb-10 course-card">
           <div className="flex justify-between items-center mb-4">
             <h3 className="font-semibold">My Course</h3>
             <button
@@ -284,7 +364,7 @@ setMyPlans(map);
       )}
 
        {/* ================= PLANS ================= */}
-      <div className="bg-white p-6 rounded-2xl shadow">
+      <div className="bg-white p-6 rounded-2xl shadow plans-section">
         <h3 className="font-semibold mb-6">Your Subscription Plan</h3>
 
         {loadingPlans ? (
