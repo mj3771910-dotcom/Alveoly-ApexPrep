@@ -209,14 +209,12 @@ const AIChat = () => {
     }
   };
 
- return (
-  <div className="bg-gray-50 min-h-screen flex flex-col">
+return (
+  <div className="h-[100dvh] flex flex-col bg-[#f7f7f8]">
 
     {/* HEADER */}
-    <div className="sticky top-0 z-20 bg-white border-b px-4 py-3 flex items-center justify-between">
-      
+    <div className="flex-shrink-0 bg-white border-b px-4 py-3 flex items-center justify-between">
       <div className="flex items-center gap-3">
-        {/* MOBILE MENU */}
         <button
           onClick={() => setSidebarOpen(true)}
           className="md:hidden text-gray-600 text-lg"
@@ -224,26 +222,26 @@ const AIChat = () => {
           ☰
         </button>
 
-        <h2 className="font-semibold flex items-center gap-2 text-gray-700">
+        <h2 className="font-semibold flex items-center gap-2 text-gray-800">
           <FaRobot className="text-blue-600" /> AI Nursing Tutor
         </h2>
       </div>
 
       {subscription && (
-        <span className="text-xs sm:text-sm bg-green-100 text-green-700 px-3 py-1 rounded-full">
+        <span className="text-xs bg-green-100 text-green-700 px-3 py-1 rounded-full">
           ⏱ {formatTime(timeLeft)}
         </span>
       )}
     </div>
 
-    {/* MAIN CONTENT (LIKE DASHBOARD) */}
-    <div className="flex-1 w-full max-w-6xl mx-auto flex gap-6 px-3 md:px-6 py-6">
+    {/* BODY */}
+    <div className="flex flex-1 overflow-hidden">
 
       {/* DESKTOP SIDEBAR */}
-      <div className="hidden md:flex w-72 bg-white border rounded-2xl flex-col h-fit">
+      <div className="hidden md:flex w-72 bg-white border-r flex-col">
         <div className="p-4 font-semibold border-b">Chats</div>
 
-        <div className="p-2 space-y-2">
+        <div className="flex-1 overflow-y-auto p-2 space-y-2">
           {chats.map((chat) => (
             <div
               key={chat._id}
@@ -272,7 +270,7 @@ const AIChat = () => {
 
       {/* MOBILE SIDEBAR */}
       {sidebarOpen && (
-        <div className="fixed inset-0 z-30 flex">
+        <div className="fixed inset-0 z-50 flex">
           <div className="w-72 bg-white h-full shadow-lg p-3">
             <div className="flex justify-between mb-3">
               <h3 className="font-semibold">Chats</h3>
@@ -294,18 +292,18 @@ const AIChat = () => {
           </div>
 
           <div
-            className="flex-1 bg-black/30"
+            className="flex-1 bg-black/40"
             onClick={() => setSidebarOpen(false)}
           />
         </div>
       )}
 
-      {/* CHAT SECTION */}
+      {/* CHAT AREA */}
       <div className="flex-1 flex flex-col">
 
-        {/* MESSAGES */}
-        <div className="space-y-4 mb-24">
-          
+        {/* MESSAGES SCROLL AREA */}
+        <div className="flex-1 overflow-y-auto px-4 md:px-10 py-6 space-y-6">
+
           {!subscription && (
             <div className="bg-white p-6 rounded-2xl shadow-sm text-center max-w-md mx-auto">
               <h3 className="font-semibold mb-3">Unlock AI Access</h3>
@@ -325,28 +323,28 @@ const AIChat = () => {
           {activeChat?.messages.map((msg, i) => (
             <div
               key={i}
-              className={`flex items-end gap-2 ${
+              className={`flex gap-3 ${
                 msg.role === "user" ? "justify-end" : ""
               }`}
             >
               {msg.role === "ai" && (
-                <div className="bg-gray-200 p-2 rounded-full">
+                <div className="bg-gray-200 p-2 rounded-full h-fit">
                   <FaRobot />
                 </div>
               )}
 
               <div
-                className={`max-w-[85%] md:max-w-xl px-4 py-3 rounded-2xl text-sm ${
+                className={`max-w-[85%] md:max-w-2xl px-4 py-3 rounded-2xl text-sm leading-relaxed ${
                   msg.role === "user"
                     ? "bg-blue-600 text-white rounded-br-none"
-                    : "bg-white text-gray-700 rounded-bl-none shadow-sm"
+                    : "bg-white text-gray-800 border rounded-bl-none"
                 }`}
               >
                 {msg.content}
               </div>
 
               {msg.role === "user" && (
-                <div className="bg-blue-100 p-2 rounded-full">
+                <div className="bg-blue-100 p-2 rounded-full h-fit">
                   <FaUser />
                 </div>
               )}
@@ -354,11 +352,12 @@ const AIChat = () => {
           ))}
         </div>
 
-        {/* STICKY INPUT (NOW PERFECT) */}
-        <div className="fixed bottom-0 left-0 w-full bg-white border-t p-3">
-          <div className="max-w-6xl mx-auto flex gap-2 px-3 md:px-6">
+        {/* INPUT AREA (CHATGPT STYLE FIXED) */}
+        <div className="flex-shrink-0 bg-white border-t px-3 md:px-6 py-3">
+          <div className="max-w-4xl mx-auto flex items-center gap-2">
+
             <input
-              className="flex-1 border border-gray-300 rounded-full px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+              className="flex-1 border border-gray-300 rounded-full px-5 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50"
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
               placeholder="Ask a nursing question..."
@@ -368,7 +367,7 @@ const AIChat = () => {
             <button
               onClick={handleAsk}
               disabled={!subscription || loading}
-              className="bg-blue-600 text-white px-5 py-2 rounded-full hover:bg-blue-700 disabled:opacity-50"
+              className="bg-blue-600 text-white px-6 py-3 rounded-full hover:bg-blue-700 disabled:opacity-50"
             >
               {loading ? "..." : "Send"}
             </button>
