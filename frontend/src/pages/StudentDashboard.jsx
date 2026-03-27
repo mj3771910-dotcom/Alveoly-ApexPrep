@@ -26,12 +26,15 @@ const StudentDashboard = () => {
   const [selectedPlan, setSelectedPlan] = useState(null);
 
   const [stats, setStats] = useState({
-    totalQuestions: 0,
-    examsTaken: 0,
-    averagePerformance: 0,
-  });
+  totalQuestions: 0,
+  examsTaken: 0,
+  averagePerformance: 0,
+});
 
+  // ✅ UPDATED: Store expiry per plan
   const [myPlans, setMyPlans] = useState({});
+
+  // ✅ LIVE TIMER STATE
   const [now, setNow] = useState(new Date());
 
   // ================= TIMER =================
@@ -50,26 +53,27 @@ const StudentDashboard = () => {
         const res = await API.get("/auth/me");
         setStudent(res.data);
       } catch (err) {
-        console.error(err);
+        console.error("Failed to fetch student info:", err);
       } finally {
         setLoading(false);
       }
     };
+
     fetchStudent();
   }, []);
 
-  // ================= FETCH STATS =================
   useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const res = await API.get("/student/stats");
-        setStats(res.data);
-      } catch (err) {
-        console.error(err);
-      }
-    };
-    fetchStats();
-  }, []);
+  const fetchStats = async () => {
+    try {
+      const res = await API.get("/student/stats");
+      setStats(res.data);
+    } catch (err) {
+      console.error("Stats error:", err);
+    }
+  };
+
+  fetchStats();
+}, []);
 
   // ================= FETCH PLANS =================
   useEffect(() => {
@@ -78,15 +82,16 @@ const StudentDashboard = () => {
         const res = await API.get("/plans");
         setPlans(res.data);
       } catch (err) {
-        console.error(err);
+        console.error("Failed to fetch plans", err);
       } finally {
         setLoadingPlans(false);
       }
     };
+
     fetchPlans();
   }, []);
 
-  // ================= FETCH PAYMENTS =================
+  // ================= FETCH MY PAYMENTS =================
   useEffect(() => {
     const fetchMyPayments = async () => {
       try {
@@ -94,26 +99,27 @@ const StudentDashboard = () => {
 
         const map = {};
 
-        res.data
-          .filter((p) => p.status === "success" && p.planId)
-          .forEach((p) => {
-            const existing = map[p.planId];
-            if (!existing || new Date(p.expiresAt) > new Date(existing)) {
-              map[p.planId] = p.expiresAt;
-            }
-          });
+res.data
+  .filter((p) => p.status === "success" && p.planId)
+  .forEach((p) => {
+    const existing = map[p.planId];
 
-        setMyPlans(map);
+    // ✅ keep the latest expiry
+    if (!existing || new Date(p.expiresAt) > new Date(existing)) {
+      map[p.planId] = p.expiresAt;
+    }
+  });
+
+setMyPlans(map);
       } catch (err) {
-        console.error(err);
+        console.error("Failed to fetch my payments", err);
       }
     };
 
     fetchMyPayments();
   }, []);
 
-  if (loading)
-    return <div className="p-6 text-center">Loading dashboard...</div>;
+  if (loading) return <p>Loading dashboard...</p>;
 
   const courseId =
     student?.courseId?._id || student?.courseId || null;
@@ -121,7 +127,9 @@ const StudentDashboard = () => {
   // ================= STATUS =================
   const getPlanStatus = (planId) => {
     const expiry = myPlans[planId];
+
     if (!expiry) return "none";
+
     return new Date(expiry) > now ? "active" : "expired";
   };
 
@@ -130,6 +138,7 @@ const StudentDashboard = () => {
     if (!expiresAt) return null;
 
     const diff = new Date(expiresAt) - now;
+
     if (diff <= 0) return "Expired";
 
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
@@ -140,10 +149,9 @@ const StudentDashboard = () => {
   };
 
   return (
-    <div className="w-full">
-
-      {/* HEADER */}
-      <div className="mb-8 w-full">
+    <div>
+      {/* ================= HEADER ================= */}
+      <div className="mb-8">
         <h2 className="text-2xl font-bold">
           Welcome back 👋 {student?.name}
         </h2>
@@ -154,67 +162,156 @@ const StudentDashboard = () => {
         </p>
       </div>
 
-      {/* STATS */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-10 w-full">
-        {[
-          { icon: FaBook, label: "Courses", value: courseId ? 1 : 0, color: "text-blue-600" },
-          { icon: FaClipboardList, label: "Questions", value: stats.totalQuestions, color: "text-green-600" },
-          { icon: FaCheckCircle, label: "Exams", value: stats.examsTaken, color: "text-purple-600" },
-          { icon: FaChartLine, label: "Performance", value: `${stats.averagePerformance}%`, color: "text-yellow-600" },
-        ].map((item, i) => (
-          <div key={i} className="bg-white p-6 rounded-2xl shadow flex gap-4 w-full">
-            <item.icon className={`${item.color} text-2xl`} />
-            <div>
-              <p className="text-gray-500 text-sm">{item.label}</p>
-              <h3 className="text-xl font-bold">{item.value}</h3>
+      {/* ================= STATS ================= */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-10">
+        <div className="bg-white p-6 rounded-2xl shadow flex gap-4">
+          <FaBook className="text-blue-600 text-2xl" />
+          <div>
+            <p className="text-gray-500 text-sm">Courses</p>
+            <h3 className="text-xl font-bold">
+              {courseId ? 1 : 0}
+            </h3>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-2xl shadow flex gap-4">
+          <FaClipboardList className="text-green-600 text-2xl" />
+          <div>
+            <p className="text-gray-500 text-sm">Questions</p>
+            <h3 className="text-xl font-bold">{stats.totalQuestions}</h3>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-2xl shadow flex gap-4">
+          <FaCheckCircle className="text-purple-600 text-2xl" />
+          <div>
+            <p className="text-gray-500 text-sm">Exams</p>
+            <h3 className="text-xl font-bold">{stats.examsTaken}</h3>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-2xl shadow flex gap-4">
+          <FaChartLine className="text-yellow-600 text-2xl" />
+          <div>
+            <p className="text-gray-500 text-sm">Performance</p>
+            <h3 className="text-xl font-bold">
+  {stats.averagePerformance}%
+</h3>
+          </div>
+        </div>
+      </div>
+
+        {/* ================= QUICK ACTIONS ================= */}
+      <div className="grid md:grid-cols-3 gap-6 mb-10">
+        <div
+          onClick={() => {
+            if (!courseId) {
+              alert("No course assigned yet");
+              return;
+            }
+            navigate(`/student/subjects?course=${courseId}`);
+          }}
+          className="bg-white p-6 rounded-2xl shadow cursor-pointer hover:shadow-lg transition"
+        >
+          <h3 className="font-bold text-blue-600">Browse Subjects</h3>
+          <p className="text-sm text-gray-500 mt-2">
+            Access all subjects under your course
+          </p>
+        </div>
+
+        <div
+          onClick={() => {
+            if (!courseId) {
+              alert("No course assigned yet");
+              return;
+            }
+            navigate(`/student/subjects?course=${courseId}`);
+          }}
+          className="bg-white p-6 rounded-2xl shadow cursor-pointer hover:shadow-lg transition"
+        >
+          <h3 className="font-bold text-green-600">Practice / Exams</h3>
+          <p className="text-sm text-gray-500 mt-2">
+            Start trial tests or exam mode
+          </p>
+        </div>
+
+        <div
+          onClick={() => navigate("/student/payments")}
+          className="bg-white p-6 rounded-2xl shadow cursor-pointer hover:shadow-lg transition"
+        >
+          <h3 className="font-bold text-purple-600">Payments</h3>
+          <p className="text-sm text-gray-500 mt-2">
+            Manage subscriptions & history
+          </p>
+        </div>
+      </div>
+
+      {/* ================= COURSE CARD ================= */}
+      {courseId && (
+        <div className="bg-white p-6 rounded-2xl shadow mb-10">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="font-semibold">My Course</h3>
+            <button
+              onClick={() => navigate("/student/courses")}
+              className="text-sm text-blue-600 flex items-center gap-1"
+            >
+              View all <FaArrowRight />
+            </button>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6">
+            <div className="border rounded-xl p-4 hover:shadow-lg transition flex flex-col justify-between">
+              <div>
+                <h4 className="font-bold text-blue-600">
+                  {student?.courseId?.name || "My Course"}
+                </h4>
+                <p className="text-sm text-gray-500 mt-1">
+                  Access subjects and start practicing questions.
+                </p>
+              </div>
+
+              <button
+                onClick={() =>
+                  navigate(`/student/subjects?course=${courseId}`)
+                }
+                className="mt-4 bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 transition"
+              >
+                View Subjects
+              </button>
             </div>
           </div>
-        ))}
-      </div>
+        </div>
+      )}
 
-      {/* QUICK ACTIONS */}
-      <div className="grid md:grid-cols-3 gap-6 mb-10 w-full">
-        {[
-          { title: "Browse Subjects", color: "text-blue-600" },
-          { title: "Practice / Exams", color: "text-green-600" },
-          { title: "Payments", color: "text-purple-600" },
-        ].map((item, i) => (
-          <div
-            key={i}
-            onClick={() => {
-              if (!courseId) return alert("No course assigned yet");
-              navigate(
-                item.title === "Payments"
-                  ? "/student/payments"
-                  : `/student/subjects?course=${courseId}`
-              );
-            }}
-            className="bg-white p-6 rounded-2xl shadow cursor-pointer hover:shadow-lg transition w-full"
-          >
-            <h3 className={`font-bold ${item.color}`}>{item.title}</h3>
-            <p className="text-sm text-gray-500 mt-2">
-              Access this feature
-            </p>
-          </div>
-        ))}
-      </div>
-
-      {/* PLANS */}
-      <div className="bg-white p-6 rounded-2xl shadow w-full">
+       {/* ================= PLANS ================= */}
+      <div className="bg-white p-6 rounded-2xl shadow">
         <h3 className="font-semibold mb-6">Your Subscription Plan</h3>
 
         {loadingPlans ? (
           <p>Loading plans...</p>
         ) : (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {plans.map((plan, index) => {
               const status = getPlanStatus(plan._id);
               const expiry = myPlans[plan._id];
               const timeLeft = getTimeLeft(expiry);
+              const isFeatured = index === 1;
 
               return (
-                <div key={plan._id} className="relative p-6 rounded-xl border w-full">
-
+                <div
+                  key={plan._id}
+                  className={`relative p-6 rounded-xl border transition
+                  ${
+                    status === "active"
+                      ? "border-green-500 shadow-lg"
+                      : status === "expired"
+                      ? "border-red-400"
+                      : isFeatured
+                      ? "border-blue-600"
+                      : "hover:shadow-lg"
+                  }`}
+                >
+                  {/* BADGES */}
                   {status === "active" && (
                     <span className="absolute top-3 right-3 bg-green-600 text-white text-xs px-2 py-1 rounded flex gap-1 items-center">
                       <FaCheck /> Active
@@ -227,9 +324,11 @@ const StudentDashboard = () => {
                     </span>
                   )}
 
-                  <h4 className="font-bold text-lg">{plan.title}</h4>
+                  <h4 className="font-bold text-lg mb-2">
+                    {plan.title}
+                  </h4>
 
-                  <p className="text-3xl font-extrabold">
+                  <p className="text-3xl font-extrabold mb-2">
                     ₵{plan.price}
                   </p>
 
@@ -238,17 +337,45 @@ const StudentDashboard = () => {
                     {plan.duration} {plan.durationUnit}
                   </div>
 
+                  {/* COUNTDOWN */}
                   {status === "active" && (
-                    <p className="text-blue-600 text-sm">
+                    <p className="text-blue-600 text-sm mb-2">
                       ⏳ {timeLeft}
                     </p>
                   )}
 
+                  {status === "expired" && (
+                    <p className="text-red-500 text-sm mb-2">
+                      Plan expired
+                    </p>
+                  )}
+
+                  <ul className="text-sm text-gray-600 mb-4 space-y-1">
+                    {plan.subjects.map((s) => (
+                      <li key={s._id} className="flex gap-2">
+                        <FaCheck className="text-green-500 text-xs mt-1" />
+                        {s.name}
+                      </li>
+                    ))}
+                  </ul>
+
                   <button
+                    disabled={status === "active"}
                     onClick={() => setSelectedPlan(plan)}
-                    className="w-full mt-4 bg-black text-white py-2 rounded"
+                    className={`w-full py-2 rounded
+                    ${
+                      status === "active"
+                        ? "bg-gray-300"
+                        : status === "expired"
+                        ? "bg-red-600 text-white"
+                        : "bg-black text-white"
+                    }`}
                   >
-                    {status === "active" ? "Active" : "Choose Plan"}
+                    {status === "active"
+                      ? "Active Plan"
+                      : status === "expired"
+                      ? "Renew Plan"
+                      : "Choose Plan"}
                   </button>
                 </div>
               );
@@ -257,10 +384,17 @@ const StudentDashboard = () => {
         )}
       </div>
 
-      {/* MODAL */}
+      {/* ================= MODAL ================= */}
       {selectedPlan && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-xl w-full max-w-md">
+        <div className="fixed inset-0 bg-black/60 flex justify-center items-center z-50">
+          <div className="bg-white p-6 rounded-xl w-full max-w-md relative">
+            <button
+              onClick={() => setSelectedPlan(null)}
+              className="absolute top-2 right-3 text-xl"
+            >
+              ×
+            </button>
+
             <h3 className="text-xl font-bold text-center mb-4">
               {selectedPlan.title}
             </h3>
