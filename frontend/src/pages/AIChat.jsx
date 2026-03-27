@@ -4,23 +4,8 @@ import { io } from "socket.io-client";
 import { FaRobot, FaUser, FaTrash } from "react-icons/fa";
 
 const AIChat = () => {
-   // ✅ MOVE SOCKET HERE
   const [socket, setSocket] = useState(null);
 
-  useEffect(() => {
-    const newSocket = io("https://alveoly-apexprep-backend.onrender.com", {
-      transports: ["websocket"],
-      withCredentials: true,
-    });
-
-    console.log("🟢 Connected:", newSocket.id);
-
-    setSocket(newSocket);
-
-    return () => {
-      newSocket.disconnect();
-    };
-  }, []);
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
   const [fromDB, setFromDB] = useState(false);
@@ -32,114 +17,61 @@ const AIChat = () => {
   const [chats, setChats] = useState([]);
   const [activeChatId, setActiveChatId] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [now, setNow] = useState(new Date());
 
+  // ================= SOCKET =================
   useEffect(() => {
-    const fetchQA = async () => {
-      try {
-        const res = await axios.get("/ai/all-admin");
-        setQaList(res.data);
-      } catch (err) {
-        console.error(err);
-      }
-    };
-    fetchQA();
+    const newSocket = io("https://alveoly-apexprep-backend.onrender.com", {
+      transports: ["websocket"],
+      withCredentials: true,
+    });
+
+    setSocket(newSocket);
+    return () => newSocket.disconnect();
+  }, []);
+
+  // ================= TIMER =================
+  useEffect(() => {
+    const interval = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // ================= FETCH =================
+  useEffect(() => {
+    axios.get("/ai/all-admin").then((res) => setQaList(res.data));
   }, []);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const reference = params.get("reference");
-
-    if (reference) {
-      axios
-        .get(`/ai-subscriptions/verify?reference=${reference}`)
-        .then((res) => {
-          alert("🎉 Subscription activated!");
-          if (res.data.active) {
-            setSubscription(res.data.subscription);
-            const remaining =
-              new Date(res.data.subscription.expiryDate) - new Date();
-            setTimeLeft(Math.max(remaining, 0));
-          }
-        })
-        .catch(() => alert("❌ Payment verification failed"));
-
-      window.history.replaceState({}, document.title, "/student/ai");
-    }
+    axios.get("/ai-plans").then((res) => setPlans(res.data));
   }, []);
 
   useEffect(() => {
-  if (!socket) return;
-
-  socket.on("newQA", (qa) => setQaList((prev) => [qa, ...prev]));
-
-  socket.on("updateQA", (qa) =>
-    setQaList((prev) => prev.map((item) => (item.id === qa.id ? qa : item)))
-  );
-
-  socket.on("deleteQA", (id) =>
-    setQaList((prev) => prev.filter((item) => item.id !== id))
-  );
-
-  return () => {
-    socket.off("newQA");
-    socket.off("updateQA");
-    socket.off("deleteQA");
-  };
-}, [socket]);
-
-  useEffect(() => {
-    const fetchPlansAndSub = async () => {
-      try {
-        const plansRes = await axios.get("/ai-plans");
-        setPlans(plansRes.data);
-
-        const subRes = await axios.get("/ai-subscriptions");
-        if (subRes.data.active) {
-          setSubscription(subRes.data.subscription);
-          const remaining =
-            new Date(subRes.data.subscription.expiryDate) - new Date();
-          setTimeLeft(Math.max(remaining, 0));
-        }
-      } catch (err) {
-        console.error(err);
+    axios.get("/ai-subscriptions").then((res) => {
+      if (res.data.active) {
+        setSubscription(res.data.subscription);
       }
-    };
-    fetchPlansAndSub();
+    });
   }, []);
 
   useEffect(() => {
-    if (!timeLeft) return;
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1000) {
-          setSubscription(null);
-          clearInterval(timer);
-          return 0;
-        }
-        return prev - 1000;
-      });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [timeLeft]);
-
-  useEffect(() => {
-    const fetchChats = async () => {
-      try {
-        const res = await axios.get("/ai/student-history");
-        setChats(res.data);
-        if (res.data.length > 0) setActiveChatId(res.data[0]._id);
-      } catch (err) {
-        console.error(err);
-      }
-    };
-    fetchChats();
+    axios.get("/ai/student-history").then((res) => {
+      setChats(res.data);
+      if (res.data.length) setActiveChatId(res.data[0]._id);
+    });
   }, []);
 
   const activeChat = chats.find((c) => c._id === activeChatId);
 
+  // ================= COUNTDOWN =================
+  const formatTime = (ms) => {
+    const s = Math.floor(ms / 1000);
+    return `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m ${s % 60}s`;
+  };
+
+  // ================= ASK =================
   const handleAsk = async () => {
     if (!question.trim()) return;
-    if (!subscription) return alert("You must have an active AI subscription!");
+    if (!subscription) return alert("Subscribe to use AI");
 
     setLoading(true);
     try {
@@ -149,9 +81,9 @@ const AIChat = () => {
       });
 
       setAnswer(res.data.answer);
-      setFromDB(res.data.fromDB || false);
 
       let updatedChats;
+
       if (activeChatId) {
         updatedChats = chats.map((chat) =>
           chat._id === activeChatId
@@ -173,6 +105,7 @@ const AIChat = () => {
             { role: "ai", content: res.data.answer },
           ],
         };
+
         updatedChats = [newChat, ...chats];
         setActiveChatId(newChat._id);
       }
@@ -180,210 +113,134 @@ const AIChat = () => {
       setChats(updatedChats);
       setQuestion("");
     } catch (err) {
-      setAnswer(err.response?.data?.message || "Error getting AI response");
+      setAnswer("Error");
     }
     setLoading(false);
   };
 
-  const handleDeleteChat = async (id) => {
-    try {
-      await axios.delete(`/ai/student-history/${id}`);
-      setChats((prev) => prev.filter((c) => c._id !== id));
-      if (activeChatId === id) setActiveChatId(null);
-    } catch (err) {
-      console.error(err);
-    }
-  };
+  return (
+    <div className="flex flex-col h-[100dvh] bg-gray-50 overflow-hidden">
 
-  const formatTime = (ms) => {
-    const s = Math.floor(ms / 1000);
-    return `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m ${s % 60}s`;
-  };
+      {/* HEADER */}
+      <div className="flex-shrink-0 bg-white border-b px-4 py-3 flex justify-between items-center">
 
-  const handleSubscribe = async (planId) => {
-    try {
-      const res = await axios.post("/ai-subscriptions", { planId });
-      window.location.href = res.data.authorization_url;
-    } catch (err) {
-      alert("Subscription failed. Try again.");
-    }
-  };
+        <div className="flex items-center gap-3">
+          <button onClick={() => setSidebarOpen(true)} className="md:hidden">
+            ☰
+          </button>
 
- return (
-  <div className="bg-gray-50 h-[100dvh] flex flex-col overflow-hidden">
-
-    {/* HEADER */}
-    <div className="flex-shrink-0 mt-3 bg-white border rounded-full px-3 py-2 flex items-center gap-2 shadow-sm w-full">
-      
-      <div className="flex items-center gap-3">
-        <button
-          onClick={() => setSidebarOpen(true)}
-          className="md:hidden text-gray-600 text-lg"
-        >
-          ☰
-        </button>
-
-        <h2 className="font-semibold flex items-center gap-2 text-gray-700">
-          <FaRobot className="text-blue-600" /> AI Nursing Tutor
-        </h2>
-      </div>
-
-      {subscription && (
-        <span className="text-xs sm:text-sm bg-green-100 text-green-700 px-3 py-1 rounded-full">
-          ⏱ {formatTime(timeLeft)}
-        </span>
-      )}
-    </div>
-
-    {/* MAIN */}
-    <div className="flex-1 flex overflow-hidden">
-
-      {/* SIDEBAR */}
-      <div className="hidden md:flex w-72 bg-white border-r flex-col">
-        <div className="p-4 font-semibold border-b">Chats</div>
-
-        <div className="flex-1 overflow-y-auto p-2 space-y-2">
-          {chats.map((chat) => (
-            <div
-              key={chat._id}
-              onClick={() => setActiveChatId(chat._id)}
-              className={`group p-3 rounded-lg cursor-pointer flex justify-between ${
-                activeChatId === chat._id
-                  ? "bg-blue-100"
-                  : "hover:bg-gray-100"
-              }`}
-            >
-              <p className="text-sm truncate text-gray-700">
-                {chat.messages[0]?.content}
-              </p>
-
-              <FaTrash
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDeleteChat(chat._id);
-                }}
-                className="text-gray-400 opacity-0 group-hover:opacity-100 hover:text-red-500"
-              />
-            </div>
-          ))}
+          <h2 className="flex items-center gap-2 font-semibold">
+            <FaRobot className="text-blue-600" /> AI Tutor
+          </h2>
         </div>
+
+        {subscription && (
+          <span className="text-xs bg-green-100 px-3 py-1 rounded-full">
+            ⏱ Active
+          </span>
+        )}
       </div>
 
-      {/* MOBILE SIDEBAR */}
-      {sidebarOpen && (
-        <div className="fixed inset-0 z-40 flex">
-          <div className="w-72 bg-white h-full shadow-lg p-3">
-            <div className="flex justify-between mb-3">
-              <h3 className="font-semibold">Chats</h3>
-              <button onClick={() => setSidebarOpen(false)}>✕</button>
-            </div>
+      {/* MAIN */}
+      <div className="flex flex-1 overflow-hidden min-w-0">
 
+        {/* SIDEBAR */}
+        <div className="hidden md:flex w-72 border-r bg-white flex-col">
+          <div className="p-4 border-b font-semibold">Chats</div>
+
+          <div className="flex-1 overflow-y-auto p-2 space-y-2">
             {chats.map((chat) => (
               <div
                 key={chat._id}
-                onClick={() => {
-                  setActiveChatId(chat._id);
-                  setSidebarOpen(false);
-                }}
-                className="p-3 rounded-lg hover:bg-gray-100"
+                onClick={() => setActiveChatId(chat._id)}
+                className={`flex justify-between p-3 rounded cursor-pointer ${
+                  activeChatId === chat._id ? "bg-blue-100" : "hover:bg-gray-100"
+                }`}
               >
-                {chat.messages[0]?.content}
+                <p className="truncate text-sm">
+                  {chat.messages[0]?.content}
+                </p>
+
+                <FaTrash
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setChats((prev) =>
+                      prev.filter((c) => c._id !== chat._id)
+                    );
+                  }}
+                  className="text-gray-400 hover:text-red-500"
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* CHAT AREA */}
+        <div className="flex-1 flex flex-col relative min-w-0">
+
+          {/* MESSAGES */}
+          <div className="flex-1 overflow-y-auto px-4 md:px-10 py-6 space-y-6 pb-28 min-w-0">
+
+            {!subscription && (
+              <div className="bg-white p-6 rounded-xl shadow max-w-md mx-auto text-center">
+                <h3 className="font-semibold mb-3">Subscribe to AI</h3>
+              </div>
+            )}
+
+            {activeChat?.messages.map((msg, i) => (
+              <div
+                key={i}
+                className={`flex gap-3 ${
+                  msg.role === "user" ? "justify-end" : ""
+                }`}
+              >
+                {msg.role === "ai" && <FaRobot />}
+
+                <div
+                  className={`max-w-[85%] px-4 py-3 rounded-2xl text-sm ${
+                    msg.role === "user"
+                      ? "bg-blue-600 text-white"
+                      : "bg-white border"
+                  }`}
+                >
+                  {msg.content}
+                </div>
+
+                {msg.role === "user" && <FaUser />}
               </div>
             ))}
           </div>
 
-          <div
-            className="flex-1 bg-black/30"
-            onClick={() => setSidebarOpen(false)}
-          />
-        </div>
-      )}
+          {/* INPUT (FIXED — NO SHIFT EVER) */}
+          <div className="flex-shrink-0 bg-white border-t">
+            <div className="w-full max-w-4xl mx-auto p-3">
 
-      {/* CHAT AREA */}
-      <div className="flex-1 flex flex-col relative">
+              <div className="flex items-center gap-3 bg-gray-100 rounded-full px-4 py-2">
 
-        {/* MESSAGES */}
-        <div className="flex-1 overflow-y-auto px-4 md:px-10 py-6 space-y-6 pb-28">
+                <input
+                  className="flex-1 bg-transparent outline-none text-sm"
+                  value={question}
+                  onChange={(e) => setQuestion(e.target.value)}
+                  placeholder="Ask a question..."
+                />
 
-          {!subscription && (
-            <div className="bg-white p-6 rounded-2xl shadow-sm text-center max-w-md mx-auto">
-              <h3 className="font-semibold mb-3">Unlock AI Access</h3>
-
-              {plans.map((p) => (
                 <button
-                  key={p._id}
-                  onClick={() => handleSubscribe(p._id)}
-                  className="w-full bg-blue-600 text-white py-2 rounded-lg mt-2 hover:bg-blue-700"
+                  onClick={handleAsk}
+                  disabled={loading}
+                  className="bg-blue-600 text-white px-5 py-2 rounded-full"
                 >
-                  {p.name} - ${p.price}
+                  {loading ? "..." : "Send"}
                 </button>
-              ))}
-            </div>
-          )}
 
-          {activeChat?.messages.map((msg, i) => (
-            <div
-              key={i}
-              className={`flex gap-3 ${
-                msg.role === "user" ? "justify-end" : ""
-              }`}
-            >
-              {msg.role === "ai" && (
-                <div className="bg-gray-200 p-2 rounded-full h-fit">
-                  <FaRobot />
-                </div>
-              )}
-
-              <div
-                className={`max-w-[85%] md:max-w-2xl px-4 py-3 rounded-2xl text-sm leading-relaxed ${
-                  msg.role === "user"
-                    ? "bg-blue-600 text-white rounded-br-none"
-                    : "bg-white text-gray-800 border rounded-bl-none"
-                }`}
-              >
-                {msg.content}
               </div>
 
-              {msg.role === "user" && (
-                <div className="bg-blue-100 p-2 rounded-full h-fit">
-                  <FaUser />
-                </div>
-              )}
             </div>
-          ))}
-        </div>
-
-        {/* ✅ PERFECT FIXED INPUT (NO SHIFT EVER) */}
-        <div className="absolute bottom-0 left-0 right-0 bg-white/95 backdrop-blur border-t">
-          <div className="w-full max-w-4xl mx-auto px-3 md:px-6 py-3">
-
-            <div className="flex items-center gap-3 bg-gray-100 border border-gray-200 rounded-full px-4 py-2 focus-within:ring-2 focus-within:ring-blue-500 transition">
-
-              <input
-                className="flex-1 bg-transparent outline-none text-sm md:text-base px-2 py-2"
-                value={question}
-                onChange={(e) => setQuestion(e.target.value)}
-                placeholder="Ask a nursing question..."
-                disabled={!subscription}
-              />
-
-              <button
-                onClick={handleAsk}
-                disabled={!subscription || loading}
-                className="bg-blue-600 text-white px-5 py-2 rounded-full hover:bg-blue-700 disabled:opacity-50 transition"
-              >
-                {loading ? "..." : "Send"}
-              </button>
-
-            </div>
-
           </div>
-        </div>
 
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
 };
 
 export default AIChat;
