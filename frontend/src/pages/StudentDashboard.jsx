@@ -37,6 +37,7 @@ const StudentDashboard = () => {
 
   // ✅ TOUR STATE
   const [runTour, setRunTour] = useState(false);
+  const [stepIndex, setStepIndex] = useState(0);
 
   // ================= TOUR STEPS =================
   const steps = [
@@ -78,13 +79,21 @@ const StudentDashboard = () => {
     }
   }, []);
 
-  const handleTourCallback = (data) => {
-    const { status } = data;
-    if (status === "finished" || status === "skipped") {
-      localStorage.setItem("seenDashboardTour", "true");
-      setRunTour(false);
-    }
-  };
+ const handleTourCallback = (data) => {
+  const { status, index, type } = data;
+
+  // Track step movement
+  if (type === "step:after") {
+    setStepIndex(index + 1);
+  }
+
+  // Reset when finished
+  if (status === "finished" || status === "skipped") {
+    localStorage.setItem("seenDashboardTour", "true");
+    setRunTour(false);
+    setStepIndex(0); // ✅ RESET
+  }
+};
 
   // ================= TIMER =================
   useEffect(() => {
@@ -191,10 +200,13 @@ const StudentDashboard = () => {
       <Joyride
         steps={steps}
         run={runTour}
+        stepIndex={stepIndex} // ✅ IMPORTANT
         continuous
         showSkipButton
         showProgress
         scrollToFirstStep
+        spotlightClicks={true}
+disableOverlayClose={true}
         callback={handleTourCallback}
         styles={{
           options: {
@@ -234,7 +246,13 @@ const StudentDashboard = () => {
 
         {/* ✅ TOUR BUTTON */}
         <button
-          onClick={() => setRunTour(true)}
+          onClick={() => {
+  setStepIndex(0);     // reset to start
+  setRunTour(false);   // force re-render
+  setTimeout(() => {
+    setRunTour(true);  // restart tour
+  }, 100);
+}}
           className="text-sm bg-blue-50 text-blue-600 px-3 py-1 rounded hover:bg-blue-100 transition"
         >
           Take Tour
