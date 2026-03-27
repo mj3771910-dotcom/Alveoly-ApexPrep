@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import axios from "../api/axios";
 import { io } from "socket.io-client";
 import { FaRobot, FaUser, FaTrash } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
 
 const AIChat = () => {
    // ✅ MOVE SOCKET HERE
@@ -32,6 +33,7 @@ const AIChat = () => {
   const [chats, setChats] = useState([]);
   const [activeChatId, setActiveChatId] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchQA = async () => {
@@ -214,8 +216,17 @@ const AIChat = () => {
 
     {/* HEADER */}
     <div className="sticky top-0 z-20 bg-white border-b px-4 py-3 flex items-center justify-between">
-      
+
       <div className="flex items-center gap-3">
+
+        {/* BACK BUTTON */}
+        <button
+          onClick={() => navigate("/student/dashboard")}
+          className="flex items-center gap-2 text-blue-600 font-medium"
+        >
+          ← Back
+        </button>
+
         {/* MOBILE MENU */}
         <button
           onClick={() => setSidebarOpen(true)}
@@ -236,11 +247,12 @@ const AIChat = () => {
       )}
     </div>
 
-    {/* MAIN CONTENT (LIKE DASHBOARD) */}
-    <div className="flex-1 w-full max-w-6xl mx-auto flex gap-6 px-3 md:px-6 py-6">
+    {/* MAIN CONTENT */}
+    <div className="flex-1 w-full max-w-6xl mx-auto flex gap-6 px-3 md:px-6 py-6 pb-32">
 
       {/* DESKTOP SIDEBAR */}
       <div className="hidden md:flex w-72 bg-white border rounded-2xl flex-col h-fit">
+
         <div className="p-4 font-semibold border-b">Chats</div>
 
         <div className="p-2 space-y-2">
@@ -268,6 +280,7 @@ const AIChat = () => {
             </div>
           ))}
         </div>
+
       </div>
 
       {/* MOBILE SIDEBAR */}
@@ -301,11 +314,11 @@ const AIChat = () => {
       )}
 
       {/* CHAT SECTION */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0">
 
         {/* MESSAGES */}
-        <div className="space-y-4 mb-24">
-          
+        <div className="space-y-4">
+
           {!subscription && (
             <div className="bg-white p-6 rounded-2xl shadow-sm text-center max-w-md mx-auto">
               <h3 className="font-semibold mb-3">Unlock AI Access</h3>
@@ -354,29 +367,32 @@ const AIChat = () => {
           ))}
         </div>
 
-        {/* STICKY INPUT (NOW PERFECT) */}
-        <div className="fixed bottom-0 left-0 w-full bg-white border-t p-3">
-          <div className="max-w-6xl mx-auto flex gap-2 px-3 md:px-6">
-            <input
-              className="flex-1 border border-gray-300 rounded-full px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-              placeholder="Ask a nursing question..."
-              disabled={!subscription}
-            />
+      </div>
+    </div>
 
-            <button
-              onClick={handleAsk}
-              disabled={!subscription || loading}
-              className="bg-blue-600 text-white px-5 py-2 rounded-full hover:bg-blue-700 disabled:opacity-50"
-            >
-              {loading ? "..." : "Send"}
-            </button>
-          </div>
-        </div>
+    {/* INPUT (FIXED — NOT CUTTING CONTENT) */}
+    <div className="fixed bottom-0 left-0 w-full bg-white border-t p-3">
+      <div className="max-w-6xl mx-auto flex gap-2 px-3 md:px-6">
+
+        <input
+          className="flex-1 border border-gray-300 rounded-full px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+          value={question}
+          onChange={(e) => setQuestion(e.target.value)}
+          placeholder="Ask a nursing question..."
+          disabled={!subscription}
+        />
+
+        <button
+          onClick={handleAsk}
+          disabled={!subscription || loading}
+          className="bg-blue-600 text-white px-5 py-2 rounded-full hover:bg-blue-700 disabled:opacity-50"
+        >
+          {loading ? "..." : "Send"}
+        </button>
 
       </div>
     </div>
+
   </div>
 );
 };
