@@ -309,7 +309,7 @@ const AIChat = () => {
       )}
 
       {/* CHAT AREA */}
-      <div className="flex-1 flex flex-col relative">
+      <div className="flex-1 flex flex-col relative min-w-0">
 
         {/* MESSAGES */}
         <div className="flex-1 overflow-y-auto px-3 md:px-8 py-6 space-y-4">
@@ -352,7 +352,7 @@ const AIChat = () => {
               )}
 
               <div
-                className={`px-4 py-3 text-sm leading-relaxed rounded-2xl max-w-[85%] md:max-w-xl break-words shadow-sm ${
+  className={`px-4 py-3 text-sm leading-relaxed rounded-2xl max-w-[85%] md:max-w-xl break-words whitespace-pre-wrap shadow-sm ${
                   msg.role === "user"
                     ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-br-none"
                     : "bg-white text-gray-700 rounded-bl-none"
@@ -382,28 +382,51 @@ const AIChat = () => {
         </div>
 
         {/* INPUT */}
-        <div className="border-t bg-white/80 backdrop-blur px-3 md:px-6 py-3">
-          <div className="flex items-center gap-2 max-w-5xl mx-auto">
+        {/* INPUT */}
+<div className="border-t bg-white/80 backdrop-blur px-2 sm:px-3 md:px-6 py-2 sm:py-3">
 
-            <input
-              className="flex-1 h-11 border border-gray-300 rounded-full px-4 text-sm focus:ring-2 focus:ring-purple-500 outline-none shadow-sm"
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleAsk()}
-              placeholder="Ask a nursing question..."
-              disabled={!subscription}
-            />
+  <div className="flex items-center gap-2 max-w-5xl mx-auto w-full min-w-0">
 
-            <button
-              onClick={handleAsk}
-              disabled={!subscription || loading}
-              className="h-11 px-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full hover:scale-105 transition disabled:opacity-50 shadow-md"
-            >
-              Send
-            </button>
-          </div>
-        </div>
+    <input
+      className="
+        flex-1 min-w-0
+        h-10 sm:h-11
+        border border-gray-300
+        rounded-full
+        px-3 sm:px-4
+        text-[16px] sm:text-sm   /* 🔥 PREVENT ZOOM */
+        focus:ring-2 focus:ring-purple-500
+        outline-none
+        shadow-sm
+      "
+      value={question}
+      onChange={(e) => setQuestion(e.target.value)}
+      onKeyDown={(e) => e.key === "Enter" && handleAsk()}
+      placeholder="Ask a nursing question..."
+      disabled={!subscription}
+    />
 
+    <button
+      onClick={handleAsk}
+      disabled={!subscription || loading}
+      className="
+        flex-shrink-0
+        h-10 sm:h-11
+        px-3 sm:px-6
+        text-xs sm:text-sm
+        bg-gradient-to-r from-blue-600 to-purple-600
+        text-white
+        rounded-full
+        transition
+        disabled:opacity-50
+        shadow-md
+      "
+    >
+      Send
+    </button>
+
+  </div>
+</div>
       </div>
     </div>
   </div>
