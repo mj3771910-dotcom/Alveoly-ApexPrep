@@ -96,169 +96,180 @@ const AIGenerator = () => {
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+  <div className="flex h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 overflow-hidden">
 
-      {/* ================= MOBILE SIDEBAR ================= */}
-      {sidebarOpen && (
-        <div className="fixed inset-0 z-40 flex">
-          <div className="w-64 bg-white h-full shadow-lg p-3">
-            <div className="flex justify-between mb-3">
-              <h3 className="font-semibold text-sm">History</h3>
-              <button onClick={() => setSidebarOpen(false)}>✕</button>
-            </div>
-
-            <div className="space-y-2">
-              {history.map((item) => (
-                <div
-                  key={item._id}
-                  onClick={() => {
-                    setActiveId(item._id);
-                    setSidebarOpen(false);
-                  }}
-                  className="p-2 rounded hover:bg-gray-100 text-xs"
-                >
-                  {item.subject}
-                </div>
-              ))}
-            </div>
+    {/* ================= MOBILE SIDEBAR ================= */}
+    {sidebarOpen && (
+      <div className="fixed inset-0 z-40 flex">
+        <div className="w-72 bg-white/90 backdrop-blur-xl h-full shadow-2xl p-4">
+          <div className="flex justify-between mb-4">
+            <h3 className="font-bold text-gray-700">History</h3>
+            <button onClick={() => setSidebarOpen(false)}>✕</button>
           </div>
 
-          <div
-            className="flex-1 bg-black/30"
-            onClick={() => setSidebarOpen(false)}
-          />
-        </div>
-      )}
-
-      {/* ================= SIDEBAR (DESKTOP) ================= */}
-      <div className="hidden md:flex md:w-64 bg-white border-r flex-col">
-        <div className="p-4 border-b font-semibold text-base">
-          AI Generator
-        </div>
-
-        <div className="p-2 space-y-2">
-          {history.length === 0 ? (
-            <p className="text-gray-400 text-xs">No history yet</p>
-          ) : (
-            history.map((item) => (
+          <div className="space-y-2 overflow-y-auto">
+            {history.map((item) => (
               <div
                 key={item._id}
-                onClick={() => setActiveId(item._id)}
-                className={`p-2 rounded-lg cursor-pointer transition text-sm ${
-                  activeId === item._id
-                    ? "bg-blue-100"
-                    : "hover:bg-gray-100"
-                }`}
+                onClick={() => {
+                  setActiveId(item._id);
+                  setSidebarOpen(false);
+                }}
+                className="p-3 rounded-xl hover:bg-gray-100 cursor-pointer text-sm transition"
               >
-                <p className="truncate">{item.subject}</p>
-
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDelete(item._id);
-                  }}
-                  className="text-red-500 text-xs mt-1"
-                >
-                  Delete
-                </button>
+                {item.subject}
               </div>
-            ))
-          )}
+            ))}
+          </div>
         </div>
+
+        <div
+          className="flex-1 bg-black/40"
+          onClick={() => setSidebarOpen(false)}
+        />
+      </div>
+    )}
+
+    {/* ================= SIDEBAR DESKTOP ================= */}
+    <div className="hidden md:flex md:w-72 flex-col border-r bg-white/80 backdrop-blur-xl">
+
+      <div className="p-5 border-b font-bold text-gray-700 text-lg">
+        AI Generator ✨
       </div>
 
-      {/* ================= MAIN ================= */}
-      <div className="flex-1 flex flex-col">
-
-        {/* HEADER */}
-        <div className="bg-white border-b px-3 py-2 flex justify-between items-center sticky top-0 z-20">
-          
-          <div className="flex items-center gap-2">
-            {/* HAMBURGER */}
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="md:hidden text-gray-600"
+      <div className="flex-1 overflow-y-auto p-3 space-y-2">
+        {history.length === 0 ? (
+          <p className="text-gray-400 text-sm text-center mt-6">
+            No history yet
+          </p>
+        ) : (
+          history.map((item) => (
+            <div
+              key={item._id}
+              onClick={() => setActiveId(item._id)}
+              className={`group p-3 rounded-xl cursor-pointer transition ${
+                activeId === item._id
+                  ? "bg-gradient-to-r from-indigo-100 to-purple-100"
+                  : "hover:bg-gray-100"
+              }`}
             >
-              ☰
-            </button>
-
-            <h2 className="font-semibold text-sm sm:text-base">
-              AI Question Generator 🤖
-            </h2>
-          </div>
-
-          {activeItem && (
-            <div className="flex gap-2">
-              <button
-                onClick={handleCopy}
-                className="px-2 py-1 text-xs bg-green-500 text-white rounded"
-              >
-                Copy
-              </button>
+              <p className="truncate text-sm font-medium">
+                {item.subject}
+              </p>
 
               <button
-                onClick={handleDownloadPDF}
-                className="px-2 py-1 text-xs bg-purple-500 text-white rounded"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDelete(item._id);
+                }}
+                className="text-red-500 text-xs mt-1 opacity-0 group-hover:opacity-100 transition"
               >
-                PDF
+                Delete
               </button>
             </div>
-          )}
+          ))
+        )}
+      </div>
+    </div>
+
+    {/* ================= MAIN ================= */}
+    <div className="flex-1 flex flex-col">
+
+      {/* HEADER */}
+      <div className="sticky top-0 z-30 backdrop-blur bg-white/70 border-b px-4 py-3 flex justify-between items-center shadow-sm">
+        
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="md:hidden text-gray-600 text-xl"
+          >
+            ☰
+          </button>
+
+          <h2 className="font-bold text-gray-800 text-lg">
+            AI Question Generator 🤖
+          </h2>
         </div>
 
-        {/* CONTENT */}
-        <div className="px-3 py-4 space-y-4">
-
-          {loading ? (
-            <div className="text-center text-gray-400 mt-10 text-sm">
-              Generating questions...
-            </div>
-          ) : activeItem ? (
-            <div className="max-w-2xl mx-auto bg-white p-4 rounded-xl shadow-sm">
-              <h3 className="text-base font-semibold mb-3">
-                {activeItem.subject}
-              </h3>
-
-              <pre className="whitespace-pre-wrap text-xs sm:text-sm leading-relaxed text-gray-800">
-                {activeItem.result}
-              </pre>
-            </div>
-          ) : (
-            <div className="text-center text-gray-400 mt-10 text-sm">
-              Start by generating a question set 👇
-            </div>
-          )}
-        </div>
-
-        {/* INPUT */}
-        <div className="sticky bottom-0 border-t bg-white p-3">
-          <div className="max-w-2xl mx-auto flex gap-2">
-            <input
-              type="text"
-              placeholder="Enter subject..."
-              className="flex-1 border rounded-full px-3 py-2 text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-              value={subject}
-              onChange={(e) => setSubject(e.target.value)}
-            />
-
-            <input
-              type="number"
-              className="w-16 border rounded-full px-2 py-2 text-xs"
-              value={count}
-              onChange={(e) => setCount(e.target.value)}
-            />
+        {activeItem && (
+          <div className="flex gap-2">
+            <button
+              onClick={handleCopy}
+              className="px-3 py-1 text-xs bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-full shadow hover:scale-105 transition"
+            >
+              Copy
+            </button>
 
             <button
-              onClick={handleGenerate}
-              className="bg-blue-600 text-white px-3 py-2 rounded-full text-xs sm:text-sm hover:bg-blue-700"
+              onClick={handleDownloadPDF}
+              className="px-3 py-1 text-xs bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-full shadow hover:scale-105 transition"
             >
-              {loading ? "..." : "Go"}
+              PDF
             </button>
           </div>
+        )}
+      </div>
+
+      {/* CONTENT */}
+      <div className="flex-1 overflow-y-auto px-4 py-6">
+
+        {loading ? (
+          <div className="flex justify-center mt-20">
+            <div className="flex gap-1">
+              <span className="w-3 h-3 bg-gray-400 rounded-full animate-bounce"></span>
+              <span className="w-3 h-3 bg-gray-400 rounded-full animate-bounce delay-150"></span>
+              <span className="w-3 h-3 bg-gray-400 rounded-full animate-bounce delay-300"></span>
+            </div>
+          </div>
+        ) : activeItem ? (
+          <div className="max-w-3xl mx-auto bg-white/90 backdrop-blur-xl p-6 rounded-2xl shadow-xl border">
+
+            <h3 className="text-lg font-bold mb-4 text-gray-800">
+              {activeItem.subject}
+            </h3>
+
+            <pre className="whitespace-pre-wrap text-sm leading-relaxed text-gray-700">
+              {activeItem.result}
+            </pre>
+          </div>
+        ) : (
+          <div className="text-center text-gray-400 mt-20">
+            Start by generating a question set 👇
+          </div>
+        )}
+      </div>
+
+      {/* INPUT */}
+      <div className="border-t bg-white/80 backdrop-blur px-4 py-3">
+        <div className="max-w-3xl mx-auto flex items-center gap-2">
+
+          <input
+            type="text"
+            placeholder="Enter subject..."
+            className="flex-1 h-11 border border-gray-300 rounded-full px-4 text-sm focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm"
+            value={subject}
+            onChange={(e) => setSubject(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleGenerate()}
+          />
+
+          <input
+            type="number"
+            className="w-20 h-11 border border-gray-300 rounded-full px-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+            value={count}
+            onChange={(e) => setCount(e.target.value)}
+          />
+
+          <button
+            onClick={handleGenerate}
+            className="h-11 px-5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-full hover:scale-105 transition shadow-md"
+          >
+            {loading ? "..." : "Generate"}
+          </button>
         </div>
       </div>
     </div>
-  );
+  </div>
+);
 };
 
 export default AIGenerator;
