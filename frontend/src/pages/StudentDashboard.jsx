@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import Joyride from "react-joyride"; // ✅ NEW
+import { Joyride } from "react-joyride"; // ✅ NEW
 import { useNavigate } from "react-router-dom";
 import {
   FaBook,
