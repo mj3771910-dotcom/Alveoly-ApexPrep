@@ -222,7 +222,7 @@ const AIGenerator = () => {
           </div>
         ) : activeItem ? (
 
-          <div className="w-full max-w-full sm:max-w-2xl md:max-w-3xl mx-auto bg-white/90 backdrop-blur-xl p-3 sm:p-5 md:p-6 rounded-2xl shadow-xl border overflow-hidden">
+          <div className="w-full max-w-full sm:max-w-2xl md:max-w-3xl mx-auto flex items-center gap-2 overflow-hidden">
 
             <h3 className="text-sm sm:text-lg font-bold mb-3 sm:mb-4 text-gray-800">
               {activeItem.subject}
@@ -245,24 +245,24 @@ const AIGenerator = () => {
       </div>
 
       {/* INPUT */}
-      <div className="border-t bg-white/80 backdrop-blur px-2 sm:px-4 py-3">
+      <div className="border-t bg-white/80 backdrop-blur px-2 sm:px-4 py-3 sticky bottom-0 z-20">
         <div className="w-full max-w-full sm:max-w-2xl md:max-w-3xl mx-auto flex items-center gap-2">
 
           <input
-            type="text"
-            placeholder="Enter subject..."
-            className="flex-1 h-10 sm:h-11 border border-gray-300 rounded-full px-3 sm:px-4 text-xs sm:text-sm focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm"
-            value={subject}
-            onChange={(e) => setSubject(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleGenerate()}
-          />
+  type="text"
+  placeholder="Enter subject..."
+  className="flex-1 h-10 sm:h-11 border border-gray-300 rounded-full px-3 sm:px-4 text-[16px] sm:text-sm focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm transition-all duration-200"
+  value={subject}
+  onChange={(e) => setSubject(e.target.value)}
+  onKeyDown={(e) => e.key === "Enter" && handleGenerate()}
+/>
 
-          <input
-            type="number"
-            className="w-14 sm:w-20 h-10 sm:h-11 border border-gray-300 rounded-full px-2 sm:px-3 text-xs sm:text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-            value={count}
-            onChange={(e) => setCount(e.target.value)}
-          />
+<input
+  type="number"
+  className="w-14 sm:w-20 h-10 sm:h-11 border border-gray-300 rounded-full px-2 sm:px-3 text-[16px] sm:text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all duration-200"
+  value={count}
+  onChange={(e) => setCount(e.target.value)}
+/>
 
           <button
             onClick={handleGenerate}
