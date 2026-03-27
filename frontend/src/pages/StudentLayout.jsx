@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import Joyride from "react-joyride"; // ✅ FIXED IMPORT
+import { Joyride } from "react-joyride"; // ✅ NEW
 import { Outlet, Link } from "react-router-dom";
 import {
   FaHome,
