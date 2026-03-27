@@ -58,12 +58,11 @@ export const updateCourse = async (req, res) => {
 // DELETE COURSE
 export const deleteCourse = async (req, res) => {
   try {
-    const course = await Course.findById(req.params.id);
+    const course = await Course.findByIdAndDelete(req.params.id);
+
     if (!course) {
       return res.status(404).json({ message: "Course not found" });
     }
-
-    await course.remove();
 
     io.emit("course:deleted", req.params.id);
 
