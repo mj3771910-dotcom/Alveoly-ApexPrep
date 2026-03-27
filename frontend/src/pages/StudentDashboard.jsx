@@ -205,8 +205,6 @@ const StudentDashboard = () => {
         showSkipButton
         showProgress
         scrollToFirstStep
-        spotlightClicks={true}
-disableOverlayClose={true}
         callback={handleTourCallback}
         styles={{
           options: {
