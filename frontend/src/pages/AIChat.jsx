@@ -137,12 +137,12 @@ const AIChat = () => {
     fetchChats();
   }, []);
 
+  const activeChat = chats.find((c) => c._id === activeChatId);
+
   useEffect(() => {
   const el = document.getElementById("chat-end");
   el?.scrollIntoView({ behavior: "smooth" });
 }, [activeChat, loading]);
-
-  const activeChat = chats.find((c) => c._id === activeChatId);
 
   const handleAsk = async () => {
     if (!question.trim()) return;
