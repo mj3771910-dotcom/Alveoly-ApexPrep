@@ -148,12 +148,12 @@ const ContactPage = () => {
 
             <div className="flex items-center gap-3">
               <FaPhone className="text-blue-600" />
-              <span>+233 123 456 789</span>
+              <span>+233 54 955 6116</span>
             </div>
 
             <div className="flex items-center gap-3">
               <FaEnvelope className="text-blue-600" />
-              <span>support@alveoly.com</span>
+              <span>alveolyapexprep@gmail.com</span>
             </div>
 
             <div className="flex items-center gap-3">

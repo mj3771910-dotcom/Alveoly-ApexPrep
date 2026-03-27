@@ -137,6 +137,11 @@ const AIChat = () => {
     fetchChats();
   }, []);
 
+  useEffect(() => {
+  const el = document.getElementById("chat-end");
+  el?.scrollIntoView({ behavior: "smooth" });
+}, [activeChat, loading]);
+
   const activeChat = chats.find((c) => c._id === activeChatId);
 
   const handleAsk = async () => {
@@ -212,62 +217,53 @@ const AIChat = () => {
   };
 
  return (
-  <div className="bg-gray-50 min-h-screen flex flex-col">
+  <div className="h-screen flex flex-col bg-gradient-to-br from-blue-50 via-white to-purple-50">
 
     {/* HEADER */}
-    <div className="sticky top-0 z-20 bg-white border-b px-4 py-3 flex items-center justify-between">
-
+    <div className="sticky top-0 z-30 backdrop-blur bg-white/70 border-b px-4 py-3 flex items-center justify-between shadow-sm">
       <div className="flex items-center gap-3">
-
-        {/* BACK BUTTON */}
-        <button
-          onClick={() => navigate("/student/dashboard")}
-          className="flex items-center gap-2 text-blue-600 font-medium"
-        >
-          ← Back
-        </button>
-
-        {/* MOBILE MENU */}
         <button
           onClick={() => setSidebarOpen(true)}
-          className="md:hidden text-gray-600 text-lg"
+          className="md:hidden text-gray-600 text-xl"
         >
           ☰
         </button>
 
-        <h2 className="font-semibold flex items-center gap-2 text-gray-700">
-          <FaRobot className="text-blue-600" /> AI Nursing Tutor
+        <h2 className="font-bold flex items-center gap-2 text-gray-800 text-lg">
+          <FaRobot className="text-blue-600 text-xl" />
+          AI Nursing Tutor
         </h2>
       </div>
 
       {subscription && (
-        <span className="text-xs sm:text-sm bg-green-100 text-green-700 px-3 py-1 rounded-full">
+        <span className="text-xs sm:text-sm bg-gradient-to-r from-green-400 to-emerald-500 text-white px-3 py-1 rounded-full shadow">
           ⏱ {formatTime(timeLeft)}
         </span>
       )}
     </div>
 
-    {/* MAIN CONTENT */}
-    <div className="flex-1 w-full max-w-6xl mx-auto flex gap-6 px-3 md:px-6 py-6 pb-32">
+    {/* MAIN */}
+    <div className="flex flex-1 overflow-hidden max-w-7xl w-full mx-auto">
 
       {/* DESKTOP SIDEBAR */}
-      <div className="hidden md:flex w-72 bg-white border rounded-2xl flex-col h-fit">
+      <div className="hidden md:flex w-72 flex-col border-r bg-white/80 backdrop-blur">
+        <div className="p-4 font-semibold border-b text-gray-700">
+          Chats
+        </div>
 
-        <div className="p-4 font-semibold border-b">Chats</div>
-
-        <div className="p-2 space-y-2">
+        <div className="flex-1 overflow-y-auto p-2 space-y-2">
           {chats.map((chat) => (
             <div
               key={chat._id}
               onClick={() => setActiveChatId(chat._id)}
-              className={`group p-3 rounded-lg cursor-pointer flex justify-between ${
+              className={`group p-3 rounded-xl cursor-pointer transition flex justify-between items-center ${
                 activeChatId === chat._id
-                  ? "bg-blue-100"
+                  ? "bg-gradient-to-r from-blue-100 to-purple-100"
                   : "hover:bg-gray-100"
               }`}
             >
               <p className="text-sm truncate text-gray-700">
-                {chat.messages[0]?.content}
+                {chat.messages[0]?.content?.slice(0, 40) || "New Chat"}
               </p>
 
               <FaTrash
@@ -275,18 +271,17 @@ const AIChat = () => {
                   e.stopPropagation();
                   handleDeleteChat(chat._id);
                 }}
-                className="text-gray-400 opacity-0 group-hover:opacity-100 hover:text-red-500"
+                className="text-gray-400 opacity-0 group-hover:opacity-100 hover:text-red-500 transition"
               />
             </div>
           ))}
         </div>
-
       </div>
 
       {/* MOBILE SIDEBAR */}
       {sidebarOpen && (
-        <div className="fixed inset-0 z-30 flex">
-          <div className="w-72 bg-white h-full shadow-lg p-3">
+        <div className="fixed inset-0 z-40 flex">
+          <div className="w-72 bg-white h-full shadow-xl p-3">
             <div className="flex justify-between mb-3">
               <h3 className="font-semibold">Chats</h3>
               <button onClick={() => setSidebarOpen(false)}>✕</button>
@@ -301,37 +296,45 @@ const AIChat = () => {
                 }}
                 className="p-3 rounded-lg hover:bg-gray-100"
               >
-                {chat.messages[0]?.content}
+                {chat.messages[0]?.content?.slice(0, 40)}
               </div>
             ))}
           </div>
 
           <div
-            className="flex-1 bg-black/30"
+            className="flex-1 bg-black/40"
             onClick={() => setSidebarOpen(false)}
           />
         </div>
       )}
 
-      {/* CHAT SECTION */}
-      <div className="flex-1 flex flex-col min-w-0">
+      {/* CHAT AREA */}
+      <div className="flex-1 flex flex-col relative">
 
         {/* MESSAGES */}
-        <div className="space-y-4">
+        <div className="flex-1 overflow-y-auto px-3 md:px-8 py-6 space-y-4">
 
           {!subscription && (
-            <div className="bg-white p-6 rounded-2xl shadow-sm text-center max-w-md mx-auto">
-              <h3 className="font-semibold mb-3">Unlock AI Access</h3>
+            <div className="bg-white p-6 rounded-2xl shadow-xl text-center max-w-md mx-auto border">
+              <h3 className="font-bold mb-4 text-lg text-gray-800">
+                Unlock AI Access
+              </h3>
 
               {plans.map((p) => (
                 <button
                   key={p._id}
                   onClick={() => handleSubscribe(p._id)}
-                  className="w-full bg-blue-600 text-white py-2 rounded-lg mt-2 hover:bg-blue-700"
+                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-2 rounded-lg mt-2 hover:scale-[1.02] transition"
                 >
                   {p.name} - ${p.price}
                 </button>
               ))}
+            </div>
+          )}
+
+          {!activeChat && subscription && (
+            <div className="text-center text-gray-400 mt-20">
+              Start a conversation 👇
             </div>
           )}
 
@@ -343,16 +346,16 @@ const AIChat = () => {
               }`}
             >
               {msg.role === "ai" && (
-                <div className="bg-gray-200 p-2 rounded-full">
+                <div className="bg-gradient-to-br from-gray-200 to-gray-300 p-2 rounded-full">
                   <FaRobot />
                 </div>
               )}
 
               <div
-                className={`max-w-[85%] md:max-w-xl px-4 py-3 rounded-2xl text-sm ${
+                className={`px-4 py-3 text-sm leading-relaxed rounded-2xl max-w-[85%] md:max-w-xl break-words shadow-sm ${
                   msg.role === "user"
-                    ? "bg-blue-600 text-white rounded-br-none"
-                    : "bg-white text-gray-700 rounded-bl-none shadow-sm"
+                    ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-br-none"
+                    : "bg-white text-gray-700 rounded-bl-none"
                 }`}
               >
                 {msg.content}
@@ -365,34 +368,44 @@ const AIChat = () => {
               )}
             </div>
           ))}
+
+          {/* TYPING INDICATOR */}
+          {loading && (
+            <div className="flex gap-1 px-2">
+              <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></span>
+              <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-150"></span>
+              <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-300"></span>
+            </div>
+          )}
+
+          <div id="chat-end" />
+        </div>
+
+        {/* INPUT */}
+        <div className="border-t bg-white/80 backdrop-blur px-3 md:px-6 py-3">
+          <div className="flex items-center gap-2 max-w-5xl mx-auto">
+
+            <input
+              className="flex-1 h-11 border border-gray-300 rounded-full px-4 text-sm focus:ring-2 focus:ring-purple-500 outline-none shadow-sm"
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleAsk()}
+              placeholder="Ask a nursing question..."
+              disabled={!subscription}
+            />
+
+            <button
+              onClick={handleAsk}
+              disabled={!subscription || loading}
+              className="h-11 px-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full hover:scale-105 transition disabled:opacity-50 shadow-md"
+            >
+              Send
+            </button>
+          </div>
         </div>
 
       </div>
     </div>
-
-    {/* INPUT (FIXED — NOT CUTTING CONTENT) */}
-    <div className="fixed bottom-0 left-0 w-full bg-white border-t p-3">
-      <div className="max-w-6xl mx-auto flex gap-2 px-3 md:px-6">
-
-        <input
-          className="flex-1 border border-gray-300 rounded-full px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-          value={question}
-          onChange={(e) => setQuestion(e.target.value)}
-          placeholder="Ask a nursing question..."
-          disabled={!subscription}
-        />
-
-        <button
-          onClick={handleAsk}
-          disabled={!subscription || loading}
-          className="bg-blue-600 text-white px-5 py-2 rounded-full hover:bg-blue-700 disabled:opacity-50"
-        >
-          {loading ? "..." : "Send"}
-        </button>
-
-      </div>
-    </div>
-
   </div>
 );
 };

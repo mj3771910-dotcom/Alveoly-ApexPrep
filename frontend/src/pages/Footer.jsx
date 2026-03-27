@@ -45,7 +45,7 @@ const Footer = () => {
             <li><Link to="/help" className="hover:text-white">Help Center</Link></li>
             <li><Link to="/pricing" className="hover:text-white">Pricing</Link></li>
             <li><Link to="/login" className="hover:text-white">Login</Link></li>
-            <li className="text-gray-400">support@alveoly.com</li>
+            <li className="text-gray-400">alveolyapexprep@gmail.com</li>
           </ul>
         </div>
 
