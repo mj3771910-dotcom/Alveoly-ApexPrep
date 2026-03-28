@@ -127,8 +127,14 @@ const AIAdmin = () => {
     alert("File uploaded successfully!");
     setFile(null);
   } catch (err) {
-  console.error("UPLOAD ERROR:", err.response?.data || err.message);
-  alert(err.response?.data?.message || "Upload failed");
+  console.error("🔥 FULL ERROR:", err);
+  console.error("🔥 MESSAGE:", err.message);
+  console.error("🔥 STACK:", err.stack);
+
+  res.status(500).json({
+    message: err.message,
+    error: err.toString(),
+  });
 }
 
   setLoading(false);
