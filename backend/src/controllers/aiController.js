@@ -2,6 +2,7 @@ import cloudinary from "../../config/cloudinary.js";
 import * as pdfParse from "pdf-parse";
 import csv from "csv-parser";
 import streamifier from "streamifier";
+import Tesseract from "tesseract.js";
 import QA from "../models/QA.js";
 import { io } from "../../server.js";
 
@@ -13,6 +14,7 @@ export const uploadAIFile = async (req, res) => {
     }
 
     console.log("🔥 File received:", req.file.originalname);
+    console.log("🔥 MIME TYPE:", req.file.mimetype);
 
     // ================= CLOUDINARY UPLOAD =================
     const uploadStream = () =>
@@ -39,9 +41,15 @@ export const uploadAIFile = async (req, res) => {
     if (req.file.mimetype === "application/pdf") {
       try {
         const pdfData = await pdfParse.default(req.file.buffer);
-        extractedText = pdfData.text || "";
+
+        if (pdfData.text && pdfData.text.trim().length > 0) {
+          extractedText = pdfData.text;
+        } else {
+          extractedText = "⚠️ No selectable text found (scanned PDF)";
+        }
       } catch (err) {
         console.error("🔥 PDF ERROR:", err.message);
+        extractedText = "❌ Failed to read PDF";
       }
     }
 
@@ -80,11 +88,26 @@ export const uploadAIFile = async (req, res) => {
       return res.json({
         message: "CSV uploaded successfully",
         fileUrl: result.secure_url,
+        extractedText: "CSV processed into Q&A",
       });
     }
 
-    // ================= PROCESS TEXT =================
-    if (extractedText) {
+    // ================= IMAGE OCR =================
+    else if (req.file.mimetype.startsWith("image/")) {
+      try {
+        const {
+          data: { text },
+        } = await Tesseract.recognize(req.file.buffer, "eng");
+
+        extractedText = text || "⚠️ No text detected in image";
+      } catch (err) {
+        console.error("🔥 OCR ERROR:", err.message);
+        extractedText = "❌ Failed to read image text";
+      }
+    }
+
+    // ================= PROCESS TEXT (Q&A FORMAT) =================
+    if (extractedText && !extractedText.includes("CSV processed")) {
       const lines = extractedText.split("\n");
 
       let currentQ = "";
@@ -123,10 +146,11 @@ export const uploadAIFile = async (req, res) => {
       }
     }
 
+    // ================= FINAL RESPONSE =================
     return res.json({
       message: "File uploaded & processed",
       fileUrl: result.secure_url,
-      extractedText, // ✅ ADD THIS
+      extractedText: extractedText || "No text extracted",
     });
 
   } catch (err) {
