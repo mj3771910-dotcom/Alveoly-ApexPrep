@@ -3,7 +3,7 @@ import { io } from "../../server.js";
 import fs from "fs";
 import csvParser from "csv-parser";
 import path from "path";
-import pdfParse from "pdf-parse";
+import * as pdfParse from "pdf-parse"; // ✅ change here
 import Tesseract from "tesseract.js";
 
 // Upload file and save QAs
@@ -34,7 +34,7 @@ export const uploadQAFile = async (req, res) => {
       });
     } else if (ext === ".pdf") {
       const dataBuffer = fs.readFileSync(req.file.path);
-      const pdfData = await pdfParse(dataBuffer);
+      const pdfData = await pdfParse.default(dataBuffer); // ✅ use .default
       // Split lines, assume format "Q: ... A: ..."
       const lines = pdfData.text.split("\n");
       for (let line of lines) {
