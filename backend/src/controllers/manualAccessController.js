@@ -73,3 +73,24 @@ export const getMyManualAccess = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+export const getAllManualAccess = async (req, res) => {
+  try {
+    const data = await ManualAccess.find()
+      .populate("userId", "name email")
+      .populate("subjectId", "name")
+      .sort({ createdAt: -1 });
+
+    const now = new Date();
+
+    const formatted = data.map((item) => ({
+      ...item._doc,
+      isActive: new Date(item.expiresAt) > now,
+    }));
+
+    res.json(formatted);
+  } catch (err) {
+    console.error("Fetch Manual Access Error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
