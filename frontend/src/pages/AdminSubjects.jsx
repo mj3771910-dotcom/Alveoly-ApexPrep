@@ -357,6 +357,88 @@ const [manualLoading, setManualLoading] = useState(false);
       </div>
     </div>
 
+    {/* ================= MANUAL ACCESS LIST ================= */}
+<div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition">
+
+  <div className="flex justify-between items-center mb-4">
+    <h3 className="font-semibold text-lg">
+      Manual Access (Students & Subjects)
+    </h3>
+
+    <span className="text-sm text-gray-500">
+      {manualAccessList.length} records
+    </span>
+  </div>
+
+  {manualAccessList.length === 0 ? (
+    <p className="text-gray-500 text-sm">
+      No manual unlocks yet
+    </p>
+  ) : (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+
+        <thead>
+          <tr className="border-b text-gray-500">
+            <th className="py-2 text-left">Student</th>
+            <th className="text-left">Subject</th>
+            <th className="text-left">Expiry</th>
+            <th className="text-left">Status</th>
+            <th className="text-left">Note</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {manualAccessList.map((m) => (
+            <tr key={m._id} className="border-b hover:bg-gray-50">
+
+              {/* STUDENT */}
+              <td className="py-3">
+                <div className="font-medium text-gray-800">
+                  {m.userId?.name}
+                </div>
+                <div className="text-xs text-gray-500">
+                  {m.userId?.email}
+                </div>
+              </td>
+
+              {/* SUBJECT */}
+              <td className="text-blue-600 font-medium">
+                {m.subjectId?.name}
+              </td>
+
+              {/* EXPIRY */}
+              <td>
+                {new Date(m.expiresAt).toLocaleDateString()}
+              </td>
+
+              {/* STATUS */}
+              <td>
+                <span
+                  className={`text-xs px-3 py-1 rounded-full ${
+                    m.isActive
+                      ? "bg-green-100 text-green-600"
+                      : "bg-red-100 text-red-600"
+                  }`}
+                >
+                  {m.isActive ? "Active" : "Expired"}
+                </span>
+              </td>
+
+              {/* NOTE */}
+              <td className="text-gray-500 text-xs">
+                {m.note || "-"}
+              </td>
+
+            </tr>
+          ))}
+        </tbody>
+
+      </table>
+    </div>
+  )}
+</div>
+
     {/* ================= EDIT MODAL ================= */}
     {editing && (
       <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center p-4">
