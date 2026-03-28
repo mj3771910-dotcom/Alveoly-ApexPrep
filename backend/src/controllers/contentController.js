@@ -12,11 +12,13 @@ export const uploadContent = async (req, res) => {
     // Helper to upload any file to Cloudinary
    const uploadToCloudinary = (file, type, folder = "alveoly-content") =>
   new Promise((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream(
-      {
-        resource_type: type === "pdf" ? "image" : "auto",
-        folder,
-      },
+   const stream = cloudinary.uploader.upload_stream(
+  {
+    resource_type: type === "pdf" ? "image" : "auto",
+    folder,
+    access_mode: "public",   // 🔥 IMPORTANT
+    type: "upload",          // 🔥 IMPORTANT
+  },
           (err, result) => {
             if (result) resolve(result);
             else reject(err);
