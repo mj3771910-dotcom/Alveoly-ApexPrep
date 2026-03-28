@@ -29,22 +29,37 @@ export const createQuestion = async (req, res) => {
   try {
     const data = req.body;
 
-    const isLocked = data.type === "trial" ? data.isPaid : data.isExamLocked;
+    const cleanOptions = data.options.filter(opt => opt.trim() !== "");
 
-    const question = await Question.create({ ...data, isLocked });
+    const answerIndex = data.correctAnswer?.charCodeAt(0) - 65;
+
+    const correctAnswerValue = cleanOptions[answerIndex];
+
+    const isLocked =
+      data.type === "exam"
+        ? data.isExamLocked || false
+        : false;
+
+    const question = await Question.create({
+      ...data,
+      options: cleanOptions,
+      correctAnswer: correctAnswerValue,
+      isLocked,
+    });
 
     io.emit("question:created", question);
     res.status(201).json(question);
+
   } catch (error) {
     console.error("Create Question Error:", error);
-    res.status(500).json({ message: "Server Error" });
+    res.status(500).json({ message: error.message });
   }
 };
 
 // CREATE MULTIPLE QUESTIONS
 export const createMultipleQuestions = async (req, res) => {
   try {
-    const questionsData = req.body.questions; // expect {questions: [{...}, {...}, ...]}
+    const questionsData = req.body.questions;
 
     if (!Array.isArray(questionsData) || questionsData.length === 0) {
       return res.status(400).json({ message: "No questions provided" });
@@ -53,16 +68,54 @@ export const createMultipleQuestions = async (req, res) => {
     const createdQuestions = [];
 
     for (const data of questionsData) {
-      const isLocked = data.type === "trial" ? data.isPaid : data.isExamLocked;
-      const question = await Question.create({ ...data, isLocked });
+
+      // ✅ VALIDATION
+      if (!data.courseId || !data.subjectId || !data.question) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+
+      if (!Array.isArray(data.options) || data.options.length < 2) {
+        return res.status(400).json({ message: "At least 2 options required" });
+      }
+
+      // ✅ CLEAN OPTIONS (REMOVE EMPTY)
+      const cleanOptions = data.options.filter(opt => opt.trim() !== "");
+
+      if (cleanOptions.length < 2) {
+        return res.status(400).json({ message: "Options cannot be empty" });
+      }
+
+      // ✅ FIX CORRECT ANSWER (convert A → actual value)
+      const answerIndex = data.correctAnswer?.charCodeAt(0) - 65;
+
+      if (answerIndex < 0 || answerIndex >= cleanOptions.length) {
+        return res.status(400).json({ message: "Invalid correct answer" });
+      }
+
+      const correctAnswerValue = cleanOptions[answerIndex];
+
+      // ✅ FIX LOCK LOGIC
+      const isLocked =
+        data.type === "exam"
+          ? data.isExamLocked || false
+          : false;
+
+      const question = await Question.create({
+        ...data,
+        options: cleanOptions,
+        correctAnswer: correctAnswerValue,
+        isLocked,
+      });
+
       createdQuestions.push(question);
-      io.emit("question:created", question); // emit each question
+      io.emit("question:created", question);
     }
 
     res.status(201).json(createdQuestions);
+
   } catch (error) {
-    console.error("Create Multiple Questions Error:", error);
-    res.status(500).json({ message: "Server Error" });
+    console.error("🔥 Create Multiple Questions Error:", error);
+    res.status(500).json({ message: error.message });
   }
 };
 
