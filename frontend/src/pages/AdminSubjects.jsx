@@ -137,6 +137,41 @@ setManualAccessList(manualRes.data); // 🔥 ADD THIS
     }
   };
 
+  const handleDeleteAccess = async (id) => {
+  if (!window.confirm("Delete this access?")) return;
+
+  try {
+    await axios.delete(`/manual-access/${id}`);
+    fetchData();
+  } catch (err) {
+    console.error(err);
+  }
+};
+
+const handleToggleAccess = async (id) => {
+  try {
+    await axios.patch(`/manual-access/${id}/toggle`);
+    fetchData();
+  } catch (err) {
+    console.error(err);
+  }
+};
+
+const handleUpdateAccess = async (id) => {
+  const days = prompt("Enter new duration (days):");
+  if (!days) return;
+
+  try {
+    await axios.put(`/manual-access/${id}`, {
+      durationDays: Number(days),
+    });
+
+    fetchData();
+  } catch (err) {
+    console.error(err);
+  }
+};
+
   // ================= EDIT =================
   const handleEdit = (subject) => {
     setEditing(subject);
@@ -362,6 +397,7 @@ setManualAccessList(manualRes.data); // 🔥 ADD THIS
     </div>
 
     {/* ================= MANUAL ACCESS LIST ================= */}
+{/* ================= MANUAL ACCESS LIST ================= */}
 <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition">
 
   <div className="flex justify-between items-center mb-4">
@@ -389,6 +425,7 @@ setManualAccessList(manualRes.data); // 🔥 ADD THIS
             <th className="text-left">Expiry</th>
             <th className="text-left">Status</th>
             <th className="text-left">Note</th>
+            <th className="text-left">Actions</th> {/* NEW */}
           </tr>
         </thead>
 
@@ -398,23 +435,15 @@ setManualAccessList(manualRes.data); // 🔥 ADD THIS
 
               {/* STUDENT */}
               <td className="py-3">
-                <div className="font-medium text-gray-800">
-                  {m.userId?.name}
-                </div>
-                <div className="text-xs text-gray-500">
-                  {m.userId?.email}
-                </div>
+                <div className="font-medium text-gray-800">{m.userId?.name}</div>
+                <div className="text-xs text-gray-500">{m.userId?.email}</div>
               </td>
 
               {/* SUBJECT */}
-              <td className="text-blue-600 font-medium">
-                {m.subjectId?.name}
-              </td>
+              <td className="text-blue-600 font-medium">{m.subjectId?.name}</td>
 
               {/* EXPIRY */}
-              <td>
-                {new Date(m.expiresAt).toLocaleDateString()}
-              </td>
+              <td>{new Date(m.expiresAt).toLocaleDateString()}</td>
 
               {/* STATUS */}
               <td>
@@ -430,8 +459,34 @@ setManualAccessList(manualRes.data); // 🔥 ADD THIS
               </td>
 
               {/* NOTE */}
-              <td className="text-gray-500 text-xs">
-                {m.note || "-"}
+              <td className="text-gray-500 text-xs">{m.note || "-"}</td>
+
+              {/* ACTIONS */}
+              <td className="flex gap-2">
+                <button
+                  onClick={() => handleUpdateAccess(m._id)}
+                  className="bg-yellow-500 hover:bg-yellow-600 text-white px-2 py-1 rounded text-xs"
+                >
+                  Update
+                </button>
+
+                <button
+                  onClick={() => handleToggleAccess(m._id)}
+                  className={`px-2 py-1 rounded text-xs text-white ${
+                    m.status === "locked"
+                      ? "bg-green-600 hover:bg-green-700"
+                      : "bg-gray-500 hover:bg-gray-600"
+                  }`}
+                >
+                  {m.status === "locked" ? "Unlock" : "Lock"}
+                </button>
+
+                <button
+                  onClick={() => handleDeleteAccess(m._id)}
+                  className="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs"
+                >
+                  Delete
+                </button>
               </td>
 
             </tr>
