@@ -4,10 +4,10 @@ import streamifier from "streamifier";
 import Tesseract from "tesseract.js";
 import QA from "../models/QA.js";
 import { io } from "../../server.js";
-import { askAI } from "../../services/aiService.js";
+import { askAI } from "../services/aiService.js";
 
 // ================= MCQ PARSER =================
-const parseMCQText = async (text, req) => {
+const parseMCQText = async (text) => {
   const blocks = text.split(/\n\s*\n/);
 
   for (let block of blocks) {
@@ -161,7 +161,7 @@ export const uploadAIFile = async (req, res) => {
 
     // ================= MCQ PARSER (NEW) =================
     if (extractedText) {
-      await parseMCQText(extractedText, req);
+      await parseMCQText(extractedText);
     }
 
     // ================= Q:A FORMAT PARSER =================
