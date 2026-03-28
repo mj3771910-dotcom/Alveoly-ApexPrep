@@ -340,11 +340,11 @@ const AdminContent = () => {
               <img src={viewer.url} className="max-h-full" />
             )}
 
-            {viewer.type === "pdf" && (
-             <iframe
-  src={`${viewer.url}?inline=true`}
-  className="w-full h-full rounded-lg"
-/>
+             {viewer.type === "pdf" && (
+  <iframe
+    src={`https://docs.google.com/gview?url=${viewer.url}&embedded=true`}
+    className="w-full h-full rounded-lg"
+  />
             )}
           </div>
         </div>
