@@ -83,10 +83,12 @@ export const getAllManualAccess = async (req, res) => {
 
     const now = new Date();
 
-    const formatted = data.map((item) => ({
-      ...item._doc,
-      isActive: new Date(item.expiresAt) > now,
-    }));
+   const formatted = data.map((item) => ({
+  ...item._doc,
+  isActive:
+    item.status === "active" &&
+    new Date(item.expiresAt) > now,
+}));
 
     res.json(formatted);
   } catch (err) {
@@ -94,3 +96,69 @@ export const getAllManualAccess = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+export const deleteManualAccess = async (req, res) => {
+  try {
+    const access = await ManualAccess.findById(req.params.id);
+
+    if (!access) {
+      return res.status(404).json({ message: "Access not found" });
+    }
+
+    await access.deleteOne();
+
+    res.json({ message: "Manual access deleted" });
+  } catch (err) {
+    console.error("Delete Manual Access Error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const updateManualAccess = async (req, res) => {
+  try {
+    const { durationDays, note } = req.body;
+
+    const access = await ManualAccess.findById(req.params.id);
+
+    if (!access) {
+      return res.status(404).json({ message: "Access not found" });
+    }
+
+    if (durationDays) {
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + durationDays);
+      access.expiresAt = expiresAt;
+    }
+
+    if (note !== undefined) {
+      access.note = note;
+    }
+
+    const updated = await access.save();
+
+    res.json(updated);
+  } catch (err) {
+    console.error("Update Manual Access Error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const toggleManualAccess = async (req, res) => {
+  try {
+    const access = await ManualAccess.findById(req.params.id);
+
+    if (!access) {
+      return res.status(404).json({ message: "Access not found" });
+    }
+
+    access.status = access.status === "active" ? "locked" : "active";
+
+    const updated = await access.save();
+
+    res.json(updated);
+  } catch (err) {
+    console.error("Toggle Manual Access Error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+

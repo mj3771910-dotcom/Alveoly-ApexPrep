@@ -27,6 +27,14 @@ const manualAccessSchema = new mongoose.Schema(
     },
 
     note: String,
+
+    // 🔥 NEW: status for locking/unlocking
+    status: {
+      type: String,
+      enum: ["active", "locked"],
+      default: "active",
+      index: true,
+    },
   },
   { timestamps: true }
 );
