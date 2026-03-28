@@ -14,7 +14,7 @@ const AIAdmin = () => {
   const [uploading, setUploading] = useState(false);
   const [file, setFile] = useState(null);
 
-  // ✅ NEW: extracted text preview
+  // ✅ Preview text
   const [previewText, setPreviewText] = useState("");
 
   // ================= SOCKET =================
@@ -46,7 +46,7 @@ const AIAdmin = () => {
     fetchQA();
   }, []);
 
-  // ================= SOCKET UPDATES =================
+  // ================= SOCKET =================
   useEffect(() => {
     if (!socket) return;
 
@@ -74,6 +74,7 @@ const AIAdmin = () => {
   // ================= SAVE =================
   const handleSave = async () => {
     if (!question.trim() || !manualAnswer.trim()) return;
+
     setLoading(true);
 
     try {
@@ -93,7 +94,7 @@ const AIAdmin = () => {
       setQuestion("");
       setManualAnswer("");
     } catch (err) {
-      console.error(err);
+      console.error("SAVE ERROR:", err.response?.data || err.message);
     }
 
     setLoading(false);
@@ -118,18 +119,9 @@ const AIAdmin = () => {
 
   // ================= FILE UPLOAD =================
   const handleFileUpload = async () => {
-    if (!file) return;
-
-    const allowedTypes = [
-      "application/pdf",
-      "text/csv",
-      "image/png",
-      "image/jpeg",
-      "image/jpg",
-    ];
-
-    if (!allowedTypes.includes(file.type)) {
-      return alert("Invalid file type");
+    if (!file) {
+      alert("Please select a file");
+      return;
     }
 
     const formData = new FormData();
@@ -142,13 +134,18 @@ const AIAdmin = () => {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
-      // ✅ SHOW EXTRACTED TEXT
-      setPreviewText(res.data.extractedText || "");
+      console.log("🔥 UPLOAD RESPONSE:", res.data);
+
+      // ✅ ALWAYS SHOW TEXT (even fallback messages)
+      setPreviewText(res.data.extractedText || "No text returned");
 
       alert(res.data.message || "Upload successful");
+
       setFile(null);
     } catch (err) {
       console.error("UPLOAD ERROR:", err.response?.data || err.message);
+
+      setPreviewText("❌ Failed to extract text");
       alert(err.response?.data?.message || "Upload failed");
     }
 
@@ -191,7 +188,6 @@ const AIAdmin = () => {
             {loading ? "Processing..." : editingId ? "Update QA" : "Add QA"}
           </button>
 
-          {/* FILE */}
           <input
             type="file"
             onChange={(e) => setFile(e.target.files[0])}
@@ -206,8 +202,8 @@ const AIAdmin = () => {
             {uploading ? "Uploading..." : "Upload & Train AI"}
           </button>
 
-          {/* ✅ PREVIEW TEXT */}
-          {previewText && (
+          {/* ✅ PREVIEW ALWAYS SHOW */}
+          {previewText !== "" && (
             <div className="mt-4 p-3 bg-gray-100 rounded-lg max-h-60 overflow-y-auto whitespace-pre-wrap text-sm">
               <strong>Extracted File Text:</strong>
               <br />
