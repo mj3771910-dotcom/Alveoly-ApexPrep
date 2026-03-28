@@ -1,4 +1,4 @@
-import cloudinary from "../config/cloudinary.js";
+import cloudinary from "../../config/cloudinary.js";
 import pdfParse from "pdf-parse";
 import csv from "csv-parser";
 import streamifier from "streamifier";
