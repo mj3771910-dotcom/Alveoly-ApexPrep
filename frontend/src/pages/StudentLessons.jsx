@@ -30,6 +30,46 @@ const StudentLessons = () => {
     fetchContents();
   }, [subjectId]);
 
+  // 🔐 CONTENT PROTECTION
+useEffect(() => {
+  // Disable right click
+  const handleContextMenu = (e) => e.preventDefault();
+
+  // Disable key shortcuts (inspect, save, etc.)
+  const handleKeyDown = (e) => {
+    if (
+      e.key === "PrintScreen" ||
+      (e.ctrlKey && ["s", "u", "c"].includes(e.key.toLowerCase())) ||
+      (e.ctrlKey && e.shiftKey && ["i", "j", "c"].includes(e.key.toLowerCase()))
+    ) {
+      e.preventDefault();
+      alert("⚠️ Action not allowed");
+    }
+  };
+
+  // Blur when user switches tab (BEST trick)
+  const handleVisibilityChange = () => {
+    const viewerEl = document.getElementById("secure-viewer");
+    if (!viewerEl) return;
+
+    if (document.hidden) {
+      viewerEl.style.filter = "blur(20px)";
+    } else {
+      viewerEl.style.filter = "none";
+    }
+  };
+
+  document.addEventListener("contextmenu", handleContextMenu);
+  document.addEventListener("keydown", handleKeyDown);
+  document.addEventListener("visibilitychange", handleVisibilityChange);
+
+  return () => {
+    document.removeEventListener("contextmenu", handleContextMenu);
+    document.removeEventListener("keydown", handleKeyDown);
+    document.removeEventListener("visibilitychange", handleVisibilityChange);
+  };
+}, []);
+
   const handleUnlock = async (c) => {
     try {
       const res = await axios.post("/content-payments/pay", {
@@ -150,48 +190,61 @@ const StudentLessons = () => {
 
       {/* ================= MODAL VIEWER ================= */}
       {viewer.open && (
-        <div className="fixed inset-0 bg-black/90 z-50 flex flex-col">
-          
-          {/* HEADER */}
-          <div className="flex justify-between items-center p-4 text-white">
-            <h3 className="font-semibold">{viewer.title}</h3>
-            <button onClick={closeViewer}>
-              <FaTimes size={20} />
-            </button>
-          </div>
+  <div
+    id="secure-viewer"
+    className="fixed inset-0 bg-black/90 z-50 flex flex-col"
+  >
+    {/* HEADER */}
+    <div className="flex justify-between items-center p-4 text-white">
+      <h3 className="font-semibold">{viewer.title}</h3>
+      <button onClick={closeViewer}>
+        <FaTimes size={20} />
+      </button>
+    </div>
 
-          {/* CONTENT */}
-          <div className="flex-1 flex items-center justify-center p-4">
-            
-            {/* VIDEO */}
-            {viewer.type === "video" && (
-              <video
-                src={viewer.url}
-                controls
-                autoPlay
-                className="max-h-full max-w-full rounded-lg"
-              />
-            )}
+    {/* 🔒 PROTECTION OVERLAY */}
+    <div className="absolute inset-0 pointer-events-none select-none z-50">
+      {/* Optional watermark */}
+      <div className="absolute bottom-4 right-4 text-white/20 text-sm">
+        Protected Content
+      </div>
+    </div>
 
-            {/* IMAGE */}
-            {viewer.type === "image" && (
-              <img
-                src={viewer.url}
-                alt="preview"
-                className="max-h-full max-w-full rounded-lg"
-              />
-            )}
-
-            {/* PDF */}
-           {viewer.type === "pdf" && (
-  <iframe
-    src={`https://docs.google.com/gview?url=${viewer.url}&embedded=true`}
-    className="w-full h-full rounded-lg"
-  />
-            )}
-          </div>
-        </div>
+    {/* CONTENT */}
+    <div className="flex-1 flex items-center justify-center p-4">
+      
+      {/* VIDEO */}
+      {viewer.type === "video" && (
+        <video
+          src={viewer.url}
+          controls
+          controlsList="nodownload noplaybackrate"
+          disablePictureInPicture
+          autoPlay
+          className="max-h-full max-w-full rounded-lg"
+        />
       )}
+
+      {/* IMAGE */}
+      {viewer.type === "image" && (
+        <img
+          src={viewer.url}
+          alt="preview"
+          draggable={false}
+          className="max-h-full max-w-full rounded-lg select-none"
+        />
+      )}
+
+      {/* PDF */}
+      {viewer.type === "pdf" && (
+        <iframe
+          src={`https://docs.google.com/gview?url=${viewer.url}&embedded=true`}
+          className="w-full h-full rounded-lg"
+        />
+      )}
+    </div>
+  </div>
+)}
     </>
   );
 };
