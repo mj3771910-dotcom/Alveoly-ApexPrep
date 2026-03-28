@@ -1,5 +1,5 @@
 import cloudinary from "../../config/cloudinary.js";
-import pdf from "pdf-parse"; // ✅ FIXED (no .default)
+import * as pdfParse from "pdf-parse";
 import csv from "csv-parser";
 import streamifier from "streamifier";
 import QA from "../models/QA.js";
@@ -38,7 +38,7 @@ export const uploadAIFile = async (req, res) => {
     // ================= PDF =================
     if (req.file.mimetype === "application/pdf") {
       try {
-        const pdfData = await pdf(req.file.buffer);
+        const pdfData = await pdfParse.default(req.file.buffer);
         extractedText = pdfData.text || "";
       } catch (err) {
         console.error("🔥 PDF ERROR:", err.message);
