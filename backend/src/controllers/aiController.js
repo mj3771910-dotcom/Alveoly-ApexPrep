@@ -1,5 +1,5 @@
 import cloudinary from "../../config/cloudinary.js";
-import * as pdfParse from "pdf-parse";
+import pdfParse from "pdf-parse";
 import csv from "csv-parser";
 import streamifier from "streamifier";
 import Tesseract from "tesseract.js";
