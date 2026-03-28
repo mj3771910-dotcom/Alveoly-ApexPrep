@@ -1,8 +1,7 @@
 import cloudinary from "../../config/cloudinary.js";
-import * as pdfParse from "pdf-parse";
+import pdf from "pdf-parse"; // ✅ FIXED (no .default)
 import csv from "csv-parser";
 import streamifier from "streamifier";
-import Tesseract from "tesseract.js";
 import QA from "../models/QA.js";
 import { io } from "../../server.js";
 
@@ -13,16 +12,22 @@ export const uploadAIFile = async (req, res) => {
       return res.status(400).json({ message: "No file uploaded" });
     }
 
-    // 🔥 Upload to Cloudinary
+    console.log("🔥 File received:", req.file.originalname);
+
+    // ================= CLOUDINARY UPLOAD =================
     const uploadStream = () =>
       new Promise((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
           { resource_type: "auto" },
           (error, result) => {
-            if (result) resolve(result);
-            else reject(error);
+            if (error) {
+              console.error("🔥 Cloudinary error:", error);
+              return reject(error);
+            }
+            resolve(result);
           }
         );
+
         streamifier.createReadStream(req.file.buffer).pipe(stream);
       });
 
@@ -30,12 +35,17 @@ export const uploadAIFile = async (req, res) => {
 
     let extractedText = "";
 
-    // ================= FILE TYPE HANDLING =================
+    // ================= PDF =================
     if (req.file.mimetype === "application/pdf") {
-      const pdfData = await pdfParse.default(req.file.buffer);
-      extractedText = pdfData.text;
+      try {
+        const pdfData = await pdf(req.file.buffer);
+        extractedText = pdfData.text || "";
+      } catch (err) {
+        console.error("🔥 PDF ERROR:", err.message);
+      }
     }
 
+    // ================= CSV =================
     else if (req.file.mimetype.includes("csv")) {
       const results = [];
 
@@ -44,10 +54,10 @@ export const uploadAIFile = async (req, res) => {
           .createReadStream(req.file.buffer)
           .pipe(csv())
           .on("data", (data) => results.push(data))
-          .on("end", () => resolve());
+          .on("end", resolve)
+          .on("error", reject);
       });
 
-      // Expect CSV format: question, answer
       for (let row of results) {
         if (row.question && row.answer) {
           const qa = new QA({
@@ -55,6 +65,7 @@ export const uploadAIFile = async (req, res) => {
             answer: row.answer,
             fromAdmin: true,
           });
+
           await qa.save();
 
           io.emit("newQA", {
@@ -67,19 +78,9 @@ export const uploadAIFile = async (req, res) => {
       }
 
       return res.json({
-        message: "CSV uploaded & QAs saved",
+        message: "CSV uploaded successfully",
         fileUrl: result.secure_url,
       });
-    }
-
-    else if (
-      req.file.mimetype.includes("image")
-    ) {
-      const {
-        data: { text },
-      } = await Tesseract.recognize(req.file.buffer, "eng");
-
-      extractedText = text;
     }
 
     // ================= PROCESS TEXT =================
@@ -90,10 +91,14 @@ export const uploadAIFile = async (req, res) => {
       let currentA = "";
 
       for (let line of lines) {
-        if (line.toLowerCase().startsWith("q:")) {
-          currentQ = line.replace("Q:", "").trim();
-        } else if (line.toLowerCase().startsWith("a:")) {
-          currentA = line.replace("A:", "").trim();
+        const trimmed = line.trim();
+
+        if (trimmed.toLowerCase().startsWith("q:")) {
+          currentQ = trimmed.replace(/q:/i, "").trim();
+        }
+
+        if (trimmed.toLowerCase().startsWith("a:")) {
+          currentA = trimmed.replace(/a:/i, "").trim();
 
           if (currentQ && currentA) {
             const qa = new QA({
@@ -118,14 +123,16 @@ export const uploadAIFile = async (req, res) => {
       }
     }
 
-    res.json({
+    return res.json({
       message: "File uploaded & processed",
       fileUrl: result.secure_url,
     });
 
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "File processing failed" });
+    console.error("🔥 UPLOAD ERROR:", err);
+    res.status(500).json({
+      message: err.message || "File processing failed",
+    });
   }
 };
 
