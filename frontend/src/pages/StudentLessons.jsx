@@ -35,68 +35,106 @@ const StudentLessons = () => {
     }
   };
 
-  if (loading) return <p>Loading lessons...</p>;
+  // ================= LOADING =================
+  if (loading) {
+    return (
+      <div className="max-w-6xl mx-auto px-4 py-10">
+        <h2 className="text-3xl font-bold mb-8">Lessons</h2>
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[...Array(6)].map((_, i) => (
+            <div
+              key={i}
+              className="bg-gray-200 animate-pulse h-64 rounded-2xl"
+            />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
-  if (contents.length === 0) return <p>No lessons available</p>;
+  // ================= EMPTY =================
+  if (contents.length === 0) {
+    return (
+      <div className="text-center py-20">
+        <h2 className="text-2xl font-semibold text-gray-600">
+          No lessons available yet 📭
+        </h2>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-10">
-      <h2 className="text-3xl font-bold mb-8">Lessons</h2>
+      <h2 className="text-3xl font-bold mb-8 text-gray-800">
+        📚 Lessons
+      </h2>
 
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
         {contents.map((c) => (
           <div
             key={c._id}
-            className="bg-white rounded-2xl shadow hover:shadow-lg transition overflow-hidden relative"
+            className="bg-white rounded-2xl shadow-md hover:shadow-xl transition overflow-hidden border group"
           >
-            {/* THUMBNAIL / MEDIA */}
-            <div className="relative w-full" style={{ paddingTop: "56.25%" }}>
-              {c.isPaid ? (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-100">
-                  <FaLock className="text-3xl mb-2 text-gray-600" />
-                  <p className="text-sm mb-3">Locked Content</p>
+            {/* ================= THUMBNAIL ================= */}
+            <div className="relative w-full h-48 bg-gray-100 overflow-hidden">
+              
+              {/* Thumbnail */}
+              <img
+                src={c.thumbnailUrl || "/placeholder.jpg"}
+                alt={c.title}
+                className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+              />
+
+              {/* Type Badge */}
+              <div className="absolute top-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                {c.type.toUpperCase()}
+              </div>
+
+              {/* VIDEO PLAY ICON */}
+              {c.type === "video" && !c.isPaid && (
+                <FaPlayCircle className="absolute inset-0 m-auto text-white text-5xl opacity-80" />
+              )}
+
+              {/* ================= LOCKED OVERLAY ================= */}
+              {c.isPaid && (
+                <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center text-white">
+                  <FaLock className="text-3xl mb-2" />
+                  <p className="text-sm mb-2">Premium Content</p>
+
                   <button
                     onClick={() => handleUnlock(c)}
-                    className="bg-blue-600 text-white px-4 py-2 rounded"
+                    className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-medium"
                   >
                     Unlock ₵{c.price}
                   </button>
                 </div>
-              ) : (
-                <>
-                  {c.type === "video" && (
-                    <video
-                      src={c.fileUrl}
-                      controls
-                      className="absolute top-0 left-0 w-full h-full object-cover"
-                    />
-                  )}
+              )}
 
-                  {c.type === "image" && (
-                    <img
-                      src={c.thumbnailUrl || c.fileUrl}
-                      alt={c.title}
-                      className="absolute top-0 left-0 w-full h-full object-cover"
-                    />
-                  )}
-
-                  {c.type === "pdf" && (
-                    <a
-                      href={c.fileUrl}
-                      target="_blank"
-                      className="absolute inset-0 flex items-center justify-center text-blue-600 font-semibold gap-2"
-                    >
-                      <FaFilePdf /> Open PDF
-                    </a>
-                  )}
-                </>
+              {/* ================= PDF OVERLAY ================= */}
+              {!c.isPaid && c.type === "pdf" && (
+                <a
+                  href={c.fileUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="absolute inset-0 flex items-center justify-center bg-white/70 hover:bg-white/80 transition"
+                >
+                  <div className="flex items-center gap-2 text-blue-700 font-semibold">
+                    <FaFilePdf />
+                    Open PDF
+                  </div>
+                </a>
               )}
             </div>
 
-            {/* TITLE */}
+            {/* ================= CONTENT INFO ================= */}
             <div className="p-4">
-              <h3 className="font-bold text-lg">{c.title}</h3>
-              <p className="text-xs text-gray-500 mt-1">{c.type}</p>
+              <h3 className="font-semibold text-lg text-gray-800 group-hover:text-blue-600 transition">
+                {c.title}
+              </h3>
+
+              <p className="text-xs text-gray-500 mt-1">
+                {c.type}
+              </p>
             </div>
           </div>
         ))}

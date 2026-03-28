@@ -122,174 +122,181 @@ const AdminContent = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto py-10">
-      <h2 className="text-2xl font-bold mb-6">{editingId ? "Edit Content" : "Upload Learning Content"}</h2>
+  <div className="max-w-6xl mx-auto px-6 py-10">
+    <h2 className="text-3xl font-bold mb-8 text-gray-800">
+      {editingId ? "✏️ Edit Content" : "📤 Upload Learning Content"}
+    </h2>
 
-      <div className="bg-white p-6 rounded-xl shadow space-y-4">
-
-        {/* Title */}
+    {/* FORM */}
+    <div className="bg-white p-8 rounded-2xl shadow-md space-y-6 border">
+      
+      {/* Title */}
+      <div>
+        <label className="block text-sm font-semibold mb-1">Title</label>
         <input
-          placeholder="Content title"
+          placeholder="Enter content title"
           value={form.title}
           onChange={(e) => setForm({ ...form, title: e.target.value })}
-          className="w-full p-3 border rounded"
+          className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
         />
+      </div>
 
-        {/* Type */}
+      {/* Type + Link Type */}
+      <div className="grid md:grid-cols-2 gap-4">
         <select
           value={form.type}
           onChange={(e) => setForm({ ...form, type: e.target.value })}
-          className="w-full p-3 border rounded"
+          className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
         >
-          <option value="video">Video</option>
-          <option value="image">Image</option>
-          <option value="pdf">PDF</option>
+          <option value="video">🎥 Video</option>
+          <option value="image">🖼 Image</option>
+          <option value="pdf">📄 PDF</option>
         </select>
 
-        {/* Link type */}
         <select
           value={form.linkType}
           onChange={(e) => setForm({ ...form, linkType: e.target.value })}
-          className="w-full p-3 border rounded"
+          className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
         >
           <option value="subject">Attach to Subject</option>
           <option value="course">Attach to Course</option>
         </select>
-
-        {/* Subject / Course select */}
-        {form.linkType === "subject" ? (
-          <select
-            value={form.subjectId}
-            onChange={(e) => setForm({ ...form, subjectId: e.target.value })}
-            className="w-full p-3 border rounded"
-          >
-            <option value="">Select Subject</option>
-            {subjects.map((s) => (
-              <option key={s._id} value={s._id}>{s.name}</option>
-            ))}
-          </select>
-        ) : (
-          <select
-            value={form.courseId}
-            onChange={(e) => setForm({ ...form, courseId: e.target.value })}
-            className="w-full p-3 border rounded"
-          >
-            <option value="">Select Course</option>
-            {courses.map((c) => (
-              <option key={c._id} value={c._id}>{c.name}</option>
-            ))}
-          </select>
-        )}
-
-        {/* ================= FILE INPUTS ================= */}
-        <div className="space-y-4">
-          {/* Main File */}
-          <div>
-            <label className="block mb-1 font-semibold">Main Content (Video, Image, PDF)</label>
-            <input
-              type="file"
-              accept={
-                form.type === "video"
-                  ? "video/*"
-                  : form.type === "image"
-                  ? "image/*"
-                  : ".pdf"
-              }
-              onChange={(e) => setFile(e.target.files[0])}
-              className="w-full"
-            />
-            {file && <p className="text-xs text-gray-500 mt-1">Selected file: {file.name}</p>}
-          </div>
-
-          {/* Thumbnail */}
-          <div>
-            <label className="block mb-1 font-semibold">Thumbnail (Optional)</label>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => setForm({ ...form, thumbnail: e.target.files[0] })}
-              className="w-full"
-            />
-            {form.thumbnail && (
-              <div className="mt-1">
-                <p className="text-xs text-gray-500">Selected thumbnail: {form.thumbnail.name}</p>
-                <img
-                  src={URL.createObjectURL(form.thumbnail)}
-                  alt="thumbnail preview"
-                  className="w-32 h-20 object-cover rounded mt-1"
-                />
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Paid Content */}
-        <label className="flex gap-2 items-center">
-          <input
-            type="checkbox"
-            checked={form.isPaid}
-            onChange={(e) => setForm({ ...form, isPaid: e.target.checked })}
-          />
-          Paid Content
-        </label>
-
-        {form.isPaid && (
-          <input
-            type="number"
-            placeholder="Price"
-            value={form.price}
-            onChange={(e) => setForm({ ...form, price: e.target.value })}
-            className="w-full p-3 border rounded"
-          />
-        )}
-
-        <button
-          onClick={handleUpload}
-          className={`w-full py-3 rounded-lg text-white ${editingId ? "bg-yellow-600" : "bg-blue-600"}`}
-        >
-          {editingId ? "Update Content" : "Upload Content"}
-        </button>
       </div>
 
-      {/* ================= CONTENT LIST ================= */}
-      <div className="mt-10">
-        <h3 className="text-xl font-bold mb-4">Uploaded Content</h3>
+      {/* Subject / Course */}
+      {form.linkType === "subject" ? (
+        <select
+          value={form.subjectId}
+          onChange={(e) => setForm({ ...form, subjectId: e.target.value })}
+          className="w-full p-3 border rounded-lg"
+        >
+          <option value="">Select Subject</option>
+          {subjects.map((s) => (
+            <option key={s._id} value={s._id}>{s.name}</option>
+          ))}
+        </select>
+      ) : (
+        <select
+          value={form.courseId}
+          onChange={(e) => setForm({ ...form, courseId: e.target.value })}
+          className="w-full p-3 border rounded-lg"
+        >
+          <option value="">Select Course</option>
+          {courses.map((c) => (
+            <option key={c._id} value={c._id}>{c.name}</option>
+          ))}
+        </select>
+      )}
 
-        <div className="grid md:grid-cols-3 gap-6">
-          {contents.map((c) => (
-            <div key={c._id} className="bg-white p-4 rounded-xl shadow">
-              {/* THUMBNAIL */}
-              <div className="w-full aspect-[16/9] mb-3">
-                <img
-                  src={c.thumbnailUrl}
-                  className="w-full h-full object-cover rounded"
-                  alt={c.title}
-                />
-              </div>
+      {/* FILE UPLOAD */}
+      <div className="grid md:grid-cols-2 gap-6">
+        
+        {/* Main File */}
+        <div>
+          <label className="block font-semibold mb-2">Main File</label>
+          <input
+            type="file"
+            onChange={(e) => setFile(e.target.files[0])}
+            className="w-full text-sm"
+          />
+        </div>
 
-              <h4 className="font-bold">{c.title}</h4>
-              <p className="text-xs text-gray-500 mb-2">{c.type}</p>
+        {/* Thumbnail */}
+        <div>
+          <label className="block font-semibold mb-2">Thumbnail</label>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(e) => setForm({ ...form, thumbnail: e.target.files[0] })}
+            className="w-full text-sm"
+          />
 
-              <div className="flex gap-2 mt-3">
+          {form.thumbnail && (
+            <img
+              src={URL.createObjectURL(form.thumbnail)}
+              className="mt-3 w-full h-32 object-cover rounded-lg border"
+            />
+          )}
+        </div>
+      </div>
+
+      {/* Paid */}
+      <div className="flex items-center gap-3">
+        <input
+          type="checkbox"
+          checked={form.isPaid}
+          onChange={(e) => setForm({ ...form, isPaid: e.target.checked })}
+        />
+        <span className="font-medium">Paid Content</span>
+      </div>
+
+      {form.isPaid && (
+        <input
+          type="number"
+          placeholder="Enter price"
+          value={form.price}
+          onChange={(e) => setForm({ ...form, price: e.target.value })}
+          className="w-full p-3 border rounded-lg"
+        />
+      )}
+
+      {/* BUTTON */}
+      <button
+        onClick={handleUpload}
+        className={`w-full py-3 rounded-xl text-white font-semibold transition ${
+          editingId
+            ? "bg-yellow-500 hover:bg-yellow-600"
+            : "bg-blue-600 hover:bg-blue-700"
+        }`}
+      >
+        {editingId ? "Update Content" : "Upload Content"}
+      </button>
+    </div>
+
+    {/* CONTENT GRID */}
+    <div className="mt-12">
+      <h3 className="text-2xl font-bold mb-6">📚 Uploaded Content</h3>
+
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {contents.map((c) => (
+          <div
+            key={c._id}
+            className="bg-white rounded-2xl shadow hover:shadow-xl transition overflow-hidden border"
+          >
+            {/* Thumbnail */}
+            <div className="h-40 w-full">
+              <img
+                src={c.thumbnailUrl || "/placeholder.jpg"}
+                className="w-full h-full object-cover"
+                alt={c.title}
+              />
+            </div>
+
+            <div className="p-4">
+              <h4 className="font-semibold text-lg">{c.title}</h4>
+              <p className="text-xs text-gray-500">{c.type}</p>
+
+              <div className="flex gap-2 mt-4">
                 <button
                   onClick={() => handleEdit(c)}
-                  className="bg-yellow-500 text-white px-3 py-1 rounded text-sm"
+                  className="flex-1 bg-yellow-500 text-white py-2 rounded-lg text-sm"
                 >
                   Edit
                 </button>
                 <button
                   onClick={() => handleDelete(c._id)}
-                  className="bg-red-500 text-white px-3 py-1 rounded text-sm"
+                  className="flex-1 bg-red-500 text-white py-2 rounded-lg text-sm"
                 >
                   Delete
                 </button>
               </div>
             </div>
-          ))}
-        </div>
+          </div>
+        ))}
       </div>
     </div>
-  );
+  </div>
+);
 };
 
 export default AdminContent;
