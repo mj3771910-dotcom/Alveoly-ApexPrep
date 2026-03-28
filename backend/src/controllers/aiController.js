@@ -4,6 +4,7 @@ import streamifier from "streamifier";
 import Tesseract from "tesseract.js";
 import QA from "../models/QA.js";
 import { io } from "../../server.js";
+import { askAI } from "../../services/aiService.js";
 
 // ================= MCQ PARSER =================
 const parseMCQText = async (text, req) => {
@@ -297,21 +298,46 @@ export const getAllAdminQA = async (req, res) => {
 export const askQuestionStudent = async (req, res) => {
   try {
     const { question } = req.body;
-    if (!question) return res.status(400).json({ message: "Question required" });
 
-    const existingQA = await QA.findOne({ 
-      question: { $regex: new RegExp(`^${question}$`, "i") },
-      fromAdmin: true
+    if (!question) {
+      return res.status(400).json({ message: "Question required" });
+    }
+
+    // ================= NORMALIZE QUESTION =================
+    const normalized = question
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w\s]/g, "")
+      .replace(/\s+/g, " ");
+
+    // ================= SEARCH DB (FUZZY) =================
+    const existingQA = await QA.findOne({
+      question: {
+        $regex: normalized,
+        $options: "i",
+      },
+      fromAdmin: true,
     });
 
     if (existingQA) {
-      return res.json({ answer: existingQA.answer, fromDB: true });
+      return res.json({
+        answer: existingQA.answer,
+        fromDB: true,
+      });
     }
 
-    const answer = await askAI(question);
-    res.json({ answer, fromDB: false });
+    // ================= FALLBACK TO AI =================
+    const aiAnswer = await askAI(question);
+
+    return res.json({
+      answer: aiAnswer,
+      fromDB: false,
+    });
+
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ answer: "Something went wrong" });
+    console.error("🔥 STUDENT ASK ERROR:", err);
+    res.status(500).json({
+      answer: "Something went wrong",
+    });
   }
 };
