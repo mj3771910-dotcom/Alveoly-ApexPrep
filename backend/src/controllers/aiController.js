@@ -1,5 +1,5 @@
 import cloudinary from "../../config/cloudinary.js";
-import pdf from "pdf-parse";
+import * as pdfParse from "pdf-parse";
 import csv from "csv-parser";
 import streamifier from "streamifier";
 import Tesseract from "tesseract.js";
@@ -32,7 +32,7 @@ export const uploadAIFile = async (req, res) => {
 
     // ================= FILE TYPE HANDLING =================
     if (req.file.mimetype === "application/pdf") {
-      const pdfData = await pdf(req.file.buffer);
+      const pdfData = await pdfParse.default(req.file.buffer);
       extractedText = pdfData.text;
     }
 
