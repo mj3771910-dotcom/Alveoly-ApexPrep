@@ -11,13 +11,9 @@ import { protect } from "../middleware/authMiddleware.js";
 import { checkAISubscription } from "../middleware/aiSubscriptionMiddleware.js";
 import { deleteHistory, generateQuestions, getHistory } from "../controllers/aiGeneratorController.js";
 import { askStudentAI, deleteChat, getStudentChats } from "../controllers/aiChatController.js";
-import multer from "multer";
-import { uploadQAFile } from "../controllers/aiController.js";
 
 const router = express.Router();
-const upload = multer({ dest: "uploads/" });
 
-router.post("/upload-file", protect, upload.single("file"), uploadQAFile);
 router.post("/ask", protect, checkAISubscription, askQuestionStudent);
 router.get("/insights", protect, checkAISubscription, getStudentAIInsights);     // Admin add QA
 router.put("/update/:id", protect, updateQA);              // Admin edit
