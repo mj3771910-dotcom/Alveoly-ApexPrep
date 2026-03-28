@@ -34,6 +34,7 @@ const AdminLayout = () => {
     { to: "/admin/in-box", label: "Feedback", icon: <FaReply /> },
     { to: "/admin/courses", label: "Courses", icon: <FaLayerGroup /> },
     { to: "/admin/plans", label: "Plans", icon: <FaLayerGroup /> },
+    { to: "/admin/content", label: "Content", icon: <FaBook /> },
   ];
 
   return (

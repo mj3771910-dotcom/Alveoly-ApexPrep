@@ -50,6 +50,8 @@ import AIAdmin from "./pages/AIAdmin";
 import AIGenerator from "./pages/AdminAIGeneratorU";
 import AdminTestimonials from "./pages/AdminTestimonials";
 import AdminInbox from "./pages/AdminInbox";
+import AdminContent from "./pages/AdminContent";
+import StudentLessons from "./pages/StudentLessons";
 
 function App() {
   return (
@@ -111,6 +113,7 @@ function App() {
           <Route path="plans" element={<StudentPlans />} />
           <Route path="progress" element={<StudentProgress />} />
           <Route path="testimonials" element={<StudentTestimonials />} />
+          <Route path="lessons/:subjectId" element={<StudentLessons />} />
           <Route path="ai" element={<AIChat />} />
         </Route>
 
@@ -146,6 +149,7 @@ function App() {
           <Route path="ai-generator" element={<AIGenerator />} />
           <Route path="testimonials" element={<AdminTestimonials />} />
           <Route path="in-box" element={<AdminInbox />} />
+          <Route path="content" element={<AdminContent />} />
         </Route>
 
       </Routes>

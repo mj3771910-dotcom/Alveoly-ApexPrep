@@ -215,26 +215,36 @@ const StudentSubjects = () => {
 
                 {unlocked && (
                   <>
-                    <div className="flex gap-3 mt-4">
-                      <button
-                        onClick={() =>
-                          navigate(`/student/exams/${courseId}/${subj._id}`)
-                        }
-                        className="flex-1 bg-green-600 text-white py-2 rounded flex items-center justify-center gap-2"
-                      >
-                        <FaPlay /> Exam
-                      </button>
+                    <div className="grid grid-cols-3 gap-3 mt-4">
 
-                      <button
-                        onClick={() =>
-                          navigate(`/student/trial/${courseId}/${subj._id}`)
-                        }
-                        className="flex-1 bg-gray-800 text-white py-2 rounded flex items-center justify-center gap-2"
-                      >
-                        <FaBookOpen /> Practice
-                      </button>
-                    </div>
+  <button
+    onClick={() =>
+      navigate(`/student/lessons/${subj._id}`)
+    }
+    className="bg-blue-600 text-white py-2 rounded flex items-center justify-center gap-2 hover:bg-blue-700"
+  >
+    <FaBookOpen /> Lessons
+  </button>
 
+  <button
+    onClick={() =>
+      navigate(`/student/exams/${courseId}/${subj._id}`)
+    }
+    className="bg-green-600 text-white py-2 rounded flex items-center justify-center gap-2 hover:bg-green-700"
+  >
+    <FaPlay /> Exam
+  </button>
+
+  <button
+    onClick={() =>
+      navigate(`/student/trial/${courseId}/${subj._id}`)
+    }
+    className="bg-gray-800 text-white py-2 rounded flex items-center justify-center gap-2 hover:bg-black"
+  >
+    Practice
+  </button>
+
+</div>
                     <p className="text-green-600 text-xs mt-3 flex items-center gap-1">
                       <FaCheckCircle /> Unlocked
                     </p>
