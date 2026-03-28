@@ -10,6 +10,10 @@ const AdminSubjects = () => {
   const [subjects, setSubjects] = useState([]);
   const [editing, setEditing] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [users, setUsers] = useState([]);
+const [selectedUser, setSelectedUser] = useState("");
+const [selectedSubject, setSelectedSubject] = useState("");
+const [manualLoading, setManualLoading] = useState(false);
 
   const [form, setForm] = useState({
     name: "",
@@ -44,18 +48,20 @@ const AdminSubjects = () => {
   }, []);
 
   const fetchData = async () => {
-    try {
-      const [coursesRes, subjectsRes] = await Promise.all([
-        axios.get("/courses"),
-        axios.get("/subjects"),
-      ]);
+  try {
+    const [coursesRes, subjectsRes, usersRes] = await Promise.all([
+      axios.get("/courses"),
+      axios.get("/subjects"),
+      axios.get("/users"), // 🔥 ADD THIS
+    ]);
 
-      setCourses(coursesRes.data);
-      setSubjects(subjectsRes.data);
-    } catch (err) {
-      console.error(err);
-    }
-  };
+    setCourses(coursesRes.data);
+    setSubjects(subjectsRes.data);
+    setUsers(usersRes.data); // 🔥 ADD THIS
+  } catch (err) {
+    console.error(err);
+  }
+};
 
   // ================= INPUT =================
   const handleChange = (e) => {
@@ -86,6 +92,35 @@ const AdminSubjects = () => {
       setLoading(false);
     }
   };
+
+  const handleManualUnlock = async () => {
+  if (!selectedUser || !selectedSubject) {
+    alert("Please select student and subject");
+    return;
+  }
+
+  try {
+    setManualLoading(true);
+
+    await axios.post("/manual-access/grant", {
+      userId: selectedUser,
+      subjectId: selectedSubject,
+      durationDays: 30, // you can customize later
+      note: "Offline payment",
+    });
+
+    alert("✅ Subject unlocked successfully");
+
+    // reset
+    setSelectedUser("");
+    setSelectedSubject("");
+  } catch (err) {
+    console.error(err);
+    alert(err.response?.data?.message || "Failed to unlock");
+  } finally {
+    setManualLoading(false);
+  }
+};
 
   // ================= DELETE =================
   const handleDelete = async (_id) => {
@@ -254,6 +289,53 @@ const AdminSubjects = () => {
           </table>
         </div>
       </div>
+
+      {/* ================= MANUAL UNLOCK ================= */}
+<div className="bg-white p-6 rounded-xl shadow mb-8">
+  <h3 className="font-semibold mb-4">
+    Manual Unlock (Offline Payment)
+  </h3>
+
+  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+    {/* SELECT STUDENT */}
+    <select
+      value={selectedUser}
+      onChange={(e) => setSelectedUser(e.target.value)}
+      className="p-3 border rounded-lg"
+    >
+      <option value="">Select Student</option>
+      {users.map((u) => (
+        <option key={u._id} value={u._id}>
+          {u.name} ({u.email})
+        </option>
+      ))}
+    </select>
+
+    {/* SELECT SUBJECT */}
+    <select
+      value={selectedSubject}
+      onChange={(e) => setSelectedSubject(e.target.value)}
+      className="p-3 border rounded-lg"
+    >
+      <option value="">Select Subject</option>
+      {subjects.map((s) => (
+        <option key={s._id} value={s._id}>
+          {s.name}
+        </option>
+      ))}
+    </select>
+
+    {/* BUTTON */}
+    <button
+      onClick={handleManualUnlock}
+      disabled={manualLoading}
+      className="bg-green-600 text-white rounded-lg px-4 py-2"
+    >
+      {manualLoading ? "Unlocking..." : "Unlock Subject"}
+    </button>
+  </div>
+</div>
 
       {/* MODAL */}
       {editing && (

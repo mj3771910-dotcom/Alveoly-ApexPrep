@@ -22,6 +22,7 @@ const StudentSubjects = () => {
 
   const [payments, setPayments] = useState([]);
   const [now, setNow] = useState(new Date());
+  const [manualAccess, setManualAccess] = useState([]);
 
   // ================= LIVE TIMER =================
   useEffect(() => {
@@ -31,6 +32,19 @@ const StudentSubjects = () => {
 
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+  const fetchManualAccess = async () => {
+    try {
+      const res = await axios.get("/manual-access/mine");
+      setManualAccess(res.data || []);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  fetchManualAccess();
+}, []);
 
   // ================= GET COURSE =================
   useEffect(() => {
@@ -72,22 +86,25 @@ const StudentSubjects = () => {
     );
   };
 
-  const isSubjectUnlocked = (subject) => {
-    // FREE subject
-    if (!subject.isPaid) return true;
+ const isSubjectUnlocked = (subject) => {
+  if (!subject.isPaid) return true;
 
-    // 1. Active plan
-    if (hasActivePlan()) return true;
+  if (hasActivePlan()) return true;
 
-    // 2. Subject purchase
-    const subjectPayment = payments.find(
-      (p) =>
-        p.status === "success" &&
-        p.subject === subject.name
-    );
+  // existing payment logic
+  const subjectPayment = payments.find(
+    (p) =>
+      p.status === "success" &&
+      p.subject === subject.name
+  );
 
-    return !!subjectPayment;
-  };
+  // 🔥 NEW: manual access
+  const manual = manualAccess.find(
+    (m) => m.subjectId === subject._id
+  );
+
+  return !!subjectPayment || !!manual;
+};
 
   // ================= FETCH SUBJECTS =================
   useEffect(() => {
