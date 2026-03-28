@@ -11,7 +11,7 @@ const AdminContent = () => {
   const [form, setForm] = useState({
     title: "",
     type: "video",
-    linkType: "subject", // "subject" or "course"
+    linkType: "subject",
     courseId: "",
     subjectId: "",
     isPaid: false,
@@ -118,6 +118,7 @@ const AdminContent = () => {
       price: content.price,
       thumbnail: null,
     });
+    setFile(null);
   };
 
   return (
@@ -126,6 +127,7 @@ const AdminContent = () => {
 
       <div className="bg-white p-6 rounded-xl shadow space-y-4">
 
+        {/* Title */}
         <input
           placeholder="Content title"
           value={form.title}
@@ -133,6 +135,7 @@ const AdminContent = () => {
           className="w-full p-3 border rounded"
         />
 
+        {/* Type */}
         <select
           value={form.type}
           onChange={(e) => setForm({ ...form, type: e.target.value })}
@@ -143,6 +146,7 @@ const AdminContent = () => {
           <option value="pdf">PDF</option>
         </select>
 
+        {/* Link type */}
         <select
           value={form.linkType}
           onChange={(e) => setForm({ ...form, linkType: e.target.value })}
@@ -152,6 +156,7 @@ const AdminContent = () => {
           <option value="course">Attach to Course</option>
         </select>
 
+        {/* Subject / Course select */}
         {form.linkType === "subject" ? (
           <select
             value={form.subjectId}
@@ -176,18 +181,49 @@ const AdminContent = () => {
           </select>
         )}
 
-        <input
-          type="file"
-          onChange={(e) => setFile(e.target.files[0])}
-          className="w-full"
-        />
+        {/* ================= FILE INPUTS ================= */}
+        <div className="space-y-4">
+          {/* Main File */}
+          <div>
+            <label className="block mb-1 font-semibold">Main Content (Video, Image, PDF)</label>
+            <input
+              type="file"
+              accept={
+                form.type === "video"
+                  ? "video/*"
+                  : form.type === "image"
+                  ? "image/*"
+                  : ".pdf"
+              }
+              onChange={(e) => setFile(e.target.files[0])}
+              className="w-full"
+            />
+            {file && <p className="text-xs text-gray-500 mt-1">Selected file: {file.name}</p>}
+          </div>
 
-        <input
-          type="file"
-          onChange={(e) => setForm({ ...form, thumbnail: e.target.files[0] })}
-          className="w-full"
-        />
+          {/* Thumbnail */}
+          <div>
+            <label className="block mb-1 font-semibold">Thumbnail (Optional)</label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => setForm({ ...form, thumbnail: e.target.files[0] })}
+              className="w-full"
+            />
+            {form.thumbnail && (
+              <div className="mt-1">
+                <p className="text-xs text-gray-500">Selected thumbnail: {form.thumbnail.name}</p>
+                <img
+                  src={URL.createObjectURL(form.thumbnail)}
+                  alt="thumbnail preview"
+                  className="w-32 h-20 object-cover rounded mt-1"
+                />
+              </div>
+            )}
+          </div>
+        </div>
 
+        {/* Paid Content */}
         <label className="flex gap-2 items-center">
           <input
             type="checkbox"
@@ -222,7 +258,7 @@ const AdminContent = () => {
         <div className="grid md:grid-cols-3 gap-6">
           {contents.map((c) => (
             <div key={c._id} className="bg-white p-4 rounded-xl shadow">
-              {/* THUMBNAIL with 16:9 aspect ratio */}
+              {/* THUMBNAIL */}
               <div className="w-full aspect-[16/9] mb-3">
                 <img
                   src={c.thumbnailUrl}
