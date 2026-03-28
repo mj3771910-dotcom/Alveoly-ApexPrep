@@ -185,7 +185,7 @@ const StudentLessons = () => {
             {/* PDF */}
             {viewer.type === "pdf" && (
              <iframe
-  src={`https://docs.google.com/gview?url=${viewer.url}&embedded=true`}
+  src={viewer.url + "#toolbar=1&navpanes=1&scrollbar=1"}
   className="w-full h-full rounded-lg"
 />
             )}
