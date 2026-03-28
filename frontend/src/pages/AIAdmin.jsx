@@ -169,11 +169,11 @@ const AIAdmin = () => {
           <div className="mb-4">
             <label className="text-sm text-gray-600 mb-1 block">Upload Q&A File (CSV/JSON)</label>
             <input
-              type="file"
-              accept=".csv,.json"
-              onChange={handleFileChange}
-              className="w-full p-2 border rounded-lg mb-2"
-            />
+  type="file"
+  accept=".csv,.json,.pdf,.jpg,.jpeg,.png"
+  onChange={handleFileChange}
+  className="w-full p-2 border rounded-lg mb-2"
+/>
             <button
               onClick={handleUploadFile}
               disabled={fileLoading}
