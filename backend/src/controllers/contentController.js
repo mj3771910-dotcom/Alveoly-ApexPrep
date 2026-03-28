@@ -4,24 +4,24 @@ import cloudinary from "../../config/cloudinary.js";
 import streamifier from "streamifier";
 import { io } from "../../server.js";
 
+// ================= UPLOAD CONTENT =================
 export const uploadContent = async (req, res) => {
   try {
     const { title, type, courseId, subjectId, isPaid, price } = req.body;
 
-    // ================= FILE UPLOAD =================
-    const uploadToCloudinary = (file) =>
+    // Helper to upload any file to Cloudinary
+    const uploadToCloudinary = (file, folder = "alveoly-content") =>
       new Promise((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
           {
             resource_type: "auto",
-            folder: "alveoly-content",
+            folder,
           },
           (err, result) => {
             if (result) resolve(result);
             else reject(err);
           }
         );
-
         streamifier.createReadStream(file.buffer).pipe(stream);
       });
 
@@ -32,38 +32,32 @@ export const uploadContent = async (req, res) => {
       return res.status(400).json({ message: "Main file required" });
     }
 
+    // Upload main content
     const mainUpload = await uploadToCloudinary(mainFile);
 
+    // ================= THUMBNAIL =================
     let thumbUpload = null;
 
-    // ================= THUMBNAIL =================
     if (thumbFile) {
       thumbUpload = await uploadToCloudinary(thumbFile);
     } else {
-      // AUTO THUMBNAIL FOR VIDEO/PDF
+      // Auto-generate thumbnail
       if (type === "video") {
         thumbUpload = {
-          secure_url: mainUpload.secure_url.replace(
-            "/upload/",
-            "/upload/so_1/"
-          ),
+          secure_url: mainUpload.secure_url.replace("/upload/", "/upload/so_1/"),
         };
-      }
-
-      if (type === "pdf") {
+      } else if (type === "pdf") {
         thumbUpload = {
           secure_url: mainUpload.secure_url.replace(".pdf", ".jpg"),
         };
-      }
-
-      if (type === "image") {
+      } else if (type === "image") {
         thumbUpload = {
           secure_url: mainUpload.secure_url,
         };
       }
     }
 
-    // ================= SAVE =================
+    // ================= SAVE TO DB =================
     const content = await Content.create({
       title,
       type,
@@ -83,42 +77,58 @@ export const uploadContent = async (req, res) => {
 
     res.json(content);
   } catch (err) {
-    console.error(err);
+    console.error("Upload failed:", err);
     res.status(500).json({ message: "Upload failed" });
   }
 };
 
-// ================= GET =================
+// ================= GET CONTENTS =================
 export const getContents = async (req, res) => {
-  const { subjectId, courseId } = req.query;
+  try {
+    const { subjectId, courseId } = req.query;
 
-  const filter = {};
-  if (subjectId) filter.subjectId = subjectId;
-  if (courseId) filter.courseId = courseId;
+    const filter = {};
+    if (subjectId) filter.subjectId = subjectId;
+    if (courseId) filter.courseId = courseId;
 
-  const contents = await Content.find(filter);
+    const contents = await Content.find(filter).sort({ createdAt: -1 });
 
-  res.json(contents);
+    res.json(contents);
+  } catch (err) {
+    console.error("Fetch contents failed:", err);
+    res.status(500).json({ message: "Failed to fetch contents" });
+  }
 };
 
+// ================= DELETE CONTENT =================
 export const deleteContent = async (req, res) => {
   try {
     const content = await Content.findById(req.params.id);
 
     if (!content) {
-      return res.status(404).json({ message: "Not found" });
+      return res.status(404).json({ message: "Content not found" });
     }
 
     // DELETE MAIN FILE
-    if (content.publicId) {
-      await cloudinary.uploader.destroy(content.publicId, {
-        resource_type: "auto",
-      });
+    try {
+      if (content.publicId) {
+        await cloudinary.uploader.destroy(content.publicId, {
+          resource_type: "auto",
+        });
+      }
+    } catch (err) {
+      console.error("Failed to delete main file:", err);
     }
 
     // DELETE THUMBNAIL
-    if (content.thumbnailPublicId) {
-      await cloudinary.uploader.destroy(content.thumbnailPublicId);
+    try {
+      if (content.thumbnailPublicId) {
+        await cloudinary.uploader.destroy(content.thumbnailPublicId, {
+          resource_type: "auto",
+        });
+      }
+    } catch (err) {
+      console.error("Failed to delete thumbnail:", err);
     }
 
     await content.deleteOne();
@@ -127,10 +137,12 @@ export const deleteContent = async (req, res) => {
 
     res.json({ message: "Deleted successfully" });
   } catch (err) {
+    console.error("Delete failed:", err);
     res.status(500).json({ message: "Delete failed" });
   }
 };
 
+// ================= UPDATE CONTENT =================
 export const updateContent = async (req, res) => {
   try {
     const { title, isPaid, price } = req.body;
@@ -141,10 +153,15 @@ export const updateContent = async (req, res) => {
       { new: true }
     );
 
+    if (!content) {
+      return res.status(404).json({ message: "Content not found" });
+    }
+
     io.emit("content:updated", content);
 
     res.json(content);
   } catch (err) {
+    console.error("Update failed:", err);
     res.status(500).json({ message: "Update failed" });
   }
 };
