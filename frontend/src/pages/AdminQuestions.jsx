@@ -1,6 +1,11 @@
 import { useState, useEffect } from "react";
 import { io } from "socket.io-client";
-import { FaPlus, FaEdit, FaTrash, FaTimes } from "react-icons/fa";
+import {
+  FaPlus,
+  FaEdit,
+  FaTrash,
+  FaTimes,
+} from "react-icons/fa";
 import axios from "../api/axios";
 
 const socket = io("https://alveoly-apexprep-backend.onrender.com");
@@ -19,7 +24,7 @@ const AdminQuestions = () => {
     examTime: "",
     isExamLocked: false,
     question: "",
-    options: ["", ""], // ✅ dynamic start
+    options: ["", ""], // ✅ dynamic
     correctAnswer: "",
     rationale: "",
   };
@@ -108,18 +113,20 @@ const AdminQuestions = () => {
     setQuestionForms(updated);
   };
 
-  // ✅ ADD OPTION
   const addOption = (qIndex) => {
     const updated = [...questionForms];
     updated[qIndex].options.push("");
     setQuestionForms(updated);
   };
 
-  // ✅ REMOVE OPTION
   const removeOption = (qIndex, optIndex) => {
     const updated = [...questionForms];
-    if (updated[qIndex].options.length <= 2) return; // minimum 2
+    if (updated[qIndex].options.length <= 2) return;
     updated[qIndex].options.splice(optIndex, 1);
+
+    // reset answer if needed
+    updated[qIndex].correctAnswer = "";
+
     setQuestionForms(updated);
   };
 
@@ -166,7 +173,6 @@ const AdminQuestions = () => {
     if (!window.confirm("Delete this question?")) return;
     try {
       await axios.delete(`/questions/${_id}`);
-      setQuestions((prev) => prev.filter((q) => q._id !== _id));
     } catch (err) {
       console.error(err);
     }
@@ -182,14 +188,18 @@ const AdminQuestions = () => {
   );
 
   return (
-    <div className="w-full min-w-0">
-      <h2 className="text-2xl font-bold mb-6">Manage Questions</h2>
+    <div className="w-full min-w-0 p-4 md:p-6">
+      <h2 className="text-xl md:text-2xl font-bold mb-6">
+        Manage Questions
+      </h2>
 
       {/* FILTERS */}
       <div className="bg-white p-4 rounded-xl shadow mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
         <select
-          onChange={(e) => setFilter({ ...filter, courseId: e.target.value })}
           value={filter.courseId}
+          onChange={(e) =>
+            setFilter({ ...filter, courseId: e.target.value })
+          }
           className="w-full min-w-0 p-3 border rounded"
         >
           <option value="">Filter by Course</option>
@@ -201,8 +211,10 @@ const AdminQuestions = () => {
         </select>
 
         <select
-          onChange={(e) => setFilter({ ...filter, subjectId: e.target.value })}
           value={filter.subjectId}
+          onChange={(e) =>
+            setFilter({ ...filter, subjectId: e.target.value })
+          }
           className="w-full min-w-0 p-3 border rounded"
         >
           <option value="">Filter by Subject</option>
@@ -216,10 +228,12 @@ const AdminQuestions = () => {
       </div>
 
       {/* FORMS */}
-      <div className="bg-white p-6 rounded-xl shadow space-y-6">
+      <div className="bg-white p-4 md:p-6 rounded-xl shadow space-y-6">
         {questionForms.map((form, index) => (
-          <div key={index} className="border p-4 rounded-lg relative w-full">
-
+          <div
+            key={index}
+            className="border p-4 rounded-lg relative space-y-4"
+          >
             {questionForms.length > 1 && (
               <FaTimes
                 className="absolute top-3 right-3 text-red-600 cursor-pointer"
@@ -227,17 +241,98 @@ const AdminQuestions = () => {
               />
             )}
 
+            {/* COURSE */}
+            <select
+              value={form.courseId}
+              onChange={(e) =>
+                handleCourseChange(index, e.target.value)
+              }
+              className="w-full p-3 border rounded"
+            >
+              <option value="">Select Course</option>
+              {courses.map((c) => (
+                <option key={c._id} value={c._id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+
+            {/* SUBJECT */}
+            <select
+              value={form.subjectId}
+              onChange={(e) =>
+                handleFormChange(index, "subjectId", e.target.value)
+              }
+              className="w-full p-3 border rounded"
+            >
+              <option value="">Select Subject</option>
+              {form.courseId &&
+                filteredSubjects(form.courseId).map((s) => (
+                  <option key={s._id} value={s._id}>
+                    {s.name}
+                  </option>
+                ))}
+            </select>
+
+            {/* TYPE */}
+            <select
+              value={form.type}
+              onChange={(e) =>
+                handleFormChange(index, "type", e.target.value)
+              }
+              className="w-full p-3 border rounded"
+            >
+              <option value="trial">Trial</option>
+              <option value="exam">Exam</option>
+            </select>
+
+            {/* EXAM SETTINGS */}
+            {form.type === "exam" && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <select
+                  value={form.examTime}
+                  onChange={(e) =>
+                    handleFormChange(index, "examTime", e.target.value)
+                  }
+                  className="p-3 border rounded"
+                >
+                  <option value="">Select Time</option>
+                  {examTimes.map((t) => (
+                    <option key={t} value={t}>
+                      {t} mins
+                    </option>
+                  ))}
+                </select>
+
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={form.isExamLocked}
+                    onChange={(e) =>
+                      handleFormChange(
+                        index,
+                        "isExamLocked",
+                        e.target.checked
+                      )
+                    }
+                  />
+                  Lock Exam
+                </label>
+              </div>
+            )}
+
+            {/* QUESTION */}
             <textarea
               value={form.question}
               onChange={(e) =>
                 handleFormChange(index, "question", e.target.value)
               }
               placeholder="Enter question"
-              className="w-full min-w-0 p-3 border rounded mb-4"
+              className="w-full p-3 border rounded"
             />
 
             {/* OPTIONS */}
-            <div className="space-y-3 mb-4">
+            <div className="space-y-2">
               {form.options.map((opt, i) => (
                 <div key={i} className="flex gap-2">
                   <input
@@ -245,8 +340,8 @@ const AdminQuestions = () => {
                     onChange={(e) =>
                       handleOptionChange(i, index, e.target.value)
                     }
+                    className="flex-1 p-3 border rounded"
                     placeholder={`Option ${String.fromCharCode(65 + i)}`}
-                    className="flex-1 min-w-0 p-3 border rounded"
                   />
 
                   <button
@@ -261,7 +356,7 @@ const AdminQuestions = () => {
 
             <button
               onClick={() => addOption(index)}
-              className="bg-gray-200 px-4 py-2 rounded mb-4"
+              className="bg-gray-200 px-4 py-2 rounded"
             >
               + Add Option
             </button>
@@ -272,7 +367,7 @@ const AdminQuestions = () => {
               onChange={(e) =>
                 handleFormChange(index, "correctAnswer", e.target.value)
               }
-              className="w-full min-w-0 p-3 border rounded mb-4"
+              className="w-full p-3 border rounded"
             >
               <option value="">Correct Answer</option>
               {form.options.map((_, i) => (
@@ -282,13 +377,14 @@ const AdminQuestions = () => {
               ))}
             </select>
 
+            {/* RATIONALE */}
             <textarea
               value={form.rationale}
               onChange={(e) =>
                 handleFormChange(index, "rationale", e.target.value)
               }
               placeholder="Rationale"
-              className="w-full min-w-0 p-3 border rounded"
+              className="w-full p-3 border rounded"
             />
           </div>
         ))}
