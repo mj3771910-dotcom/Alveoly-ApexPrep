@@ -2,6 +2,7 @@ import Subject from "../models/Subject.js";
 import Course from "../models/Course.js";
 import Payment from "../models/Payment.js";
 import Plan from "../models/Plan.js";
+import ManualAccess from "../models/ManualAccess.js";
 import { io } from "../../server.js";
 
 // ================= GET SUBJECTS =================
@@ -12,22 +13,21 @@ export const getSubjects = async (req, res) => {
 
     let subjects;
 
-    // ✅ FILTER BY COURSE (student)
+    // FILTER
     if (course && course !== "undefined" && course !== "null") {
       subjects = await Subject.find({ courseId: course });
     } else {
-      // ✅ ADMIN (all subjects)
       subjects = await Subject.find();
     }
 
-    // ================= GET ACTIVE PAYMENTS =================
-    let activePlan = null;
-    let activeSubjectPayments = [];
+    let activePlanSubjects = [];
+    let purchasedSubjects = [];
+    let manualSubjects = [];
 
     if (userId) {
       const now = new Date();
 
-      // ✅ Get active plan
+      // ================= PLAN =================
       const planPayment = await Payment.findOne({
         userId,
         planId: { $ne: null },
@@ -38,13 +38,13 @@ export const getSubjects = async (req, res) => {
         populate: { path: "subjects", select: "_id" },
       });
 
-      if (planPayment && planPayment.planId) {
-        activePlan = planPayment.planId.subjects.map((s) =>
+      if (planPayment?.planId) {
+        activePlanSubjects = planPayment.planId.subjects.map((s) =>
           s._id.toString()
         );
       }
 
-      // ✅ Get active subject purchases
+      // ================= SUBJECT PURCHASE =================
       const subjectPayments = await Payment.find({
         userId,
         subjectId: { $ne: null },
@@ -52,25 +52,34 @@ export const getSubjects = async (req, res) => {
         expiresAt: { $gt: now },
       });
 
-      activeSubjectPayments = subjectPayments.map((p) =>
+      purchasedSubjects = subjectPayments.map((p) =>
         p.subjectId.toString()
+      );
+
+      // ================= MANUAL ACCESS =================
+      const manualAccess = await ManualAccess.find({
+        userId,
+        isActive: true,
+        expiresAt: { $gt: now },
+      });
+
+      manualSubjects = manualAccess.map((m) =>
+        m.subjectId.toString()
       );
     }
 
-    // ================= FORMAT =================
+    // ================= FINAL FORMAT =================
     const formatted = subjects.map((subj) => {
-      let isUnlocked = !subj.isPaid; // free subjects
+      const subjectIdStr = subj._id.toString();
 
-      if (userId && subj.isPaid) {
-        const subjectIdStr = subj._id.toString();
+      let isUnlocked = !subj.isPaid;
 
-        const hasSubjectPurchase =
-          activeSubjectPayments.includes(subjectIdStr);
+      if (subj.isPaid && userId) {
+        const hasPlan = activePlanSubjects.includes(subjectIdStr);
+        const hasPurchase = purchasedSubjects.includes(subjectIdStr);
+        const hasManual = manualSubjects.includes(subjectIdStr);
 
-        const hasPlanAccess =
-          activePlan && activePlan.includes(subjectIdStr);
-
-        isUnlocked = hasSubjectPurchase || hasPlanAccess;
+        isUnlocked = hasPlan || hasPurchase || hasManual;
       }
 
       return {
