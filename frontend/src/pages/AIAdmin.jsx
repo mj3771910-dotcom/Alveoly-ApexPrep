@@ -120,26 +120,23 @@ const AIAdmin = () => {
 
   try {
     setLoading(true);
-    await axios.post("/ai/upload-file", formData, {
+
+    const res = await axios.post("/ai/upload-file", formData, {
       headers: { "Content-Type": "multipart/form-data" },
     });
 
-    alert("File uploaded successfully!");
-    setFile(null);
-  } catch (err) {
-  console.error("🔥 FULL ERROR:", err);
-  console.error("🔥 MESSAGE:", err.message);
-  console.error("🔥 STACK:", err.stack);
+    console.log("SUCCESS:", res.data); // ✅ OK
 
-  res.status(500).json({
-    message: err.message,
-    error: err.toString(),
-  });
-}
+    alert(res.data.message || "Upload successful");
+    setFile(null);
+
+  } catch (err) {
+    console.error("UPLOAD ERROR:", err.response?.data || err.message);
+    alert(err.response?.data?.message || "Upload failed");
+  }
 
   setLoading(false);
 };
-
   return (
     <div className="min-h-screen bg-gray-100 p-3 sm:p-6">
       
