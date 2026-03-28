@@ -1,6 +1,4 @@
 import cloudinary from "../../config/cloudinary.js";
-import pdfParsePkg from "pdf-parse";
-const pdfParse = pdfParsePkg.default || pdfParsePkg;
 import csv from "csv-parser";
 import streamifier from "streamifier";
 import Tesseract from "tesseract.js";
@@ -96,14 +94,22 @@ export const uploadAIFile = async (req, res) => {
     let extractedText = "";
 
     // ================= PDF =================
-    if (req.file.mimetype === "application/pdf") {
-      const pdfData = await pdfParse.default(req.file.buffer);
-      extractedText =
-        pdfData.text && pdfData.text.trim()
-          ? pdfData.text
-          : "⚠️ No selectable text found (scanned PDF)";
-    }
+   if (req.file.mimetype === "application/pdf") {
+  try {
+    const pdfParsePkg = await import("pdf-parse");
+    const pdfParse = pdfParsePkg.default;
 
+    const pdfData = await pdfParse(req.file.buffer);
+
+    extractedText =
+      pdfData.text && pdfData.text.trim()
+        ? pdfData.text
+        : "⚠️ No selectable text found (scanned PDF)";
+  } catch (err) {
+    console.error("🔥 PDF ERROR:", err.message);
+    extractedText = "❌ Failed to read PDF";
+  }
+}
     // ================= CSV =================
     else if (req.file.mimetype.includes("csv")) {
       const results = [];
