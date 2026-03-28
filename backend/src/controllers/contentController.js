@@ -10,23 +10,21 @@ export const uploadContent = async (req, res) => {
     const { title, type, courseId, subjectId, isPaid, price } = req.body;
 
     // Helper to upload any file to Cloudinary
-   const uploadToCloudinary = (file, type, folder = "alveoly-content") =>
+  const uploadToCloudinary = (file, type, folder = "alveoly-content") =>
   new Promise((resolve, reject) => {
-   const stream = cloudinary.uploader.upload_stream(
-  {
-    resource_type: type === "pdf" ? "image" : "auto",
-    folder,
-    access_mode: "public",   // 🔥 IMPORTANT
-    type: "upload",          // 🔥 IMPORTANT
-  },
-          (err, result) => {
-            if (result) resolve(result);
-            else reject(err);
-          }
-        );
-        streamifier.createReadStream(file.buffer).pipe(stream);
-      });
-
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        resource_type: type === "pdf" ? "raw" : "auto",
+        folder,
+      },
+      (err, result) => {
+        if (result) resolve(result);
+        else reject(err);
+      }
+    );
+    streamifier.createReadStream(file.buffer).pipe(stream);
+  });
+  
     const mainFile = req.files?.file?.[0];
     const thumbFile = req.files?.thumbnail?.[0];
 
