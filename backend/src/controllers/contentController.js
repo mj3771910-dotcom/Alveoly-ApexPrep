@@ -10,13 +10,13 @@ export const uploadContent = async (req, res) => {
     const { title, type, courseId, subjectId, isPaid, price } = req.body;
 
     // Helper to upload any file to Cloudinary
-    const uploadToCloudinary = (file, folder = "alveoly-content") =>
-      new Promise((resolve, reject) => {
-        const stream = cloudinary.uploader.upload_stream(
-          {
-            resource_type: "auto",
-            folder,
-          },
+   const uploadToCloudinary = (file, type, folder = "alveoly-content") =>
+  new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        resource_type: type === "pdf" ? "raw" : "auto",
+        folder,
+      },
           (err, result) => {
             if (result) resolve(result);
             else reject(err);
@@ -33,7 +33,7 @@ export const uploadContent = async (req, res) => {
     }
 
     // Upload main content
-    const mainUpload = await uploadToCloudinary(mainFile);
+    const mainUpload = await uploadToCloudinary(mainFile, type);
 
     // ================= THUMBNAIL =================
 let thumbUpload = null;
