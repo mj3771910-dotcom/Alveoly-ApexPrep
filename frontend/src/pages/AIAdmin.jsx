@@ -119,38 +119,42 @@ const AIAdmin = () => {
 
   // ================= FILE UPLOAD =================
   const handleFileUpload = async () => {
-    if (!file) {
-      alert("Please select a file");
-      return;
-    }
+  if (!file) {
+    alert("Please select a file");
+    return;
+  }
 
-    const formData = new FormData();
-    formData.append("file", file);
+  const formData = new FormData();
+  formData.append("file", file);
 
-    try {
-      setUploading(true);
+  try {
+    setUploading(true);
 
-      const res = await axios.post("/ai/upload-file", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+    const res = await axios.post("/ai/upload-file", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
 
-      console.log("🔥 UPLOAD RESPONSE:", res.data);
+    console.log("🔥 UPLOAD RESPONSE:", res.data);
 
-      // ✅ ALWAYS SHOW TEXT (even fallback messages)
-      setPreviewText(res.data.extractedText || "No text returned");
+    setPreviewText(res.data.extractedText || "No text returned");
 
-      alert(res.data.message || "Upload successful");
+    // ✅ REFRESH DATA AFTER UPLOAD
+    const updated = await axios.get("/ai/all-admin");
+    setHistory(updated.data);
 
-      setFile(null);
-    } catch (err) {
-      console.error("UPLOAD ERROR:", err.response?.data || err.message);
+    alert(res.data.message || "Upload successful");
 
-      setPreviewText("❌ Failed to extract text");
-      alert(err.response?.data?.message || "Upload failed");
-    }
+    setFile(null);
 
-    setUploading(false);
-  };
+  } catch (err) {
+    console.error("UPLOAD ERROR:", err.response?.data || err.message);
+
+    setPreviewText("❌ Failed to extract text");
+    alert(err.response?.data?.message || "Upload failed");
+  }
+
+  setUploading(false);
+};
 
   // ================= UI =================
   return (
