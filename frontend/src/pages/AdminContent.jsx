@@ -5,6 +5,7 @@ const AdminContent = () => {
   const [courses, setCourses] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [file, setFile] = useState(null);
+  const [contents, setContents] = useState([]);
 
   const [form, setForm] = useState({
     title: "",
@@ -29,6 +30,15 @@ const AdminContent = () => {
     fetchData();
   }, []);
 
+  useEffect(() => {
+  const fetchContents = async () => {
+    const res = await axios.get("/content");
+    setContents(res.data);
+  };
+
+  fetchContents();
+}, []);
+
   const handleUpload = async () => {
     if (!file || !form.title) {
       return alert("Fill all fields");
@@ -39,6 +49,7 @@ const AdminContent = () => {
     formData.append("title", form.title);
     formData.append("type", form.type);
     formData.append("file", file);
+    formData.append("thumbnail", form.thumbnail);
 
     if (form.linkType === "subject") {
       formData.append("subjectId", form.subjectId);
@@ -65,6 +76,16 @@ const AdminContent = () => {
     });
     setFile(null);
   };
+
+  const handleDelete = async (id) => {
+  if (!window.confirm("Delete this content?")) return;
+
+  await axios.delete(`/content/${id}`);
+
+  setContents((prev) => prev.filter((c) => c._id !== id));
+};
+
+
 
   return (
     <div className="max-w-3xl">
@@ -139,6 +160,18 @@ const AdminContent = () => {
           className="w-full"
         />
 
+        <input
+  type="file"
+  onChange={(e) => setFile(e.target.files[0])}
+/>
+
+<input
+  type="file"
+  onChange={(e) =>
+    setForm({ ...form, thumbnail: e.target.files[0] })
+  }
+/>
+
         <label className="flex gap-2 items-center">
           <input
             type="checkbox"
@@ -169,6 +202,36 @@ const AdminContent = () => {
           Upload Content
         </button>
       </div>
+
+      <div className="mt-10">
+  <h3 className="text-xl font-bold mb-4">Uploaded Content</h3>
+
+  <div className="grid md:grid-cols-3 gap-6">
+    {contents.map((c) => (
+      <div key={c._id} className="bg-white p-4 rounded-xl shadow">
+
+        {/* THUMBNAIL */}
+        <img
+          src={c.thumbnailUrl}
+          className="w-full h-40 object-cover rounded mb-3"
+        />
+
+        <h4 className="font-bold">{c.title}</h4>
+        <p className="text-xs text-gray-500 mb-2">{c.type}</p>
+
+        <div className="flex gap-2 mt-3">
+          <button
+            onClick={() => handleDelete(c._id)}
+            className="bg-red-500 text-white px-3 py-1 rounded text-sm"
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+
     </div>
   );
 };

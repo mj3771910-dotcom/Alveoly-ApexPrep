@@ -12,7 +12,8 @@ const contentSchema = new mongoose.Schema(
 
     fileUrl: String,
     publicId: String,
-
+    thumbnailUrl: String,
+thumbnailPublicId: String,
     courseId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Course",
