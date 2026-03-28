@@ -36,27 +36,40 @@ export const uploadContent = async (req, res) => {
     const mainUpload = await uploadToCloudinary(mainFile);
 
     // ================= THUMBNAIL =================
-    let thumbUpload = null;
+let thumbUpload = null;
 
-    if (thumbFile) {
-      thumbUpload = await uploadToCloudinary(thumbFile);
-    } else {
-      // Auto-generate thumbnail
-      if (type === "video") {
-        thumbUpload = {
-          secure_url: mainUpload.secure_url.replace("/upload/", "/upload/so_1/"),
-        };
-      } else if (type === "pdf") {
-        thumbUpload = {
-          secure_url: mainUpload.secure_url.replace(".pdf", ".jpg"),
-        };
-      } else if (type === "image") {
-        thumbUpload = {
-          secure_url: mainUpload.secure_url,
-        };
-      }
-    }
-
+if (thumbFile) {
+  // Use uploaded thumbnail
+  thumbUpload = await uploadToCloudinary(thumbFile);
+} else {
+  // Auto-generate thumbnail for video/pdf/image
+  if (type === "video") {
+    // Generate video poster frame (first frame)
+    const publicId = mainUpload.public_id;
+    thumbUpload = {
+      secure_url: cloudinary.url(publicId + ".jpg", { 
+        resource_type: "video", 
+        quality: "auto", 
+        fetch_format: "auto" 
+      }),
+    };
+  } else if (type === "pdf") {
+    // Generate first page thumbnail as image
+    const publicId = mainUpload.public_id;
+    thumbUpload = {
+      secure_url: cloudinary.url(publicId + ".jpg", { 
+        resource_type: "image", 
+        page: 1, 
+        quality: "auto", 
+        fetch_format: "auto" 
+      }),
+    };
+  } else if (type === "image") {
+    thumbUpload = {
+      secure_url: mainUpload.secure_url,
+    };
+  }
+}
     // ================= SAVE TO DB =================
     const content = await Content.create({
       title,
