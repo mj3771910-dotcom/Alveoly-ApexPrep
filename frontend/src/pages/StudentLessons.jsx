@@ -185,7 +185,7 @@ const StudentLessons = () => {
             {/* PDF */}
             {viewer.type === "pdf" && (
              <iframe
-  src={viewer.url + "#toolbar=1&navpanes=1&scrollbar=1"}
+  src={viewer.url}
   className="w-full h-full rounded-lg"
 />
             )}
