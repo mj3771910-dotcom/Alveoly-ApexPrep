@@ -127,9 +127,9 @@ const AIAdmin = () => {
     alert("File uploaded successfully!");
     setFile(null);
   } catch (err) {
-    console.error(err);
-    alert("Upload failed");
-  }
+  console.error("UPLOAD ERROR:", err.response?.data || err.message);
+  alert(err.response?.data?.message || "Upload failed");
+}
 
   setLoading(false);
 };
