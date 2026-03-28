@@ -167,32 +167,220 @@ const [manualLoading, setManualLoading] = useState(false);
     return courses.find((c) => c._id === id)?.name || "N/A";
   };
 
-  return (
-    <div className="w-full min-w-0">
-      <h2 className="text-2xl font-bold mb-6">Manage Subjects</h2>
+ return (
+  <div className="w-full px-4 md:px-8 py-8 bg-gray-50 min-h-screen">
 
-      {/* FORM */}
-      <div className="bg-white p-6 rounded-xl shadow mb-8">
-        <h3 className="font-semibold mb-4 flex items-center gap-2">
-          <FaPlus /> {editing ? "Edit Subject" : "Add New Subject"}
-        </h3>
+    {/* HEADER */}
+    <div className="mb-8">
+      <h2 className="text-3xl font-bold text-gray-800">
+        Subject Management
+      </h2>
+      <p className="text-gray-500 text-sm">
+        Create, manage and control subject access
+      </p>
+    </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    {/* ================= SUBJECT FORM ================= */}
+    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition mb-8">
+      <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
+        <FaPlus /> {editing ? "Edit Subject" : "Add New Subject"}
+      </h3>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+
+        <input
+          type="text"
+          name="name"
+          value={form.name}
+          onChange={handleChange}
+          placeholder="Subject Name"
+          className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+        />
+
+        <select
+          name="courseId"
+          value={form.courseId}
+          onChange={handleChange}
+          className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+        >
+          <option value="">Select Course</option>
+          {courses.map((c) => (
+            <option key={c._id} value={c._id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            name="isPaid"
+            checked={form.isPaid}
+            onChange={handleChange}
+          />
+          Paid Subject
+        </label>
+
+        {form.isPaid && (
+          <input
+            type="number"
+            name="price"
+            value={form.price}
+            onChange={handleChange}
+            placeholder="Price (₵)"
+            className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+          />
+        )}
+      </div>
+
+      <button
+        onClick={editing ? handleUpdate : handleAdd}
+        disabled={loading}
+        className="mt-6 bg-blue-600 hover:bg-blue-700 transition text-white px-6 py-2.5 rounded-xl font-medium shadow-sm"
+      >
+        {loading
+          ? "Processing..."
+          : editing
+          ? "Update Subject"
+          : "Add Subject"}
+      </button>
+    </div>
+
+    {/* ================= SUBJECT TABLE ================= */}
+    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition mb-8">
+      <h3 className="font-semibold text-lg mb-4">All Subjects</h3>
+
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[600px] text-left text-sm">
+          <thead>
+            <tr className="border-b text-gray-500">
+              <th className="py-2">Subject</th>
+              <th>Course</th>
+              <th>Status</th>
+              <th>Price</th>
+              <th></th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {subjects.map((s) => (
+              <tr key={s._id} className="border-b hover:bg-gray-50">
+                <td className="py-3 font-medium text-gray-800">
+                  {s.name}
+                </td>
+
+                <td className="text-gray-600">
+                  {getCourseName(s.courseId)}
+                </td>
+
+                <td>
+                  <span
+                    className={`text-xs px-3 py-1 rounded-full ${
+                      s.isPaid
+                        ? "bg-red-100 text-red-600"
+                        : "bg-green-100 text-green-600"
+                    }`}
+                  >
+                    {s.isPaid ? "Paid" : "Free"}
+                  </span>
+                </td>
+
+                <td className="font-medium">
+                  {s.isPaid ? `₵${s.price}` : "-"}
+                </td>
+
+                <td className="flex gap-4 justify-end py-3">
+                  <FaEdit
+                    className="text-blue-600 cursor-pointer hover:scale-110 transition"
+                    onClick={() => handleEdit(s)}
+                  />
+                  <FaTrash
+                    className="text-red-500 cursor-pointer hover:scale-110 transition"
+                    onClick={() => handleDelete(s._id)}
+                  />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {/* ================= MANUAL UNLOCK ================= */}
+    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition mb-8">
+      <h3 className="font-semibold text-lg mb-4">
+        Manual Unlock (Offline Payment)
+      </h3>
+
+      <div className="grid md:grid-cols-4 gap-4">
+
+        <select
+          value={selectedUser}
+          onChange={(e) => setSelectedUser(e.target.value)}
+          className="p-3 border border-gray-200 rounded-xl"
+        >
+          <option value="">Select Student</option>
+          {users.map((u) => (
+            <option key={u._id} value={u._id}>
+              {u.name}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={selectedSubject}
+          onChange={(e) => setSelectedSubject(e.target.value)}
+          className="p-3 border border-gray-200 rounded-xl"
+        >
+          <option value="">Select Subject</option>
+          {subjects.map((s) => (
+            <option key={s._id} value={s._id}>
+              {s.name}
+            </option>
+          ))}
+        </select>
+
+        <input
+          type="number"
+          placeholder="Days (30)"
+          className="p-3 border border-gray-200 rounded-xl"
+          onChange={(e) => setDuration(e.target.value)}
+        />
+
+        <button
+          onClick={handleManualUnlock}
+          disabled={manualLoading}
+          className="bg-green-600 hover:bg-green-700 transition text-white rounded-xl px-4 py-2"
+        >
+          {manualLoading ? "Processing..." : "Unlock"}
+        </button>
+      </div>
+    </div>
+
+    {/* ================= EDIT MODAL ================= */}
+    {editing && (
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center p-4">
+        <div className="bg-white p-6 rounded-2xl w-full max-w-md relative shadow-lg">
+
+          <FaTimes
+            className="absolute right-4 top-4 cursor-pointer text-gray-500"
+            onClick={() => setEditing(null)}
+          />
+
+          <h3 className="font-bold text-lg mb-4">Edit Subject</h3>
 
           <input
-            type="text"
             name="name"
             value={form.name}
             onChange={handleChange}
-            placeholder="Subject Name"
-            className="w-full min-w-0 p-3 border rounded-lg"
+            className="w-full p-3 border border-gray-200 rounded-xl mb-3"
           />
 
           <select
             name="courseId"
             value={form.courseId}
             onChange={handleChange}
-            className="w-full min-w-0 p-3 border rounded-lg"
+            className="w-full p-3 border border-gray-200 rounded-xl mb-3"
           >
             <option value="">Select Course</option>
             {courses.map((c) => (
@@ -202,7 +390,7 @@ const [manualLoading, setManualLoading] = useState(false);
             ))}
           </select>
 
-          <label className="flex items-center gap-2">
+          <label className="flex gap-2 mb-3 text-sm">
             <input
               type="checkbox"
               name="isPaid"
@@ -218,188 +406,21 @@ const [manualLoading, setManualLoading] = useState(false);
               name="price"
               value={form.price}
               onChange={handleChange}
-              placeholder="Price (₵)"
-              className="w-full min-w-0 p-3 border rounded-lg"
+              className="w-full p-3 border border-gray-200 rounded-xl mb-3"
             />
           )}
-        </div>
 
-        <button
-          onClick={editing ? handleUpdate : handleAdd}
-          disabled={loading}
-          className="mt-4 bg-blue-600 text-white px-6 py-2 rounded-lg"
-        >
-          {loading
-            ? "Processing..."
-            : editing
-            ? "Update Subject"
-            : "Add Subject"}
-        </button>
-      </div>
-
-      {/* TABLE */}
-      <div className="bg-white p-6 rounded-xl shadow">
-        <h3 className="font-semibold mb-4">All Subjects</h3>
-
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[600px] text-left">
-            <thead>
-              <tr className="border-b text-gray-500 text-sm">
-                <th>Subject</th>
-                <th>Course</th>
-                <th>Status</th>
-                <th>Price</th>
-                <th></th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {subjects.map((s) => (
-                <tr key={s._id} className="border-b">
-                  <td className="py-3 break-words">{s.name}</td>
-                  <td>{getCourseName(s.courseId)}</td>
-
-                  <td>
-                    <span
-                      className={`text-xs px-2 py-1 rounded ${
-                        s.isPaid
-                          ? "bg-red-100 text-red-600"
-                          : "bg-green-100 text-green-600"
-                      }`}
-                    >
-                      {s.isPaid ? "Paid" : "Free"}
-                    </span>
-                  </td>
-
-                  <td>{s.isPaid ? `₵${s.price}` : "-"}</td>
-
-                  <td className="flex gap-3 justify-end">
-                    <FaEdit
-                      className="text-blue-600 cursor-pointer"
-                      onClick={() => handleEdit(s)}
-                    />
-                    <FaTrash
-                      className="text-red-600 cursor-pointer"
-                      onClick={() => handleDelete(s._id)}
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <button
+            onClick={handleUpdate}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl"
+          >
+            Save Changes
+          </button>
         </div>
       </div>
-
-      {/* ================= MANUAL UNLOCK ================= */}
-<div className="bg-white p-6 rounded-xl shadow mb-8">
-  <h3 className="font-semibold mb-4">
-    Manual Unlock (Offline Payment)
-  </h3>
-
-  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-
-    {/* SELECT STUDENT */}
-    <select
-      value={selectedUser}
-      onChange={(e) => setSelectedUser(e.target.value)}
-      className="p-3 border rounded-lg"
-    >
-      <option value="">Select Student</option>
-      {users.map((u) => (
-        <option key={u._id} value={u._id}>
-          {u.name} ({u.email})
-        </option>
-      ))}
-    </select>
-
-    {/* SELECT SUBJECT */}
-    <select
-      value={selectedSubject}
-      onChange={(e) => setSelectedSubject(e.target.value)}
-      className="p-3 border rounded-lg"
-    >
-      <option value="">Select Subject</option>
-      {subjects.map((s) => (
-        <option key={s._id} value={s._id}>
-          {s.name}
-        </option>
-      ))}
-    </select>
-
-    {/* BUTTON */}
-    <button
-      onClick={handleManualUnlock}
-      disabled={manualLoading}
-      className="bg-green-600 text-white rounded-lg px-4 py-2"
-    >
-      {manualLoading ? "Unlocking..." : "Unlock Subject"}
-    </button>
+    )}
   </div>
-</div>
-
-      {/* MODAL */}
-      {editing && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center p-4">
-          <div className="bg-white p-6 rounded-xl w-full max-w-md relative">
-            <FaTimes
-              className="absolute right-4 top-4 cursor-pointer"
-              onClick={() => setEditing(null)}
-            />
-
-            <h3 className="font-bold mb-4">Edit Subject</h3>
-
-            <input
-              name="name"
-              value={form.name}
-              onChange={handleChange}
-              className="w-full min-w-0 p-3 border rounded mb-3"
-            />
-
-            <select
-              name="courseId"
-              value={form.courseId}
-              onChange={handleChange}
-              className="w-full min-w-0 p-3 border rounded mb-3"
-            >
-              <option value="">Select Course</option>
-              {courses.map((c) => (
-                <option key={c._id} value={c._id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-
-            <label className="flex gap-2 mb-3">
-              <input
-                type="checkbox"
-                name="isPaid"
-                checked={form.isPaid}
-                onChange={handleChange}
-              />
-              Paid
-            </label>
-
-            {form.isPaid && (
-              <input
-                type="number"
-                name="price"
-                value={form.price}
-                onChange={handleChange}
-                className="w-full min-w-0 p-3 border rounded mb-3"
-              />
-            )}
-
-            <button
-              onClick={handleUpdate}
-              className="w-full bg-blue-600 text-white py-2 rounded"
-            >
-              Save Changes
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+);
 };
 
 export default AdminSubjects;
