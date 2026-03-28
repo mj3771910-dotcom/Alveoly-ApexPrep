@@ -11,6 +11,7 @@ const AIAdmin = () => {
   const [editingId, setEditingId] = useState(null);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false); // ✅ separate loader
   const [file, setFile] = useState(null);
 
   // ✅ SOCKET INIT
@@ -67,7 +68,7 @@ const AIAdmin = () => {
     };
   }, [socket]);
 
-  // ✅ SAVE
+  // ✅ SAVE QA
   const handleSave = async () => {
     if (!question.trim() || !manualAnswer.trim()) return;
     setLoading(true);
@@ -99,8 +100,6 @@ const AIAdmin = () => {
     setQuestion(qa.question);
     setManualAnswer(qa.answer);
     setEditingId(qa.id);
-
-    // scroll to form on mobile
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -112,40 +111,48 @@ const AIAdmin = () => {
     }
   };
 
+  // ✅ FILE UPLOAD
   const handleFileUpload = async () => {
-  if (!file) return;
+    if (!file) return;
 
-  const formData = new FormData();
-  formData.append("file", file);
+    const allowedTypes = [
+      "application/pdf",
+      "text/csv",
+      "image/png",
+      "image/jpeg",
+      "image/jpg",
+    ];
 
-  try {
-    setLoading(true);
+    if (!allowedTypes.includes(file.type)) {
+      return alert("Invalid file type");
+    }
 
-    const res = await axios.post("/ai/upload-file", formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
+    const formData = new FormData();
+    formData.append("file", file);
 
-    console.log("SUCCESS:", res.data); // ✅ OK
+    try {
+      setUploading(true);
 
-    alert(res.data.message || "Upload successful");
-    setFile(null);
+      const res = await axios.post("/ai/upload-file", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
 
-  } catch (err) {
-    console.error("UPLOAD ERROR:", err.response?.data || err.message);
-    alert(err.response?.data?.message || "Upload failed");
-  }
+      alert(res.data.message || "Upload successful");
+      setFile(null);
+    } catch (err) {
+      console.error("UPLOAD ERROR:", err.response?.data || err.message);
+      alert(err.response?.data?.message || "Upload failed");
+    }
 
-  setLoading(false);
-};
+    setUploading(false);
+  };
+
   return (
     <div className="min-h-screen bg-gray-100 p-3 sm:p-6">
-      
-      {/* MAIN GRID */}
       <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6">
-        
-        {/* ================= LEFT: FORM ================= */}
-        <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm w-full 
-                        lg:sticky lg:top-6 h-fit">
+
+        {/* ================= LEFT PANEL ================= */}
+        <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm w-full lg:sticky lg:top-6 h-fit">
 
           <h2 className="text-xl sm:text-2xl font-bold mb-4 flex items-center gap-2">
             <FaRobot /> AI Training Panel
@@ -153,13 +160,10 @@ const AIAdmin = () => {
 
           {/* QUESTION */}
           <div className="mb-4">
-            <label className="text-sm text-gray-600 mb-1 block">
-              Question
-            </label>
+            <label className="text-sm text-gray-600 mb-1 block">Question</label>
             <textarea
-              className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm sm:text-base"
+              className="w-full border p-3 rounded-lg"
               rows="3"
-              placeholder="Enter question..."
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
             />
@@ -167,106 +171,73 @@ const AIAdmin = () => {
 
           {/* ANSWER */}
           <div className="mb-4">
-            <label className="text-sm text-gray-600 mb-1 block">
-              Manual Answer
-            </label>
+            <label className="text-sm text-gray-600 mb-1 block">Manual Answer</label>
             <textarea
-              className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm sm:text-base"
+              className="w-full border p-3 rounded-lg"
               rows="4"
-              placeholder="Enter manual answer..."
               value={manualAnswer}
               onChange={(e) => setManualAnswer(e.target.value)}
             />
           </div>
 
-          {/* BUTTON */}
+          {/* SAVE BUTTON */}
           <button
             onClick={handleSave}
             disabled={loading}
-            className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium 
-                       hover:bg-blue-700 transition text-sm sm:text-base"
+            className="w-full bg-blue-600 text-white py-3 rounded-lg mb-4"
           >
-            {loading
-              ? "Processing..."
-              : editingId
-              ? "Update QA"
-              : "Add QA"}
+            {loading ? "Processing..." : editingId ? "Update QA" : "Add QA"}
+          </button>
+
+          {/* FILE UPLOAD */}
+          <div className="mb-3">
+            <input
+              type="file"
+              onChange={(e) => setFile(e.target.files[0])}
+              className="w-full border p-2 rounded-lg"
+            />
+          </div>
+
+          <button
+            onClick={handleFileUpload}
+            disabled={uploading}
+            className="w-full bg-green-600 text-white py-3 rounded-lg"
+          >
+            {uploading ? "Uploading..." : "Upload & Train AI"}
           </button>
         </div>
 
-        {/* FILE INPUT */}
-<div className="mb-4">
-  <label className="text-sm text-gray-600 mb-1 block">
-    Upload File (PDF, CSV, Image)
-  </label>
-
-  <input
-    type="file"
-    onChange={(e) => setFile(e.target.files[0])}
-    className="w-full border p-2 rounded-lg"
-  />
-</div>
-
-<button
-  onClick={handleFileUpload}
-  disabled={loading}
-  className="w-full bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 transition mb-3"
->
-  {loading ? "Uploading..." : "Upload & Train AI"}
-</button>
-
-        {/* ================= RIGHT: HISTORY ================= */}
-        <div className="w-full">
-
-          <h3 className="text-lg sm:text-xl font-semibold mb-4 text-gray-800">
+        {/* ================= RIGHT PANEL ================= */}
+        <div>
+          <h3 className="text-lg font-semibold mb-4">
             AI Knowledge Base
           </h3>
 
           {history.length === 0 ? (
-            <div className="bg-white p-6 sm:p-8 rounded-xl shadow-sm text-center">
-              <p className="text-gray-500 text-sm sm:text-base">
-                No training data yet 🤖
-              </p>
+            <div className="bg-white p-6 rounded-xl text-center">
+              No training data yet 🤖
             </div>
           ) : (
-            <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+            <div className="space-y-4 max-h-[70vh] overflow-y-auto">
               {history.map((item) => (
-                <div
-                  key={item.id}
-                  className="bg-white p-4 sm:p-5 rounded-xl shadow-sm hover:shadow-md transition"
-                >
-                  {/* QUESTION */}
-                  <p className="font-semibold text-gray-800 mb-2 text-sm sm:text-base">
-                    Q: {item.question}
-                  </p>
+                <div key={item.id} className="bg-white p-4 rounded-xl">
+                  <p className="font-semibold">Q: {item.question}</p>
+                  <p className="text-sm text-gray-600">A: {item.answer}</p>
 
-                  {/* ANSWER */}
-                  <p className="text-gray-600 text-xs sm:text-sm mb-4">
-                    A: {item.answer}
-                  </p>
-
-                  {/* ACTIONS */}
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      onClick={() => handleEdit(item)}
-                      className="flex items-center gap-2 bg-yellow-100 text-yellow-700 px-3 py-1 rounded-lg text-xs sm:text-sm hover:bg-yellow-200"
-                    >
-                      <FaEdit /> Edit
+                  <div className="flex gap-2 mt-3">
+                    <button onClick={() => handleEdit(item)}>
+                      <FaEdit />
                     </button>
-
-                    <button
-                      onClick={() => handleDelete(item.id)}
-                      className="flex items-center gap-2 bg-red-100 text-red-600 px-3 py-1 rounded-lg text-xs sm:text-sm hover:bg-red-200"
-                    >
-                      <FaTrash /> Delete
+                    <button onClick={() => handleDelete(item.id)}>
+                      <FaTrash />
                     </button>
                   </div>
                 </div>
               ))}
             </div>
           )}
-
         </div>
+
       </div>
     </div>
   );
