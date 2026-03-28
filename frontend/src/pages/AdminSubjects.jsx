@@ -472,12 +472,12 @@ const handleUpdateAccess = async (id) => {
                 <button
                   onClick={() => handleToggleAccess(m._id)}
                   className={`px-2 py-1 rounded text-xs text-white ${
-                    m.status === "locked"
-                      ? "bg-green-600 hover:bg-green-700"
-                      : "bg-gray-500 hover:bg-gray-600"
-                  }`}
-                >
-                  {m.status === "locked" ? "Unlock" : "Lock"}
+  m.isActive
+    ? "bg-gray-500 hover:bg-gray-600"
+    : "bg-green-600 hover:bg-green-700"
+}`}
+>
+{m.isActive ? "Lock" : "Unlock"}
                 </button>
 
                 <button
