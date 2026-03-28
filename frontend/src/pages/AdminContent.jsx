@@ -342,7 +342,7 @@ const AdminContent = () => {
 
             {viewer.type === "pdf" && (
              <iframe
-  src={viewer.url}
+  src={`${viewer.url}?inline=true`}
   className="w-full h-full rounded-lg"
 />
             )}

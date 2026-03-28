@@ -183,11 +183,11 @@ const StudentLessons = () => {
             )}
 
             {/* PDF */}
-            {viewer.type === "pdf" && (
-             <iframe
-  src={viewer.url}
-  className="w-full h-full rounded-lg"
-/>
+           {viewer.type === "pdf" && (
+  <iframe
+    src={`https://docs.google.com/gview?url=${viewer.url}&embedded=true`}
+    className="w-full h-full rounded-lg"
+  />
             )}
           </div>
         </div>
