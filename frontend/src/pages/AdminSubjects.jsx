@@ -107,12 +107,11 @@ setManualAccessList(manualRes.data); // 🔥 ADD THIS
     setManualLoading(true);
 
     await axios.post("/manual-access/grant", {
-      userId: selectedUser,
-      subjectId: selectedSubject,
-      durationDays: 30, // you can customize later
-      note: "Offline payment",
-    });
-
+  userId: selectedUser,
+  subjectId: selectedSubject,
+  durationDays: Number(duration), // ✅ FIXED
+  note: "Offline payment",
+});
     alert("✅ Subject unlocked successfully");
 
     // reset

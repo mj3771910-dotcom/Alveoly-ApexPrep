@@ -33,18 +33,19 @@ const StudentSubjects = () => {
     return () => clearInterval(interval);
   }, []);
 
+  // ================= FETCH MANUAL ACCESS =================
   useEffect(() => {
-  const fetchManualAccess = async () => {
-    try {
-      const res = await axios.get("/manual-access/mine");
-      setManualAccess(res.data || []);
-    } catch (err) {
-      console.error(err);
-    }
-  };
+    const fetchManualAccess = async () => {
+      try {
+        const res = await axios.get("/manual-access/mine");
+        setManualAccess(res.data || []);
+      } catch (err) {
+        console.error(err);
+      }
+    };
 
-  fetchManualAccess();
-}, []);
+    fetchManualAccess();
+  }, []);
 
   // ================= GET COURSE =================
   useEffect(() => {
@@ -86,25 +87,36 @@ const StudentSubjects = () => {
     );
   };
 
- const isSubjectUnlocked = (subject) => {
-  if (!subject.isPaid) return true;
+  const isSubjectUnlocked = (subject) => {
+    // ✅ PRIORITY: backend truth
+    if (subject.isUnlocked !== undefined) {
+      return subject.isUnlocked;
+    }
 
-  if (hasActivePlan()) return true;
+    // fallback (your original logic improved)
 
-  // existing payment logic
-  const subjectPayment = payments.find(
-    (p) =>
-      p.status === "success" &&
-      p.subject === subject.name
-  );
+    if (!subject.isPaid) return true;
 
-  // 🔥 NEW: manual access
-  const manual = manualAccess.find(
-    (m) => m.subjectId === subject._id
-  );
+    if (hasActivePlan()) return true;
 
-  return !!subjectPayment || !!manual;
-};
+    // ✅ FIX: use subjectId instead of name
+    const subjectPayment = payments.find(
+      (p) =>
+        p.status === "success" &&
+        p.subjectId?.toString() === subject._id.toString() &&
+        new Date(p.expiresAt) > now
+    );
+
+    // ✅ FIX: ObjectId comparison + expiry + active
+    const manual = manualAccess.find(
+      (m) =>
+        m.subjectId?.toString() === subject._id.toString() &&
+        m.isActive &&
+        new Date(m.expiresAt) > now
+    );
+
+    return !!subjectPayment || !!manual;
+  };
 
   // ================= FETCH SUBJECTS =================
   useEffect(() => {
@@ -144,10 +156,18 @@ const StudentSubjects = () => {
       setSubjects((prev) => prev.filter((s) => s._id !== _id));
     });
 
+    // 🔥 OPTIONAL: live unlock refresh
+    socket.on("manualAccess:granted", () => {
+      axios.get(`/subjects?course=${courseId}`).then((res) => {
+        setSubjects(res.data || []);
+      });
+    });
+
     return () => {
       socket.off("subject:created");
       socket.off("subject:updated");
       socket.off("subject:deleted");
+      socket.off("manualAccess:granted");
     };
   }, [courseId]);
 
@@ -201,7 +221,6 @@ const StudentSubjects = () => {
                     : "bg-gray-100"
                 }`}
               >
-                {/* LOCK OVERLAY */}
                 {!unlocked && (
                   <div className="absolute inset-0 bg-white/70 backdrop-blur-sm flex flex-col justify-center items-center rounded-2xl">
                     <FaLock className="text-2xl text-gray-700 mb-2" />
@@ -225,7 +244,6 @@ const StudentSubjects = () => {
                   </div>
                 )}
 
-                {/* CONTENT */}
                 <h3 className="text-lg font-bold text-blue-600 mb-3">
                   {subj.name}
                 </h3>
@@ -234,34 +252,35 @@ const StudentSubjects = () => {
                   <>
                     <div className="grid grid-cols-3 gap-3 mt-4">
 
-  <button
-    onClick={() =>
-      navigate(`/student/lessons/${subj._id}`)
-    }
-    className="bg-blue-600 text-white py-2 rounded flex items-center justify-center gap-2 hover:bg-blue-700"
-  >
-    <FaBookOpen /> Lessons
-  </button>
+                      <button
+                        onClick={() =>
+                          navigate(`/student/lessons/${subj._id}`)
+                        }
+                        className="bg-blue-600 text-white py-2 rounded flex items-center justify-center gap-2 hover:bg-blue-700"
+                      >
+                        <FaBookOpen /> Lessons
+                      </button>
 
-  <button
-    onClick={() =>
-      navigate(`/student/exams/${courseId}/${subj._id}`)
-    }
-    className="bg-green-600 text-white py-2 rounded flex items-center justify-center gap-2 hover:bg-green-700"
-  >
-    <FaPlay /> Exam
-  </button>
+                      <button
+                        onClick={() =>
+                          navigate(`/student/exams/${courseId}/${subj._id}`)
+                        }
+                        className="bg-green-600 text-white py-2 rounded flex items-center justify-center gap-2 hover:bg-green-700"
+                      >
+                        <FaPlay /> Exam
+                      </button>
 
-  <button
-    onClick={() =>
-      navigate(`/student/trial/${courseId}/${subj._id}`)
-    }
-    className="bg-gray-800 text-white py-2 rounded flex items-center justify-center gap-2 hover:bg-black"
-  >
-    Practice
-  </button>
+                      <button
+                        onClick={() =>
+                          navigate(`/student/trial/${courseId}/${subj._id}`)
+                        }
+                        className="bg-gray-800 text-white py-2 rounded flex items-center justify-center gap-2 hover:bg-black"
+                      >
+                        Practice
+                      </button>
 
-</div>
+                    </div>
+
                     <p className="text-green-600 text-xs mt-3 flex items-center gap-1">
                       <FaCheckCircle /> Unlocked
                     </p>
