@@ -6,6 +6,66 @@ import Tesseract from "tesseract.js";
 import QA from "../models/QA.js";
 import { io } from "../../server.js";
 
+// ================= MCQ PARSER =================
+const parseMCQText = async (text, req) => {
+  const blocks = text.split(/\n\s*\n/);
+
+  for (let block of blocks) {
+    const lines = block.split("\n").map(l => l.trim());
+
+    let question = "";
+    let options = [];
+    let answer = "";
+    let rationale = "";
+
+    for (let line of lines) {
+      // Question
+      if (/^\d+\./.test(line)) {
+        question = line.replace(/^\d+\.\s*/, "");
+      }
+
+      // Options
+      else if (/^[A-D]\./.test(line)) {
+        options.push(line);
+      }
+
+      // Answer
+      else if (/^answer:/i.test(line)) {
+        answer = line.replace(/answer:/i, "").trim();
+      }
+
+      // Rationale
+      else if (/^rationale:/i.test(line)) {
+        rationale = line.replace(/rationale:/i, "").trim();
+      }
+    }
+
+    if (question && options.length && answer) {
+      const answerText =
+        options.find(opt =>
+          opt.toLowerCase().startsWith(answer.toLowerCase())
+        ) || answer;
+
+      const qa = new QA({
+        question,
+        answer: rationale
+          ? `${answerText}\n\n${rationale}`
+          : answerText,
+        fromAdmin: true,
+      });
+
+      await qa.save();
+
+      io.emit("newQA", {
+        id: qa._id,
+        question: qa.question,
+        answer: qa.answer,
+        fromAdmin: true,
+      });
+    }
+  }
+};
+
 // ================= FILE UPLOAD =================
 export const uploadAIFile = async (req, res) => {
   try {
@@ -16,16 +76,13 @@ export const uploadAIFile = async (req, res) => {
     console.log("🔥 File received:", req.file.originalname);
     console.log("🔥 MIME TYPE:", req.file.mimetype);
 
-    // ================= CLOUDINARY UPLOAD =================
+    // ================= CLOUDINARY =================
     const uploadStream = () =>
       new Promise((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
           { resource_type: "auto" },
           (error, result) => {
-            if (error) {
-              console.error("🔥 Cloudinary error:", error);
-              return reject(error);
-            }
+            if (error) return reject(error);
             resolve(result);
           }
         );
@@ -39,18 +96,11 @@ export const uploadAIFile = async (req, res) => {
 
     // ================= PDF =================
     if (req.file.mimetype === "application/pdf") {
-      try {
-        const pdfData = await pdfParse.default(req.file.buffer);
-
-        if (pdfData.text && pdfData.text.trim().length > 0) {
-          extractedText = pdfData.text;
-        } else {
-          extractedText = "⚠️ No selectable text found (scanned PDF)";
-        }
-      } catch (err) {
-        console.error("🔥 PDF ERROR:", err.message);
-        extractedText = "❌ Failed to read PDF";
-      }
+      const pdfData = await pdfParse.default(req.file.buffer);
+      extractedText =
+        pdfData.text && pdfData.text.trim()
+          ? pdfData.text
+          : "⚠️ No selectable text found (scanned PDF)";
     }
 
     // ================= CSV =================
@@ -61,7 +111,7 @@ export const uploadAIFile = async (req, res) => {
         streamifier
           .createReadStream(req.file.buffer)
           .pipe(csv())
-          .on("data", (data) => results.push(data))
+          .on("data", data => results.push(data))
           .on("end", resolve)
           .on("error", reject);
       });
@@ -94,19 +144,19 @@ export const uploadAIFile = async (req, res) => {
 
     // ================= IMAGE OCR =================
     else if (req.file.mimetype.startsWith("image/")) {
-      try {
-        const {
-          data: { text },
-        } = await Tesseract.recognize(req.file.buffer, "eng");
+      const {
+        data: { text },
+      } = await Tesseract.recognize(req.file.buffer, "eng");
 
-        extractedText = text || "⚠️ No text detected in image";
-      } catch (err) {
-        console.error("🔥 OCR ERROR:", err.message);
-        extractedText = "❌ Failed to read image text";
-      }
+      extractedText = text || "⚠️ No text detected in image";
     }
 
-    // ================= PROCESS TEXT (Q&A FORMAT) =================
+    // ================= MCQ PARSER (NEW) =================
+    if (extractedText) {
+      await parseMCQText(extractedText, req);
+    }
+
+    // ================= Q:A FORMAT PARSER =================
     if (extractedText && !extractedText.includes("CSV processed")) {
       const lines = extractedText.split("\n");
 
@@ -146,8 +196,8 @@ export const uploadAIFile = async (req, res) => {
       }
     }
 
-        // ================= SAVE RAW EXTRACTED TEXT =================
-    if (extractedText && extractedText.trim().length > 0) {
+    // ================= SAVE RAW TEXT =================
+    if (extractedText && extractedText.trim()) {
       const qa = new QA({
         question: `📄 Uploaded File: ${req.file.originalname}`,
         answer: extractedText,
@@ -163,12 +213,11 @@ export const uploadAIFile = async (req, res) => {
         fromAdmin: true,
       });
     }
-    
-    // ================= FINAL RESPONSE =================
+
     return res.json({
       message: "File uploaded & processed",
       fileUrl: result.secure_url,
-      extractedText: extractedText || "No text extracted",
+      extractedText,
     });
 
   } catch (err) {
