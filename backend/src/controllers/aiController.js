@@ -1,5 +1,6 @@
 import cloudinary from "../../config/cloudinary.js";
-import pdfParse from "pdf-parse";
+import pdfParsePkg from "pdf-parse";
+const pdfParse = pdfParsePkg.default || pdfParsePkg;
 import csv from "csv-parser";
 import streamifier from "streamifier";
 import Tesseract from "tesseract.js";
