@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import axios from "../api/axios";
-import { FaLock, FaPlayCircle, FaFilePdf } from "react-icons/fa";
+import { FaLock, FaFilePdf, FaPlayCircle } from "react-icons/fa";
 
 const StudentLessons = () => {
   const { subjectId } = useParams();
@@ -9,7 +9,7 @@ const StudentLessons = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetch = async () => {
+    const fetchContents = async () => {
       try {
         const res = await axios.get(`/content?subjectId=${subjectId}`);
         setContents(res.data);
@@ -19,7 +19,7 @@ const StudentLessons = () => {
         setLoading(false);
       }
     };
-    fetch();
+    fetchContents();
   }, [subjectId]);
 
   const handleUnlock = async (c) => {
@@ -37,27 +37,24 @@ const StudentLessons = () => {
 
   if (loading) return <p>Loading lessons...</p>;
 
+  if (contents.length === 0) return <p>No lessons available</p>;
+
   return (
     <div className="max-w-6xl mx-auto px-4 py-10">
       <h2 className="text-3xl font-bold mb-8">Lessons</h2>
 
-      {contents.length === 0 ? (
-        <p>No lessons available</p>
-      ) : (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {contents.map((c) => (
-            <div
-              key={c._id}
-              className="bg-white p-5 rounded-2xl shadow hover:shadow-lg transition relative"
-            >
-              <h3 className="font-bold mb-3">{c.title}</h3>
-
-              {/* LOCKED */}
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {contents.map((c) => (
+          <div
+            key={c._id}
+            className="bg-white rounded-2xl shadow hover:shadow-lg transition overflow-hidden relative"
+          >
+            {/* THUMBNAIL / MEDIA */}
+            <div className="relative w-full" style={{ paddingTop: "56.25%" }}>
               {c.isPaid ? (
-                <div className="flex flex-col items-center justify-center py-6">
-                  <FaLock className="text-2xl mb-2 text-gray-600" />
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-100">
+                  <FaLock className="text-3xl mb-2 text-gray-600" />
                   <p className="text-sm mb-3">Locked Content</p>
-
                   <button
                     onClick={() => handleUnlock(c)}
                     className="bg-blue-600 text-white px-4 py-2 rounded"
@@ -67,30 +64,27 @@ const StudentLessons = () => {
                 </div>
               ) : (
                 <>
-                  {/* VIDEO */}
                   {c.type === "video" && (
                     <video
                       src={c.fileUrl}
                       controls
-                      className="w-full rounded"
+                      className="absolute top-0 left-0 w-full h-full object-cover"
                     />
                   )}
 
-                  {/* IMAGE */}
                   {c.type === "image" && (
                     <img
-                      src={c.fileUrl}
-                      alt=""
-                      className="rounded"
+                      src={c.thumbnailUrl || c.fileUrl}
+                      alt={c.title}
+                      className="absolute top-0 left-0 w-full h-full object-cover"
                     />
                   )}
 
-                  {/* PDF */}
                   {c.type === "pdf" && (
                     <a
                       href={c.fileUrl}
                       target="_blank"
-                      className="flex items-center gap-2 text-blue-600"
+                      className="absolute inset-0 flex items-center justify-center text-blue-600 font-semibold gap-2"
                     >
                       <FaFilePdf /> Open PDF
                     </a>
@@ -98,9 +92,15 @@ const StudentLessons = () => {
                 </>
               )}
             </div>
-          ))}
-        </div>
-      )}
+
+            {/* TITLE */}
+            <div className="p-4">
+              <h3 className="font-bold text-lg">{c.title}</h3>
+              <p className="text-xs text-gray-500 mt-1">{c.type}</p>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 };
