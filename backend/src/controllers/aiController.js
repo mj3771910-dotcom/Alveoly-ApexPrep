@@ -146,6 +146,24 @@ export const uploadAIFile = async (req, res) => {
       }
     }
 
+        // ================= SAVE RAW EXTRACTED TEXT =================
+    if (extractedText && extractedText.trim().length > 0) {
+      const qa = new QA({
+        question: `📄 Uploaded File: ${req.file.originalname}`,
+        answer: extractedText,
+        fromAdmin: true,
+      });
+
+      await qa.save();
+
+      io.emit("newQA", {
+        id: qa._id,
+        question: qa.question,
+        answer: qa.answer,
+        fromAdmin: true,
+      });
+    }
+    
     // ================= FINAL RESPONSE =================
     return res.json({
       message: "File uploaded & processed",
