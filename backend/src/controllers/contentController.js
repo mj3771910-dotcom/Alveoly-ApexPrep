@@ -14,7 +14,7 @@ export const uploadContent = async (req, res) => {
   new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
       {
-        resource_type: type === "pdf" ? "raw" : "auto",
+        resource_type: type === "pdf" ? "image" : "auto",
         folder,
       },
           (err, result) => {
@@ -40,7 +40,7 @@ let thumbUpload = null;
 
 if (thumbFile) {
   // Use uploaded thumbnail
-  thumbUpload = await uploadToCloudinary(thumbFile, "alveoly-thumbnails");
+  thumbUpload = await uploadToCloudinary(thumbFile, "image", "alveoly-thumbnails");
 } else {
   // Auto-generate thumbnail for video/pdf/image
   if (type === "video") {
