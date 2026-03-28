@@ -1,6 +1,133 @@
+import cloudinary from "../config/cloudinary.js";
+import pdfParse from "pdf-parse";
+import csv from "csv-parser";
+import streamifier from "streamifier";
+import Tesseract from "tesseract.js";
 import QA from "../models/QA.js";
-import { askAI } from "../services/aiService.js";
-import { io } from "../../server.js"; // Socket.io
+import { io } from "../../server.js";
+
+// ================= FILE UPLOAD =================
+export const uploadAIFile = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "No file uploaded" });
+    }
+
+    // 🔥 Upload to Cloudinary
+    const uploadStream = () =>
+      new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          { resource_type: "auto" },
+          (error, result) => {
+            if (result) resolve(result);
+            else reject(error);
+          }
+        );
+        streamifier.createReadStream(req.file.buffer).pipe(stream);
+      });
+
+    const result = await uploadStream();
+
+    let extractedText = "";
+
+    // ================= FILE TYPE HANDLING =================
+    if (req.file.mimetype === "application/pdf") {
+      const pdfData = await pdfParse(req.file.buffer);
+      extractedText = pdfData.text;
+    }
+
+    else if (req.file.mimetype.includes("csv")) {
+      const results = [];
+
+      await new Promise((resolve, reject) => {
+        streamifier
+          .createReadStream(req.file.buffer)
+          .pipe(csv())
+          .on("data", (data) => results.push(data))
+          .on("end", () => resolve());
+      });
+
+      // Expect CSV format: question, answer
+      for (let row of results) {
+        if (row.question && row.answer) {
+          const qa = new QA({
+            question: row.question,
+            answer: row.answer,
+            fromAdmin: true,
+          });
+          await qa.save();
+
+          io.emit("newQA", {
+            id: qa._id,
+            question: qa.question,
+            answer: qa.answer,
+            fromAdmin: true,
+          });
+        }
+      }
+
+      return res.json({
+        message: "CSV uploaded & QAs saved",
+        fileUrl: result.secure_url,
+      });
+    }
+
+    else if (
+      req.file.mimetype.includes("image")
+    ) {
+      const {
+        data: { text },
+      } = await Tesseract.recognize(req.file.buffer, "eng");
+
+      extractedText = text;
+    }
+
+    // ================= PROCESS TEXT =================
+    if (extractedText) {
+      const lines = extractedText.split("\n");
+
+      let currentQ = "";
+      let currentA = "";
+
+      for (let line of lines) {
+        if (line.toLowerCase().startsWith("q:")) {
+          currentQ = line.replace("Q:", "").trim();
+        } else if (line.toLowerCase().startsWith("a:")) {
+          currentA = line.replace("A:", "").trim();
+
+          if (currentQ && currentA) {
+            const qa = new QA({
+              question: currentQ,
+              answer: currentA,
+              fromAdmin: true,
+            });
+
+            await qa.save();
+
+            io.emit("newQA", {
+              id: qa._id,
+              question: qa.question,
+              answer: qa.answer,
+              fromAdmin: true,
+            });
+
+            currentQ = "";
+            currentA = "";
+          }
+        }
+      }
+    }
+
+    res.json({
+      message: "File uploaded & processed",
+      fileUrl: result.secure_url,
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "File processing failed" });
+  }
+};
 
 // Admin adds QA
 export const askQuestionAdmin = async (req, res) => {

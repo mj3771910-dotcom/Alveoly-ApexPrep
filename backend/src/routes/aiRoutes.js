@@ -4,7 +4,8 @@ import {
   updateQA, 
   deleteQA, 
   askQuestionStudent, 
-  getAllAdminQA, 
+  getAllAdminQA,
+  uploadAIFile, 
 } from "../controllers/aiController.js";
 import { getStudentAIInsights } from "../controllers/aiAnalyticsController.js";
 import { protect } from "../middleware/authMiddleware.js";
@@ -13,6 +14,14 @@ import { deleteHistory, generateQuestions, getHistory } from "../controllers/aiG
 import { askStudentAI, deleteChat, getStudentChats } from "../controllers/aiChatController.js";
 
 const router = express.Router();
+
+// ✅ ADD THIS
+router.post(
+  "/upload-file",
+  protect,
+  upload.single("file"),
+  uploadAIFile
+);
 
 router.post("/ask", protect, checkAISubscription, askQuestionStudent);
 router.get("/insights", protect, checkAISubscription, getStudentAIInsights);     // Admin add QA
