@@ -126,6 +126,7 @@ export const uploadAIFile = async (req, res) => {
     return res.json({
       message: "File uploaded & processed",
       fileUrl: result.secure_url,
+      extractedText, // ✅ ADD THIS
     });
 
   } catch (err) {
