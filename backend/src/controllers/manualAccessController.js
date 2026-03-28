@@ -1,6 +1,7 @@
 import ManualAccess from "../models/ManualAccess.js";
 import User from "../models/User.js";
 import Subject from "../models/Subject.js";
+import { io } from "../../server.js";
 
 // ================= GRANT ACCESS =================
 export const grantManualAccess = async (req, res) => {
@@ -26,16 +27,17 @@ export const grantManualAccess = async (req, res) => {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + (durationDays || 30));
 
-    // Prevent duplicate active access
+    // Prevent duplicate ACTIVE access only
     const existing = await ManualAccess.findOne({
       userId,
       subjectId,
+      status: "active",
       expiresAt: { $gt: new Date() },
     });
 
     if (existing) {
       return res.status(400).json({
-        message: "Student already has access",
+        message: "Student already has active access",
       });
     }
 
@@ -45,6 +47,13 @@ export const grantManualAccess = async (req, res) => {
       grantedBy: req.user._id,
       expiresAt,
       note,
+      status: "active",
+    });
+
+    // 🔥 REAL-TIME UPDATE
+    io.emit("manualAccess:updated", {
+      userId,
+      subjectId,
     });
 
     res.status(201).json({
@@ -64,7 +73,8 @@ export const getMyManualAccess = async (req, res) => {
 
     const access = await ManualAccess.find({
       userId: req.user._id,
-      expiresAt: { $gt: now },
+      status: "active", // ✅ only active
+      expiresAt: { $gt: now }, // ✅ not expired
     });
 
     res.json(access);
@@ -74,6 +84,7 @@ export const getMyManualAccess = async (req, res) => {
   }
 };
 
+// ================= ADMIN: GET ALL =================
 export const getAllManualAccess = async (req, res) => {
   try {
     const data = await ManualAccess.find()
@@ -83,12 +94,12 @@ export const getAllManualAccess = async (req, res) => {
 
     const now = new Date();
 
-   const formatted = data.map((item) => ({
-  ...item._doc,
-  isActive:
-    item.status === "active" &&
-    new Date(item.expiresAt) > now,
-}));
+    const formatted = data.map((item) => ({
+      ...item._doc,
+      isActive:
+        item.status === "active" &&
+        new Date(item.expiresAt) > now,
+    }));
 
     res.json(formatted);
   } catch (err) {
@@ -97,6 +108,7 @@ export const getAllManualAccess = async (req, res) => {
   }
 };
 
+// ================= DELETE =================
 export const deleteManualAccess = async (req, res) => {
   try {
     const access = await ManualAccess.findById(req.params.id);
@@ -105,7 +117,16 @@ export const deleteManualAccess = async (req, res) => {
       return res.status(404).json({ message: "Access not found" });
     }
 
+    const userId = access.userId;
+    const subjectId = access.subjectId;
+
     await access.deleteOne();
+
+    // 🔥 REAL-TIME UPDATE
+    io.emit("manualAccess:updated", {
+      userId,
+      subjectId,
+    });
 
     res.json({ message: "Manual access deleted" });
   } catch (err) {
@@ -114,6 +135,7 @@ export const deleteManualAccess = async (req, res) => {
   }
 };
 
+// ================= UPDATE =================
 export const updateManualAccess = async (req, res) => {
   try {
     const { durationDays, note } = req.body;
@@ -126,7 +148,7 @@ export const updateManualAccess = async (req, res) => {
 
     if (durationDays) {
       const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + durationDays);
+      expiresAt.setDate(expiresAt.getDate() + Number(durationDays));
       access.expiresAt = expiresAt;
     }
 
@@ -136,6 +158,12 @@ export const updateManualAccess = async (req, res) => {
 
     const updated = await access.save();
 
+    // 🔥 REAL-TIME UPDATE
+    io.emit("manualAccess:updated", {
+      userId: updated.userId,
+      subjectId: updated.subjectId,
+    });
+
     res.json(updated);
   } catch (err) {
     console.error("Update Manual Access Error:", err);
@@ -143,6 +171,7 @@ export const updateManualAccess = async (req, res) => {
   }
 };
 
+// ================= TOGGLE (LOCK / UNLOCK) =================
 export const toggleManualAccess = async (req, res) => {
   try {
     const access = await ManualAccess.findById(req.params.id);
@@ -151,9 +180,17 @@ export const toggleManualAccess = async (req, res) => {
       return res.status(404).json({ message: "Access not found" });
     }
 
-    access.status = access.status === "active" ? "locked" : "active";
+    // toggle
+    access.status =
+      access.status === "active" ? "locked" : "active";
 
     const updated = await access.save();
+
+    // 🔥 REAL-TIME UPDATE
+    io.emit("manualAccess:updated", {
+      userId: updated.userId,
+      subjectId: updated.subjectId,
+    });
 
     res.json(updated);
   } catch (err) {
@@ -161,4 +198,3 @@ export const toggleManualAccess = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
-
