@@ -22,6 +22,7 @@ import testimonialRoutes from "./routes/testimonialRoutes.js";
 import messageRoutes from "./routes/messageRoutes.js";
 import contentRoutes from "./routes/contentRoutes.js";
 import contentPaymentRoutes from "./routes/contentPaymentRoutes.js";
+import manualAccessRoutes from "./routes/manualAccessRoutes.js";
 
 const app = express();
 
@@ -88,6 +89,7 @@ app.use("/api/testimonials", testimonialRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/content", contentRoutes);
 app.use("/api/content-payments", contentPaymentRoutes);
+app.use("/api/manual-access", manualAccessRoutes);
 
 // ================= HEALTH CHECK =================
 app.get("/", (req, res) => {
