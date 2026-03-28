@@ -50,25 +50,29 @@ export const uploadQAFile = async (req, res) => {
         }
       }
     } else if ([".jpg", ".jpeg", ".png"].includes(ext)) {
-      // OCR for images
-      const { data: { text } } = await Tesseract.recognize(req.file.path, "eng");
-      const lines = text.split("\n");
-      for (let line of lines) {
-        if (line.toLowerCase().startsWith("q:")) {
-          const parts = line.split("A:");
-          if (parts.length === 2) {
-            qaArray.push({
-              question: parts[0].replace(/^Q:/i, "").trim(),
-              answer: parts[1].trim(),
-              fromAdmin: true,
-            });
-          }
+  try {
+    const { data: { text } } = await Tesseract.recognize(req.file.path, "eng", {
+      logger: (m) => console.log(m), // optional progress logs
+    });
+
+    const lines = text.split("\n");
+    for (let line of lines) {
+      if (line.toLowerCase().startsWith("q:")) {
+        const parts = line.split("A:");
+        if (parts.length === 2) {
+          qaArray.push({
+            question: parts[0].replace(/^Q:/i, "").trim(),
+            answer: parts[1].trim(),
+            fromAdmin: true,
+          });
         }
       }
-    } else {
-      return res.status(400).json({ message: "Unsupported file format" });
     }
-
+  } catch (err) {
+    console.error("OCR error:", err);
+    return res.status(500).json({ message: "Failed to parse image OCR" });
+  }
+}
     if (qaArray.length > 0) {
       const created = await QA.insertMany(qaArray);
       created.forEach((qa) => {
