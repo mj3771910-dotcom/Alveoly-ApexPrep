@@ -14,6 +14,8 @@ const AdminSubjects = () => {
 const [selectedUser, setSelectedUser] = useState("");
 const [selectedSubject, setSelectedSubject] = useState("");
 const [manualLoading, setManualLoading] = useState(false);
+const [manualAccessList, setManualAccessList] = useState([]);
+const [duration, setDuration] = useState(30);
 
   const [form, setForm] = useState({
     name: "",
@@ -49,15 +51,17 @@ const [manualLoading, setManualLoading] = useState(false);
 
   const fetchData = async () => {
   try {
-    const [coursesRes, subjectsRes, usersRes] = await Promise.all([
-      axios.get("/courses"),
-      axios.get("/subjects"),
-      axios.get("/users"), // 🔥 ADD THIS
-    ]);
+   const [coursesRes, subjectsRes, usersRes, manualRes] = await Promise.all([
+  axios.get("/courses"),
+  axios.get("/subjects"),
+  axios.get("/users"),
+  axios.get("/manual-access/all"), // 🔥 ADD THIS
+]);
 
-    setCourses(coursesRes.data);
-    setSubjects(subjectsRes.data);
-    setUsers(usersRes.data); // 🔥 ADD THIS
+setCourses(coursesRes.data);
+setSubjects(subjectsRes.data);
+setUsers(usersRes.data);
+setManualAccessList(manualRes.data); // 🔥 ADD THIS
   } catch (err) {
     console.error(err);
   }
