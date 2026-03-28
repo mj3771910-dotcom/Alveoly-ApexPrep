@@ -11,6 +11,36 @@ const AIAdmin = () => {
   const [editingId, setEditingId] = useState(null);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);
+  // Add state for file
+const [file, setFile] = useState(null);
+const [fileLoading, setFileLoading] = useState(false);
+
+// File input handler
+const handleFileChange = (e) => {
+  setFile(e.target.files[0]);
+};
+
+// Upload file to backend
+const handleUploadFile = async () => {
+  if (!file) return;
+  setFileLoading(true);
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    await axios.post("/ai/upload-file", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+
+    alert("File uploaded successfully!");
+    setFile(null);
+  } catch (err) {
+    console.error(err);
+    alert("Failed to upload file");
+  } finally {
+    setFileLoading(false);
+  }
+};
 
   // ✅ SOCKET INIT
   useEffect(() => {
@@ -167,6 +197,24 @@ const AIAdmin = () => {
               : "Add QA"}
           </button>
         </div>
+
+        {/* ================= FILE UPLOAD ================= */}
+<div className="mb-4">
+  <label className="text-sm text-gray-600 mb-1 block">Upload Q&A File (CSV/JSON)</label>
+  <input
+    type="file"
+    accept=".csv,.json"
+    onChange={handleFileChange}
+    className="w-full p-2 border rounded-lg"
+  />
+</div>
+<button
+  onClick={handleUploadFile}
+  disabled={fileLoading}
+  className="w-full bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 transition"
+>
+  {fileLoading ? "Uploading..." : "Upload File"}
+</button>
 
         {/* ================= RIGHT: HISTORY ================= */}
         <div className="w-full">
