@@ -11,10 +11,13 @@ const AIAdmin = () => {
   const [editingId, setEditingId] = useState(null);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [uploading, setUploading] = useState(false); // ✅ separate loader
+  const [uploading, setUploading] = useState(false);
   const [file, setFile] = useState(null);
 
-  // ✅ SOCKET INIT
+  // ✅ NEW: extracted text preview
+  const [previewText, setPreviewText] = useState("");
+
+  // ================= SOCKET =================
   useEffect(() => {
     const newSocket = io("https://alveoly-apexprep-backend.onrender.com", {
       transports: ["websocket"],
@@ -30,7 +33,7 @@ const AIAdmin = () => {
     return () => newSocket.disconnect();
   }, []);
 
-  // ✅ FETCH DATA
+  // ================= FETCH =================
   useEffect(() => {
     const fetchQA = async () => {
       try {
@@ -43,7 +46,7 @@ const AIAdmin = () => {
     fetchQA();
   }, []);
 
-  // ✅ SOCKET LIVE UPDATES
+  // ================= SOCKET UPDATES =================
   useEffect(() => {
     if (!socket) return;
 
@@ -68,7 +71,7 @@ const AIAdmin = () => {
     };
   }, [socket]);
 
-  // ✅ SAVE QA
+  // ================= SAVE =================
   const handleSave = async () => {
     if (!question.trim() || !manualAnswer.trim()) return;
     setLoading(true);
@@ -96,6 +99,7 @@ const AIAdmin = () => {
     setLoading(false);
   };
 
+  // ================= EDIT =================
   const handleEdit = (qa) => {
     setQuestion(qa.question);
     setManualAnswer(qa.answer);
@@ -103,6 +107,7 @@ const AIAdmin = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  // ================= DELETE =================
   const handleDelete = async (id) => {
     try {
       await axios.delete(`/ai/delete/${id}`);
@@ -111,7 +116,7 @@ const AIAdmin = () => {
     }
   };
 
-  // ✅ FILE UPLOAD
+  // ================= FILE UPLOAD =================
   const handleFileUpload = async () => {
     if (!file) return;
 
@@ -137,6 +142,9 @@ const AIAdmin = () => {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
+      // ✅ SHOW EXTRACTED TEXT
+      setPreviewText(res.data.extractedText || "");
+
       alert(res.data.message || "Upload successful");
       setFile(null);
     } catch (err) {
@@ -147,40 +155,34 @@ const AIAdmin = () => {
     setUploading(false);
   };
 
+  // ================= UI =================
   return (
     <div className="min-h-screen bg-gray-100 p-3 sm:p-6">
       <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-        {/* ================= LEFT PANEL ================= */}
-        <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm w-full lg:sticky lg:top-6 h-fit">
+        {/* LEFT */}
+        <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm">
 
-          <h2 className="text-xl sm:text-2xl font-bold mb-4 flex items-center gap-2">
+          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
             <FaRobot /> AI Training Panel
           </h2>
 
-          {/* QUESTION */}
-          <div className="mb-4">
-            <label className="text-sm text-gray-600 mb-1 block">Question</label>
-            <textarea
-              className="w-full border p-3 rounded-lg"
-              rows="3"
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-            />
-          </div>
+          <textarea
+            placeholder="Question"
+            className="w-full border p-3 rounded-lg mb-3"
+            rows="3"
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+          />
 
-          {/* ANSWER */}
-          <div className="mb-4">
-            <label className="text-sm text-gray-600 mb-1 block">Manual Answer</label>
-            <textarea
-              className="w-full border p-3 rounded-lg"
-              rows="4"
-              value={manualAnswer}
-              onChange={(e) => setManualAnswer(e.target.value)}
-            />
-          </div>
+          <textarea
+            placeholder="Manual Answer"
+            className="w-full border p-3 rounded-lg mb-3"
+            rows="4"
+            value={manualAnswer}
+            onChange={(e) => setManualAnswer(e.target.value)}
+          />
 
-          {/* SAVE BUTTON */}
           <button
             onClick={handleSave}
             disabled={loading}
@@ -189,14 +191,12 @@ const AIAdmin = () => {
             {loading ? "Processing..." : editingId ? "Update QA" : "Add QA"}
           </button>
 
-          {/* FILE UPLOAD */}
-          <div className="mb-3">
-            <input
-              type="file"
-              onChange={(e) => setFile(e.target.files[0])}
-              className="w-full border p-2 rounded-lg"
-            />
-          </div>
+          {/* FILE */}
+          <input
+            type="file"
+            onChange={(e) => setFile(e.target.files[0])}
+            className="w-full border p-2 rounded-lg mb-2"
+          />
 
           <button
             onClick={handleFileUpload}
@@ -205,9 +205,18 @@ const AIAdmin = () => {
           >
             {uploading ? "Uploading..." : "Upload & Train AI"}
           </button>
+
+          {/* ✅ PREVIEW TEXT */}
+          {previewText && (
+            <div className="mt-4 p-3 bg-gray-100 rounded-lg max-h-60 overflow-y-auto whitespace-pre-wrap text-sm">
+              <strong>Extracted File Text:</strong>
+              <br />
+              {previewText}
+            </div>
+          )}
         </div>
 
-        {/* ================= RIGHT PANEL ================= */}
+        {/* RIGHT */}
         <div>
           <h3 className="text-lg font-semibold mb-4">
             AI Knowledge Base
