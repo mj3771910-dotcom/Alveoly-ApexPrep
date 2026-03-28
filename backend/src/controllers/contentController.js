@@ -40,33 +40,35 @@ let thumbUpload = null;
 
 if (thumbFile) {
   // Use uploaded thumbnail
-  thumbUpload = await uploadToCloudinary(thumbFile);
+  thumbUpload = await uploadToCloudinary(thumbFile, "alveoly-thumbnails");
 } else {
   // Auto-generate thumbnail for video/pdf/image
   if (type === "video") {
     // Generate video poster frame (first frame)
-    const publicId = mainUpload.public_id;
     thumbUpload = {
-      secure_url: cloudinary.url(publicId + ".jpg", { 
+      secure_url: cloudinary.url(mainUpload.public_id + ".jpg", { 
         resource_type: "video", 
         quality: "auto", 
         fetch_format: "auto" 
       }),
+      public_id: mainUpload.public_id + "-thumb",
     };
   } else if (type === "pdf") {
     // Generate first page thumbnail as image
-    const publicId = mainUpload.public_id;
     thumbUpload = {
-      secure_url: cloudinary.url(publicId + ".jpg", { 
+      secure_url: cloudinary.url(mainUpload.public_id + ".jpg", { 
         resource_type: "image", 
         page: 1, 
         quality: "auto", 
         fetch_format: "auto" 
       }),
+      public_id: mainUpload.public_id + "-thumb",
     };
   } else if (type === "image") {
+    // For images, just use the main image as thumbnail
     thumbUpload = {
       secure_url: mainUpload.secure_url,
+      public_id: mainUpload.public_id + "-thumb",
     };
   }
 }
