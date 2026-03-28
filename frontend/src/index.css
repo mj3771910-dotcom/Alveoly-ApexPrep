@@ -2,17 +2,39 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ✅ PREVENT SCROLLBAR SHIFT */
+/* RESET */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* PREVENT SCROLLBAR SHIFT */
 html {
   overflow-y: scroll;
 }
 
-/* ✅ PREVENT HORIZONTAL JUMP */
+/* PREVENT HORIZONTAL OVERFLOW */
 body {
   overflow-x: hidden;
 }
 
-/* ✅ BETTER MOBILE BEHAVIOR (NO INPUT PUSH) */
+/* ROOT SAFETY */
+#root {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* TEXT WRAP */
 * {
+  overflow-wrap: break-word;
+  word-wrap: break-word;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* MEDIA */
+img, video {
+  max-width: 100%;
+  height: auto;
 }

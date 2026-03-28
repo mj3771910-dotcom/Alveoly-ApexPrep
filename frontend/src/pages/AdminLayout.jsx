@@ -37,7 +37,7 @@ const AdminLayout = () => {
   ];
 
   return (
-    <div className="flex min-h-screen bg-gray-100">
+    <div className="flex min-h-screen bg-gray-100 overflow-x-hidden">
 
       {/* MOBILE OVERLAY */}
       {sidebarOpen && (
@@ -49,17 +49,22 @@ const AdminLayout = () => {
 
       {/* SIDEBAR */}
       <aside
-        className={`fixed md:static top-0 left-0 h-full w-64 bg-blue-700 text-white p-6 z-50 transform transition-transform duration-300
-          ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} md:translate-x-0`}
+        className={`fixed md:static top-0 left-0 h-full w-64 bg-blue-700 text-white p-6 z-50 transform transition-transform duration-300 overflow-y-auto
+        ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} md:translate-x-0`}
       >
         {/* MOBILE HEADER */}
         <div className="flex justify-between items-center mb-10 md:hidden">
           <h2 className="text-xl font-bold">Alveoly Admin</h2>
-          <FaTimes className="cursor-pointer" onClick={() => setSidebarOpen(false)} />
+          <FaTimes
+            className="cursor-pointer"
+            onClick={() => setSidebarOpen(false)}
+          />
         </div>
 
         {/* DESKTOP HEADER */}
-        <h2 className="text-2xl font-bold mb-10 hidden md:block">Alveoly Admin</h2>
+        <h2 className="text-2xl font-bold mb-10 hidden md:block">
+          Alveoly Admin
+        </h2>
 
         {/* NAVIGATION */}
         <nav className="flex flex-col gap-4 text-sm">
@@ -68,33 +73,43 @@ const AdminLayout = () => {
               key={item.to}
               onClick={() => setSidebarOpen(false)}
               to={item.to}
-              className="flex items-center gap-2 hover:text-gray-200 transition-colors"
+              className="flex items-center gap-3 px-2 py-2 rounded-md hover:bg-blue-600 transition-colors"
             >
-              {item.icon} {item.label}
+              <span className="text-base">{item.icon}</span>
+              <span className="truncate">{item.label}</span>
             </Link>
           ))}
         </nav>
       </aside>
 
       {/* MAIN CONTENT */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0">
+
         {/* TOP NAV */}
-        <header className="bg-white shadow px-6 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <FaBars className="text-xl cursor-pointer md:hidden" onClick={() => setSidebarOpen(true)} />
-            <h1 className="font-semibold text-lg">Admin Dashboard</h1>
+        <header className="bg-white shadow px-4 md:px-6 py-4 flex justify-between items-center sticky top-0 z-30">
+          <div className="flex items-center gap-4 min-w-0">
+            <FaBars
+              className="text-xl cursor-pointer md:hidden"
+              onClick={() => setSidebarOpen(true)}
+            />
+            <h1 className="font-semibold text-lg truncate">
+              Admin Dashboard
+            </h1>
           </div>
+
           <button
             onClick={logout}
-            className="bg-red-500 text-white px-4 py-1 rounded hover:bg-red-600 transition"
+            className="bg-red-500 text-white px-4 py-1.5 rounded hover:bg-red-600 transition whitespace-nowrap"
           >
             Logout
           </button>
         </header>
 
         {/* PAGE CONTENT */}
-        <main className="p-6">
-          <Outlet />
+        <main className="flex-1 w-full max-w-7xl mx-auto p-4 md:p-6 overflow-x-hidden">
+          <div className="w-full min-w-0">
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>

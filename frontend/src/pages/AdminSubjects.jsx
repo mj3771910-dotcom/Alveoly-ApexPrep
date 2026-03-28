@@ -22,7 +22,6 @@ const AdminSubjects = () => {
   useEffect(() => {
     fetchData();
 
-    // ================= SOCKET.IO LISTENERS =================
     socket.on("subject:created", (data) => {
       setSubjects((prev) => [data, ...prev]);
     });
@@ -81,7 +80,6 @@ const AdminSubjects = () => {
 
       setForm({ name: "", courseId: "", isPaid: false, price: "" });
       setEditing(null);
-      // No need to emit; server broadcasts via Socket.IO
     } catch (err) {
       console.error(err);
     } finally {
@@ -95,7 +93,6 @@ const AdminSubjects = () => {
 
     try {
       await axios.delete(`/subjects/${_id}`);
-      // Server broadcasts via Socket.IO
     } catch (err) {
       console.error(err);
     }
@@ -131,36 +128,36 @@ const AdminSubjects = () => {
     }
   };
 
-  // ================= GET COURSE NAME =================
   const getCourseName = (id) => {
     return courses.find((c) => c._id === id)?.name || "N/A";
   };
 
   return (
-    <div>
+    <div className="w-full min-w-0">
       <h2 className="text-2xl font-bold mb-6">Manage Subjects</h2>
 
-      {/* CREATE */}
+      {/* FORM */}
       <div className="bg-white p-6 rounded-xl shadow mb-8">
         <h3 className="font-semibold mb-4 flex items-center gap-2">
           <FaPlus /> {editing ? "Edit Subject" : "Add New Subject"}
         </h3>
 
-        <div className="grid md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+
           <input
             type="text"
             name="name"
             value={form.name}
             onChange={handleChange}
             placeholder="Subject Name"
-            className="p-3 border rounded-lg"
+            className="w-full min-w-0 p-3 border rounded-lg"
           />
 
           <select
             name="courseId"
             value={form.courseId}
             onChange={handleChange}
-            className="p-3 border rounded-lg"
+            className="w-full min-w-0 p-3 border rounded-lg"
           >
             <option value="">Select Course</option>
             {courses.map((c) => (
@@ -187,7 +184,7 @@ const AdminSubjects = () => {
               value={form.price}
               onChange={handleChange}
               placeholder="Price (₵)"
-              className="p-3 border rounded-lg"
+              className="w-full min-w-0 p-3 border rounded-lg"
             />
           )}
         </div>
@@ -205,61 +202,62 @@ const AdminSubjects = () => {
         </button>
       </div>
 
-      {/* LIST */}
+      {/* TABLE */}
       <div className="bg-white p-6 rounded-xl shadow">
         <h3 className="font-semibold mb-4">All Subjects</h3>
 
-        <table className="w-full text-left">
-          <thead>
-            <tr className="border-b text-gray-500 text-sm">
-              <th>Subject</th>
-              <th>Course</th>
-              <th>Status</th>
-              <th>Price</th>
-              <th></th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {subjects.map((s) => (
-              <tr key={s._id} className="border-b">
-                <td className="py-3">{s.name}</td>
-                <td>{getCourseName(s.courseId)}</td>
-
-                <td>
-                  <span
-                    className={`text-xs px-2 py-1 rounded ${
-                      s.isPaid
-                        ? "bg-red-100 text-red-600"
-                        : "bg-green-100 text-green-600"
-                    }`}
-                  >
-                    {s.isPaid ? "Paid" : "Free"}
-                  </span>
-                </td>
-
-                <td>{s.isPaid ? `₵${s.price}` : "-"}</td>
-
-                <td className="flex gap-3 justify-end">
-                  <FaEdit
-                    className="text-blue-600 cursor-pointer"
-                    onClick={() => handleEdit(s)}
-                  />
-
-                  <FaTrash
-                    className="text-red-600 cursor-pointer"
-                    onClick={() => handleDelete(s._id)}
-                  />
-                </td>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[600px] text-left">
+            <thead>
+              <tr className="border-b text-gray-500 text-sm">
+                <th>Subject</th>
+                <th>Course</th>
+                <th>Status</th>
+                <th>Price</th>
+                <th></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+
+            <tbody>
+              {subjects.map((s) => (
+                <tr key={s._id} className="border-b">
+                  <td className="py-3 break-words">{s.name}</td>
+                  <td>{getCourseName(s.courseId)}</td>
+
+                  <td>
+                    <span
+                      className={`text-xs px-2 py-1 rounded ${
+                        s.isPaid
+                          ? "bg-red-100 text-red-600"
+                          : "bg-green-100 text-green-600"
+                      }`}
+                    >
+                      {s.isPaid ? "Paid" : "Free"}
+                    </span>
+                  </td>
+
+                  <td>{s.isPaid ? `₵${s.price}` : "-"}</td>
+
+                  <td className="flex gap-3 justify-end">
+                    <FaEdit
+                      className="text-blue-600 cursor-pointer"
+                      onClick={() => handleEdit(s)}
+                    />
+                    <FaTrash
+                      className="text-red-600 cursor-pointer"
+                      onClick={() => handleDelete(s._id)}
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
-      {/* EDIT MODAL */}
+      {/* MODAL */}
       {editing && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center p-4">
           <div className="bg-white p-6 rounded-xl w-full max-w-md relative">
             <FaTimes
               className="absolute right-4 top-4 cursor-pointer"
@@ -272,14 +270,14 @@ const AdminSubjects = () => {
               name="name"
               value={form.name}
               onChange={handleChange}
-              className="w-full p-3 border rounded mb-3"
+              className="w-full min-w-0 p-3 border rounded mb-3"
             />
 
             <select
               name="courseId"
               value={form.courseId}
               onChange={handleChange}
-              className="w-full p-3 border rounded mb-3"
+              className="w-full min-w-0 p-3 border rounded mb-3"
             >
               <option value="">Select Course</option>
               {courses.map((c) => (
@@ -305,7 +303,7 @@ const AdminSubjects = () => {
                 name="price"
                 value={form.price}
                 onChange={handleChange}
-                className="w-full p-3 border rounded mb-3"
+                className="w-full min-w-0 p-3 border rounded mb-3"
               />
             )}
 
