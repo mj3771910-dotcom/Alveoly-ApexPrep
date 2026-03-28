@@ -1,9 +1,10 @@
 import QA from "../models/QA.js";
-import { askAI } from "../services/aiService.js";
-import { io } from "../../server.js"; // Socket.io
+import { io } from "../../server.js";
 import fs from "fs";
-import csvParser from "csv-parser"; // for CSV files
+import csvParser from "csv-parser";
 import path from "path";
+import pdfParse from "pdf-parse";
+import Tesseract from "tesseract.js";
 
 // Upload file and save QAs
 export const uploadQAFile = async (req, res) => {
@@ -11,48 +12,71 @@ export const uploadQAFile = async (req, res) => {
     if (!req.file) return res.status(400).json({ message: "No file uploaded" });
 
     const ext = path.extname(req.file.originalname).toLowerCase();
-
     const qaArray = [];
 
     if (ext === ".json") {
-      // JSON format: [{ question: "", answer: "" }, ...]
       const data = fs.readFileSync(req.file.path, "utf-8");
       const json = JSON.parse(data);
       json.forEach((item) => {
-        if (item.question && item.answer) {
+        if (item.question && item.answer)
           qaArray.push({ question: item.question, answer: item.answer, fromAdmin: true });
-        }
       });
     } else if (ext === ".csv") {
-      // CSV format: question,answer
       await new Promise((resolve, reject) => {
         fs.createReadStream(req.file.path)
           .pipe(csvParser())
           .on("data", (row) => {
-            if (row.question && row.answer) {
+            if (row.question && row.answer)
               qaArray.push({ question: row.question, answer: row.answer, fromAdmin: true });
-            }
           })
           .on("end", resolve)
           .on("error", reject);
       });
+    } else if (ext === ".pdf") {
+      const dataBuffer = fs.readFileSync(req.file.path);
+      const pdfData = await pdfParse(dataBuffer);
+      // Split lines, assume format "Q: ... A: ..."
+      const lines = pdfData.text.split("\n");
+      for (let line of lines) {
+        if (line.toLowerCase().startsWith("q:")) {
+          const parts = line.split("A:");
+          if (parts.length === 2) {
+            qaArray.push({
+              question: parts[0].replace(/^Q:/i, "").trim(),
+              answer: parts[1].trim(),
+              fromAdmin: true,
+            });
+          }
+        }
+      }
+    } else if ([".jpg", ".jpeg", ".png"].includes(ext)) {
+      // OCR for images
+      const { data: { text } } = await Tesseract.recognize(req.file.path, "eng");
+      const lines = text.split("\n");
+      for (let line of lines) {
+        if (line.toLowerCase().startsWith("q:")) {
+          const parts = line.split("A:");
+          if (parts.length === 2) {
+            qaArray.push({
+              question: parts[0].replace(/^Q:/i, "").trim(),
+              answer: parts[1].trim(),
+              fromAdmin: true,
+            });
+          }
+        }
+      }
     } else {
       return res.status(400).json({ message: "Unsupported file format" });
     }
 
-    // Bulk insert
     if (qaArray.length > 0) {
       const created = await QA.insertMany(qaArray);
-
-      // Emit socket events for each new QA
       created.forEach((qa) => {
         io.emit("newQA", { id: qa._id, question: qa.question, answer: qa.answer, fromAdmin: true });
       });
     }
 
-    // Delete the temp uploaded file
-    fs.unlinkSync(req.file.path);
-
+    fs.unlinkSync(req.file.path); // remove temp file
     res.json({ message: `${qaArray.length} QAs uploaded successfully` });
   } catch (err) {
     console.error("File Upload Error:", err);
