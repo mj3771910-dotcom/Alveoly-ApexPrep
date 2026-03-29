@@ -24,7 +24,7 @@ export const uploadContent = async (req, res) => {
     );
     streamifier.createReadStream(file.buffer).pipe(stream);
   });
-  
+
     const mainFile = req.files?.file?.[0];
     const thumbFile = req.files?.thumbnail?.[0];
 
@@ -162,19 +162,74 @@ export const updateContent = async (req, res) => {
   try {
     const { title, isPaid, price } = req.body;
 
-    const content = await Content.findByIdAndUpdate(
-      req.params.id,
-      { title, isPaid, price },
-      { new: true }
-    );
+    const content = await Content.findById(req.params.id);
 
     if (!content) {
       return res.status(404).json({ message: "Content not found" });
     }
 
-    io.emit("content:updated", content);
+    // Helper uploader
+    const uploadToCloudinary = (file, type, folder = "alveoly-content") =>
+      new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          {
+            resource_type: type === "pdf" ? "raw" : "auto",
+            folder,
+          },
+          (err, result) => {
+            if (result) resolve(result);
+            else reject(err);
+          }
+        );
+        streamifier.createReadStream(file.buffer).pipe(stream);
+      });
 
-    res.json(content);
+    const newFile = req.files?.file?.[0];
+    const newThumb = req.files?.thumbnail?.[0];
+
+    // ================= UPDATE FILE =================
+    if (newFile) {
+      // delete old
+      if (content.publicId) {
+        await cloudinary.uploader.destroy(content.publicId, {
+          resource_type: "auto",
+        });
+      }
+
+      const uploaded = await uploadToCloudinary(newFile, content.type);
+
+      content.fileUrl = uploaded.secure_url;
+      content.publicId = uploaded.public_id;
+    }
+
+    // ================= UPDATE THUMB =================
+    if (newThumb) {
+      if (content.thumbnailPublicId) {
+        await cloudinary.uploader.destroy(content.thumbnailPublicId, {
+          resource_type: "image",
+        });
+      }
+
+      const uploadedThumb = await uploadToCloudinary(
+        newThumb,
+        "image",
+        "alveoly-thumbnails"
+      );
+
+      content.thumbnailUrl = uploadedThumb.secure_url;
+      content.thumbnailPublicId = uploadedThumb.public_id;
+    }
+
+    // ================= UPDATE TEXT =================
+    content.title = title ?? content.title;
+    content.isPaid = isPaid ?? content.isPaid;
+    content.price = price ?? content.price;
+
+    const updated = await content.save();
+
+    io.emit("content:updated", updated);
+
+    res.json(updated);
   } catch (err) {
     console.error("Update failed:", err);
     res.status(500).json({ message: "Update failed" });

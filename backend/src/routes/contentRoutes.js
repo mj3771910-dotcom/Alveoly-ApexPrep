@@ -14,6 +14,13 @@ router.post(
 );
 router.get("/", getContents);
 router.delete("/:id", deleteContent);
-router.put("/:id", updateContent);
+router.put(
+  "/:id",
+  upload.fields([
+    { name: "file", maxCount: 1 },
+    { name: "thumbnail", maxCount: 1 },
+  ]),
+  updateContent
+);
 
 export default router;
