@@ -163,12 +163,10 @@ export const updateContent = async (req, res) => {
     const { title, isPaid, price } = req.body;
 
     const content = await Content.findById(req.params.id);
-
     if (!content) {
       return res.status(404).json({ message: "Content not found" });
     }
 
-    // Helper uploader
     const uploadToCloudinary = (file, type, folder = "alveoly-content") =>
       new Promise((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
@@ -184,25 +182,23 @@ export const updateContent = async (req, res) => {
         streamifier.createReadStream(file.buffer).pipe(stream);
       });
 
-    const newFile = req.files?.file?.[0];
-    const newThumb = req.files?.thumbnail?.[0];
+    const newFile = req.files?.file?.[0] || null;
+    const newThumb = req.files?.thumbnail?.[0] || null;
 
-    // ================= UPDATE FILE =================
+    // 🔁 UPDATE MAIN FILE
     if (newFile) {
-      // delete old
       if (content.publicId) {
         await cloudinary.uploader.destroy(content.publicId, {
-          resource_type: "auto",
+          resource_type: content.type === "video" ? "video" : "image",
         });
       }
 
       const uploaded = await uploadToCloudinary(newFile, content.type);
-
       content.fileUrl = uploaded.secure_url;
       content.publicId = uploaded.public_id;
     }
 
-    // ================= UPDATE THUMB =================
+    // 🖼 UPDATE THUMBNAIL
     if (newThumb) {
       if (content.thumbnailPublicId) {
         await cloudinary.uploader.destroy(content.thumbnailPublicId, {
@@ -220,10 +216,16 @@ export const updateContent = async (req, res) => {
       content.thumbnailPublicId = uploadedThumb.public_id;
     }
 
-    // ================= UPDATE TEXT =================
-    content.title = title ?? content.title;
-    content.isPaid = isPaid ?? content.isPaid;
-    content.price = price ?? content.price;
+    // ✏️ TEXT UPDATE
+    if (title !== undefined) content.title = title;
+
+    if (isPaid !== undefined) {
+      content.isPaid = isPaid === "true" || isPaid === true;
+    }
+
+    if (price !== undefined) {
+      content.price = Number(price) || 0;
+    }
 
     const updated = await content.save();
 
@@ -231,7 +233,8 @@ export const updateContent = async (req, res) => {
 
     res.json(updated);
   } catch (err) {
-    console.error("Update failed:", err);
-    res.status(500).json({ message: "Update failed" });
+    console.error("🔥 UPDATE ERROR:", err.message);
+    console.error(err);
+    res.status(500).json({ message: err.message });
   }
 };
