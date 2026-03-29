@@ -72,16 +72,25 @@ const AdminContent = () => {
 
     try {
       if (editingId) {
-        const res = await axios.put(`/content/${editingId}`, {
-          title: form.title,
-          isPaid: form.isPaid,
-          price: form.price,
-        });
-        setContents((prev) =>
-          prev.map((c) => (c._id === editingId ? res.data : c))
-        );
-        alert("✅ Content updated");
-      } else {
+  const formData = new FormData();
+
+  formData.append("title", form.title);
+  formData.append("isPaid", form.isPaid);
+  formData.append("price", form.price);
+
+  if (file) formData.append("file", file);
+  if (form.thumbnail) formData.append("thumbnail", form.thumbnail);
+
+  const res = await axios.put(`/content/${editingId}`, formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+
+  setContents((prev) =>
+    prev.map((c) => (c._id === editingId ? res.data : c))
+  );
+
+  alert("✅ Content updated");
+} else {
         const res = await axios.post("/content/upload", formData);
         setContents((prev) => [res.data, ...prev]);
         alert("✅ Uploaded successfully");
