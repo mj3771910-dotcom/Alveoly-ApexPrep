@@ -5,6 +5,7 @@ import {
   updateSubject,
   deleteSubject,
   getSubjectById,
+  getSubjectsPublic,
 } from "../controllers/subjectController.js";
 
 import { adminOnly, protect } from "../middleware/authMiddleware.js";
@@ -19,8 +20,8 @@ const router = express.Router();
  * - Logged in
  * - Active (non-expired) plan
  */
-router.get("/", getSubjects);
-
+router.get("/", protect, getSubjects);
+router.get("/", getSubjectsPublic);
 router.get("/:subjectId", protect, requireSubjectAccess, getSubjectById);
 
 /**

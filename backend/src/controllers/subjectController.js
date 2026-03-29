@@ -58,11 +58,98 @@ export const getSubjects = async (req, res) => {
 
       // ================= MANUAL ACCESS =================
       const manualAccess = await ManualAccess.find({
+  userId,
+  status: "active", // ✅ FIXED
+  expiresAt: { $gt: now },
+});
+      manualSubjects = manualAccess.map((m) =>
+        m.subjectId.toString()
+      );
+    }
+
+    // ================= FINAL FORMAT =================
+    const formatted = subjects.map((subj) => {
+      const subjectIdStr = subj._id.toString();
+
+      let isUnlocked = !subj.isPaid;
+
+      if (subj.isPaid && userId) {
+        const hasPlan = activePlanSubjects.includes(subjectIdStr);
+        const hasPurchase = purchasedSubjects.includes(subjectIdStr);
+        const hasManual = manualSubjects.includes(subjectIdStr);
+
+        isUnlocked = hasPlan || hasPurchase || hasManual;
+      }
+
+      return {
+        ...subj._doc,
+        isUnlocked,
+      };
+    });
+
+    res.json(formatted);
+  } catch (error) {
+    console.error("Get Subjects Error:", error);
+    res.status(500).json({ message: "Server Error" });
+  }
+};
+
+export const getSubjectsPublic = async (req, res) => {
+  try {
+    const userId = req.user?._id;
+    const course = req.query.course;
+
+    let subjects;
+
+    // FILTER
+    if (course && course !== "undefined" && course !== "null") {
+      subjects = await Subject.find({ courseId: course });
+    } else {
+      subjects = await Subject.find();
+    }
+
+    let activePlanSubjects = [];
+    let purchasedSubjects = [];
+    let manualSubjects = [];
+
+    if (userId) {
+      const now = new Date();
+
+      // ================= PLAN =================
+      const planPayment = await Payment.findOne({
         userId,
-        isActive: true,
+        planId: { $ne: null },
+        status: "success",
+        expiresAt: { $gt: now },
+      }).populate({
+        path: "planId",
+        populate: { path: "subjects", select: "_id" },
+      });
+
+      if (planPayment?.planId) {
+        activePlanSubjects = planPayment.planId.subjects.map((s) =>
+          s._id.toString()
+        );
+      }
+
+      // ================= SUBJECT PURCHASE =================
+      const subjectPayments = await Payment.find({
+        userId,
+        subjectId: { $ne: null },
+        status: "success",
         expiresAt: { $gt: now },
       });
 
+      purchasedSubjects = subjectPayments.map((p) =>
+        p.subjectId.toString()
+      );
+
+      // ================= MANUAL ACCESS =================
+      const manualAccess = await ManualAccess.find({
+  userId,
+  status: "active", // ✅ FIXED
+  expiresAt: { $gt: now },
+});
       manualSubjects = manualAccess.map((m) =>
         m.subjectId.toString()
       );
