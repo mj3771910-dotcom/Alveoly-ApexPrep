@@ -17,8 +17,14 @@ const userSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Course",
     },
-     resetToken: String,
-  resetTokenExpire: Date,
+
+    resetToken: String,
+    resetTokenExpire: Date,
+
+    // ✅ NEW (ANTI-SHARING)
+    activeSession: String,
+    deviceInfo: String,
+    lastLoginIP: String,
   },
   { timestamps: true }
 );

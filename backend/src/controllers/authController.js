@@ -7,23 +7,39 @@ import { OAuth2Client } from "google-auth-library";
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 // ================= GOOGLE LOGIN =================
+// ================= GOOGLE LOGIN =================
 export const googleLogin = async (req, res) => {
   try {
     const { idToken } = req.body;
-    if (!idToken) return res.status(400).json({ message: "Google token required" });
+
+    if (!idToken)
+      return res.status(400).json({ message: "Google token required" });
 
     const payload = await client
-      .verifyIdToken({ idToken, audience: process.env.GOOGLE_CLIENT_ID })
-      .then(ticket => ticket.getPayload());
+      .verifyIdToken({
+        idToken,
+        audience: process.env.GOOGLE_CLIENT_ID,
+      })
+      .then((ticket) => ticket.getPayload());
 
     const { email, name } = payload;
 
     let user = await User.findOne({ email });
+
     if (!user) {
       user = await User.create({ name, email });
     }
 
-    const token = generateToken(user);
+    // ✅ CREATE NEW SESSION
+    const sessionId = crypto.randomBytes(16).toString("hex");
+
+    user.activeSession = sessionId;
+    user.deviceInfo = req.headers["user-agent"];
+    user.lastLoginIP = req.ip;
+
+    await user.save();
+
+    const token = generateToken(user, sessionId);
     const requiresCourse = !user.courseId;
 
     res.json({ token, user, requiresCourse });
@@ -54,19 +70,37 @@ export const register = async (req, res) => {
 };
 
 // ================= EMAIL/PASSWORD LOGIN =================
+// ================= EMAIL/PASSWORD LOGIN =================
 export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    if (!email || !password) return res.status(400).json({ message: "Email & password required" });
+
+    if (!email || !password)
+      return res.status(400).json({ message: "Email & password required" });
 
     const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ message: "Invalid credentials" });
-    if (!user.password) return res.status(400).json({ message: "Please login with Google" });
+    if (!user)
+      return res.status(400).json({ message: "Invalid credentials" });
+
+    if (!user.password)
+      return res.status(400).json({ message: "Please login with Google" });
 
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(400).json({ message: "Invalid credentials" });
+    if (!isMatch)
+      return res.status(400).json({ message: "Invalid credentials" });
 
-    res.json({ token: generateToken(user), user });
+    // ✅ CREATE NEW SESSION
+    const sessionId = crypto.randomBytes(16).toString("hex");
+
+    user.activeSession = sessionId;
+    user.deviceInfo = req.headers["user-agent"];
+    user.lastLoginIP = req.ip;
+
+    await user.save();
+
+    const token = generateToken(user, sessionId);
+
+    res.json({ token, user });
   } catch (err) {
     console.error("LOGIN ERROR:", err);
     res.status(500).json({ message: "Server error" });

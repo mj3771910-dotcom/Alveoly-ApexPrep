@@ -1,3 +1,4 @@
+// middleware/authMiddleware.js
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 
@@ -9,11 +10,6 @@ export const protect = async (req, res, next) => {
       return res.status(401).json({ message: "Not authorized, no token" });
     }
 
-    if (!process.env.JWT_SECRET) {
-      console.error("JWT_SECRET missing!");
-      return res.status(500).json({ message: "Server config error" });
-    }
-
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     const user = await User.findById(decoded.id).select("-password");
@@ -22,8 +18,14 @@ export const protect = async (req, res, next) => {
       return res.status(401).json({ message: "User not found" });
     }
 
-    req.user = user;
+    // ✅ KEY CHECK (ANTI-SHARING)
+    if (user.activeSession !== decoded.sessionId) {
+      return res.status(401).json({
+        message: "You were logged out because your account was used on another device",
+      });
+    }
 
+    req.user = user;
     next();
   } catch (error) {
     console.error("AUTH ERROR:", error.message);
