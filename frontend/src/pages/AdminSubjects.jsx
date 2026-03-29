@@ -345,55 +345,92 @@ const handleUpdateAccess = async (id) => {
     </div>
 
     {/* ================= MANUAL UNLOCK ================= */}
-    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition mb-8">
-      <h3 className="font-semibold text-lg mb-4">
-        Manual Unlock (Offline Payment)
-      </h3>
+    <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition mb-8">
 
-      <div className="grid md:grid-cols-4 gap-4">
+  {/* HEADER */}
+  <div className="mb-6">
+    <h3 className="text-xl font-semibold text-gray-800">
+      Manual Unlock
+    </h3>
+    <p className="text-sm text-gray-500 mt-1">
+      Grant subject access to students after offline payment
+    </p>
+  </div>
 
-        <select
-          value={selectedUser}
-          onChange={(e) => setSelectedUser(e.target.value)}
-          className="p-3 border border-gray-200 rounded-xl"
-        >
-          <option value="">Select Student</option>
-          {users.map((u) => (
-            <option key={u._id} value={u._id}>
-              {u.name}
-            </option>
-          ))}
-        </select>
+  {/* FORM */}
+  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
 
-        <select
-          value={selectedSubject}
-          onChange={(e) => setSelectedSubject(e.target.value)}
-          className="p-3 border border-gray-200 rounded-xl"
-        >
-          <option value="">Select Subject</option>
-          {subjects.map((s) => (
-            <option key={s._id} value={s._id}>
-              {s.name}
-            </option>
-          ))}
-        </select>
-
-        <input
-          type="number"
-          placeholder="Days (30)"
-          className="p-3 border border-gray-200 rounded-xl"
-          onChange={(e) => setDuration(e.target.value)}
-        />
-
-        <button
-          onClick={handleManualUnlock}
-          disabled={manualLoading}
-          className="bg-green-600 hover:bg-green-700 transition text-white rounded-xl px-4 py-2"
-        >
-          {manualLoading ? "Processing..." : "Unlock"}
-        </button>
-      </div>
+    {/* STUDENT */}
+    <div className="flex flex-col gap-1">
+      <label className="text-xs font-medium text-gray-500">
+        Student
+      </label>
+      <select
+        value={selectedUser}
+        onChange={(e) => setSelectedUser(e.target.value)}
+        className="p-3 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+      >
+        <option value="">Select student</option>
+        {users.map((u) => (
+          <option key={u._id} value={u._id}>
+            {u.name}
+          </option>
+        ))}
+      </select>
     </div>
+
+    {/* SUBJECT */}
+    <div className="flex flex-col gap-1">
+      <label className="text-xs font-medium text-gray-500">
+        Subject
+      </label>
+      <select
+        value={selectedSubject}
+        onChange={(e) => setSelectedSubject(e.target.value)}
+        className="p-3 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+      >
+        <option value="">Select subject</option>
+        {subjects.map((s) => (
+          <option key={s._id} value={s._id}>
+            {s.name}
+          </option>
+        ))}
+      </select>
+    </div>
+
+    {/* DURATION */}
+    <div className="flex flex-col gap-1">
+      <label className="text-xs font-medium text-gray-500">
+        Duration (Days)
+      </label>
+      <input
+        type="number"
+        placeholder="e.g. 30"
+        value={duration}
+        onChange={(e) => setDuration(e.target.value)}
+        className="p-3 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+      />
+    </div>
+
+    {/* BUTTON */}
+    <div className="flex items-end">
+      <button
+        onClick={handleManualUnlock}
+        disabled={manualLoading}
+        className={`w-full py-3 rounded-xl text-sm font-medium transition 
+        ${
+          manualLoading
+            ? "bg-gray-300 cursor-not-allowed"
+            : "bg-green-600 hover:bg-green-700 text-white shadow-sm hover:shadow"
+        }`}
+      >
+        {manualLoading ? "Processing..." : "Unlock Access"}
+      </button>
+    </div>
+
+  </div>
+
+</div>
 
     {/* ================= MANUAL ACCESS LIST ================= */}
 {/* ================= MANUAL ACCESS LIST ================= */}
