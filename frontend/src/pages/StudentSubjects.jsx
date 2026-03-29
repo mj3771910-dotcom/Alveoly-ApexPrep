@@ -157,12 +157,15 @@ const StudentSubjects = () => {
     });
 
     // 🔥 OPTIONAL: live unlock refresh
-    socket.on("manualAccess:granted", () => {
-      axios.get(`/subjects?course=${courseId}`).then((res) => {
-        setSubjects(res.data || []);
-      });
-    });
+    socket.on("manualAccess:updated", () => {
+  axios.get("/manual-access/mine").then((res) => {
+    setManualAccess(res.data || []);
+  });
 
+  axios.get(`/subjects?course=${courseId}`).then((res) => {
+    setSubjects(res.data || []);
+  });
+});
     return () => {
       socket.off("subject:created");
       socket.off("subject:updated");
