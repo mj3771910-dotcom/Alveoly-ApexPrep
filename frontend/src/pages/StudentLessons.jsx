@@ -31,42 +31,94 @@ const StudentLessons = () => {
   }, [subjectId]);
 
   // 🔐 CONTENT PROTECTION
+// 🔐 CONTENT PROTECTION
 useEffect(() => {
+  let blurTimeout;
+
+  const getViewer = () => document.getElementById("secure-viewer");
+
   // Disable right click
   const handleContextMenu = (e) => e.preventDefault();
 
-  // Disable key shortcuts (inspect, save, etc.)
+  // Blur function
+  const triggerBlur = (duration = 2000) => {
+    const viewerEl = getViewer();
+    if (!viewerEl) return;
+
+    viewerEl.style.filter = "blur(25px)";
+    viewerEl.style.transition = "0.3s";
+
+    clearTimeout(blurTimeout);
+    blurTimeout = setTimeout(() => {
+      viewerEl.style.filter = "none";
+    }, duration);
+  };
+
+  // Detect keys (screenshots + dev tools + save)
   const handleKeyDown = (e) => {
+    if (e.key === "PrintScreen") {
+      triggerBlur(3000);
+      navigator.clipboard.writeText("⚠️ Screenshot blocked");
+    }
+
     if (
-      e.key === "PrintScreen" ||
-      (e.ctrlKey && ["s", "u", "c"].includes(e.key.toLowerCase())) ||
+      (e.ctrlKey && ["s", "u", "c", "p"].includes(e.key.toLowerCase())) ||
       (e.ctrlKey && e.shiftKey && ["i", "j", "c"].includes(e.key.toLowerCase()))
     ) {
       e.preventDefault();
+      triggerBlur(2000);
       alert("⚠️ Action not allowed");
     }
   };
 
-  // Blur when user switches tab (BEST trick)
+  // Blur when tab hidden
   const handleVisibilityChange = () => {
-    const viewerEl = document.getElementById("secure-viewer");
-    if (!viewerEl) return;
+    if (document.hidden) triggerBlur(5000);
+  };
 
-    if (document.hidden) {
-      viewerEl.style.filter = "blur(20px)";
-    } else {
-      viewerEl.style.filter = "none";
+  // Blur when user leaves screen (VERY IMPORTANT)
+  const handleMouseLeave = () => {
+    triggerBlur(3000);
+  };
+
+  // Blur when window loses focus (ALT+TAB / screen tools)
+  const handleBlur = () => {
+    triggerBlur(4000);
+  };
+
+  // DevTools detection trick
+  const detectDevTools = () => {
+    const threshold = 160;
+    if (
+      window.outerWidth - window.innerWidth > threshold ||
+      window.outerHeight - window.innerHeight > threshold
+    ) {
+      triggerBlur(5000);
     }
+  };
+
+  const devToolsInterval = setInterval(detectDevTools, 1000);
+
+  // Mobile screenshot hint (resize spike)
+  const handleResize = () => {
+    triggerBlur(1500);
   };
 
   document.addEventListener("contextmenu", handleContextMenu);
   document.addEventListener("keydown", handleKeyDown);
   document.addEventListener("visibilitychange", handleVisibilityChange);
+  window.addEventListener("blur", handleBlur);
+  window.addEventListener("resize", handleResize);
+  document.addEventListener("mouseleave", handleMouseLeave);
 
   return () => {
+    clearInterval(devToolsInterval);
     document.removeEventListener("contextmenu", handleContextMenu);
     document.removeEventListener("keydown", handleKeyDown);
     document.removeEventListener("visibilitychange", handleVisibilityChange);
+    window.removeEventListener("blur", handleBlur);
+    window.removeEventListener("resize", handleResize);
+    document.removeEventListener("mouseleave", handleMouseLeave);
   };
 }, []);
 
@@ -205,9 +257,11 @@ useEffect(() => {
     {/* 🔒 PROTECTION OVERLAY */}
     <div className="absolute inset-0 pointer-events-none select-none z-50">
       {/* Optional watermark */}
-      <div className="absolute bottom-4 right-4 text-white/20 text-sm">
-        Protected Content
-      </div>
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+  <p className="text-white/10 text-3xl font-bold rotate-[-30deg] select-none">
+    PROTECTED • DO NOT RECORD
+  </p>
+</div>
     </div>
 
     {/* CONTENT */}
@@ -216,13 +270,15 @@ useEffect(() => {
       {/* VIDEO */}
       {viewer.type === "video" && (
         <video
-          src={viewer.url}
-          controls
-          controlsList="nodownload noplaybackrate"
-          disablePictureInPicture
-          autoPlay
-          className="max-h-full max-w-full rounded-lg"
-        />
+  src={viewer.url}
+  controls
+  controlsList="nodownload noplaybackrate noremoteplayback nofullscreen"
+  disablePictureInPicture
+  autoPlay
+  onContextMenu={(e) => e.preventDefault()}
+  onDragStart={(e) => e.preventDefault()}
+  className="max-h-full max-w-full rounded-lg"
+/>
       )}
 
       {/* IMAGE */}
