@@ -17,7 +17,10 @@ const CLIENT_URL = process.env.CLIENT_URL;
 const httpServer = createServer(app);
 
 // ================= SOCKET.IO =================
-const allowedOrigins = ["http://localhost:5173", CLIENT_URL].filter(Boolean);
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://alveolyapexprep.academy",
+];
 
 export const io = new Server(httpServer, {
   cors: {
@@ -25,7 +28,7 @@ export const io = new Server(httpServer, {
     methods: ["GET", "POST"],
     credentials: true,
   },
-  transports: ["websocket", "polling"],
+  transports: ["websocket"], // 🔥 FIX
   pingTimeout: 60000,
   pingInterval: 25000,
 });
