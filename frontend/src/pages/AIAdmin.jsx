@@ -19,7 +19,7 @@ const AIAdmin = () => {
 
   // ================= SOCKET =================
   useEffect(() => {
-    const newSocket = io("https://alveoly-apexprep-backend.onrender.com", {
+    const newSocket = io("https://alveoly-apexprep-eqmi.onrender.com", {
       transports: ["websocket"],
       withCredentials: true,
     });

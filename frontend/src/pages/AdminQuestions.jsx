@@ -8,7 +8,7 @@ import {
 } from "react-icons/fa";
 import axios from "../api/axios";
 
-const socket = io("https://alveoly-apexprep-backend.onrender.com");
+const socket = io("https://alveoly-apexprep-eqmi.onrender.com");
 
 const AdminQuestions = () => {
   const [courses, setCourses] = useState([]);

@@ -9,7 +9,7 @@ const AIChat = () => {
   const [socket, setSocket] = useState(null);
 
   useEffect(() => {
-    const newSocket = io("https://alveoly-apexprep-backend.onrender.com", {
+    const newSocket = io("https://alveoly-apexprep-eqmi.onrender.com", {
       transports: ["websocket"],
       withCredentials: true,
     });

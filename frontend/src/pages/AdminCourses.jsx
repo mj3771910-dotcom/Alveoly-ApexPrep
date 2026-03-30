@@ -3,7 +3,7 @@ import { io } from "socket.io-client";
 import { FaPlus, FaEdit, FaTrash, FaTimes } from "react-icons/fa";
 import axios from "../api/api"; // your axios instance
 
-const socket = io("https://alveoly-apexprep-backend.onrender.com");
+const socket = io("https://alveoly-apexprep-eqmi.onrender.com");
 
 const AdminCourses = () => {
   const [courses, setCourses] = useState([]);
