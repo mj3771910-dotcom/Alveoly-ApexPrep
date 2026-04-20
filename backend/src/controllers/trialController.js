@@ -35,7 +35,10 @@ export const submitTrial = async (req, res) => {
     let score = 0;
 
     questions.forEach((q) => {
-      if (answers[q._id] === q.correctAnswer) {
+      const studentAnswer = String(answers[q._id] || "").trim().toUpperCase();
+      const correctAnswer = String(q.correctAnswer || "").trim().toUpperCase();
+
+      if (studentAnswer === correctAnswer) {
         score++;
       }
     });
@@ -85,7 +88,7 @@ export const getTrialProgress = async (req, res) => {
     const attempts = await TrialAttempt.find({
       userId: req.user._id,
     })
-      .populate("subjectId", "name") // 🔥 IMPORTANT
+      .populate("subjectId", "name")
       .sort({ createdAt: -1 });
 
     // ================= TOTAL STUDY TIME =================
@@ -114,7 +117,7 @@ export const getTrialProgress = async (req, res) => {
         totalAttempts: attempts.length,
         averageScore,
         bestScore,
-        totalTime, // seconds
+        totalTime,
       },
     });
 

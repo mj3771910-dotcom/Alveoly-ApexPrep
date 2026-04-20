@@ -1,5 +1,6 @@
 import Question from "../models/Question.js";
 import ExamAttempt from "../models/ExamAttempt.js";
+import mongoose from "mongoose";   // ← Added this (was missing)
 import { io } from "../../server.js";
 
 // ✅ START EXAM - Only one attempt unless resit allowed
@@ -11,7 +12,6 @@ export const startExam = async (req, res) => {
       return res.status(400).json({ message: "Course and Subject required" });
     }
 
-    // ✅ Always get latest attempt
     let attempt = await ExamAttempt.findOne({
       userId: req.user._id,
       courseId,
@@ -30,16 +30,13 @@ export const startExam = async (req, res) => {
 
     const duration = (questions[0].examTime || 30) * 60;
 
-    // ================= RESUME EXISTING =================
     if (attempt) {
-      // ❌ Already submitted and no resit
       if (attempt.status === "submitted" && !attempt.resitAllowed) {
         return res.status(403).json({
           message: "You have already completed this exam.",
         });
       }
 
-      // 🔁 Resume in-progress exam
       if (attempt.status === "in-progress") {
         return res.json({
           attemptId: attempt._id,
@@ -49,9 +46,6 @@ export const startExam = async (req, res) => {
       }
     }
 
-    // ================= CREATE NEW ATTEMPT =================
-
-    // Get attempt number
     const lastAttempt = await ExamAttempt.findOne({
       userId: req.user._id,
       courseId,
@@ -111,10 +105,13 @@ export const saveProgress = async (req, res) => {
     attempt.questions = attempt.questions.map((q) => {
       const selected = answers[q.questionId] || q.selected;
 
+      const studentAns = String(selected || "").trim().toUpperCase();
+      const correctAns = String(q.correct || "").trim().toUpperCase();
+
       return {
         ...q.toObject(),
         selected,
-        isCorrect: selected === q.correct,
+        isCorrect: studentAns === correctAns,
       };
     });
 
@@ -138,7 +135,6 @@ export const submitExam = async (req, res) => {
       return res.status(404).json({ message: "Exam attempt not found" });
     }
 
-    // ❌ Prevent double submit
     if (attempt.status === "submitted") {
       return res.status(200).json({
         message: "Already submitted",
@@ -150,19 +146,32 @@ export const submitExam = async (req, res) => {
     attempt.questions = attempt.questions.map((q) => {
       const selected = answers[q.questionId] || q.selected;
 
+      const studentAns = String(selected || "").trim().toUpperCase();
+      const correctAns = String(q.correct || "").trim().toUpperCase();
+
       return {
         ...q.toObject(),
         selected,
-        isCorrect: selected === q.correct,
+        isCorrect: studentAns === correctAns,
       };
     });
+
+    // ✅ Calculate score and percentage (this was missing before!)
+    let calculatedScore = 0;
+    attempt.questions.forEach((q) => {
+      if (q.isCorrect) calculatedScore++;
+    });
+
+    attempt.score = calculatedScore;
+    attempt.percentage = attempt.questions.length
+      ? Math.round((calculatedScore / attempt.questions.length) * 100)
+      : 0;
 
     attempt.status = "submitted";
     attempt.submittedAt = new Date();
 
     await attempt.save();
 
-    // ✅ Emit only to admins (optional improvement)
     io.emit("exam:submitted", {
       attemptId: attempt._id,
       user: attempt.userId,
