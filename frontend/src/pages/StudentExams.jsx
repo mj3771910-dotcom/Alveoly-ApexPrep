@@ -265,77 +265,77 @@ const StudentExams = () => {
         )}
 
         {/* RESULT MODAL */}
-        {showResult && (
-          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-            <div className="bg-white p-8 rounded-2xl w-full max-w-2xl shadow-xl overflow-y-auto max-h-[80vh]">
+        {/* RESULT MODAL */}
+{showResult && (
+  <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+    <div className="bg-white p-8 rounded-2xl w-full max-w-2xl shadow-xl overflow-y-auto max-h-[80vh]">
 
-              <h2 className="text-2xl font-bold text-center mb-4">
-                🎉 Exam Completed!
-              </h2>
+      <h2 className="text-2xl font-bold text-center mb-4">
+        🎉 Exam Completed!
+      </h2>
 
-              <div className="text-center mb-6">
-                <h1 className="text-4xl font-bold text-blue-600">
-                  {scoreData.score} / {questions.length}
-                </h1>
-                <p className="text-lg text-gray-600">
-                  {scoreData.percentage}%
+      <div className="text-center mb-6">
+        <h1 className="text-4xl font-bold text-blue-600">
+          {scoreData.score} / {questions.length}
+        </h1>
+        <p className="text-lg text-gray-600">
+          {scoreData.percentage}%
+        </p>
+      </div>
+
+      <div className="space-y-4">
+        {questions.map((q, i) => {
+          const userAnswer = answers[q._id];
+          const studentAns = String(userAnswer || "").trim().toUpperCase();
+          const correctAns = String(q.correctAnswer || "").trim().toUpperCase();
+          const isCorrect = studentAns === correctAns;
+
+          return (
+            <div
+              key={q._id}
+              className="p-4 border rounded-lg"
+            >
+              <p className="font-semibold mb-2">
+                {i + 1}. {q.question}
+              </p>
+
+              <p
+                className={
+                  isCorrect
+                    ? "text-green-600"
+                    : "text-red-600"
+                }
+              >
+                Your Answer: {userAnswer || "None"}
+              </p>
+
+              {!isCorrect && (
+                <p className="text-green-600">
+                  Correct: {q.correctAnswer}
                 </p>
-              </div>
+              )}
 
-              <div className="space-y-4">
-                {questions.map((q, i) => {
-                  const userAnswer = answers[q._id];
-                  const isCorrect =
-                    userAnswer === q.correctAnswer;
-
-                  return (
-                    <div
-                      key={q._id}
-                      className="p-4 border rounded-lg"
-                    >
-                      <p className="font-semibold mb-2">
-                        {i + 1}. {q.question}
-                      </p>
-
-                      <p
-                        className={
-                          isCorrect
-                            ? "text-green-600"
-                            : "text-red-600"
-                        }
-                      >
-                        Your Answer: {userAnswer || "None"}
-                      </p>
-
-                      {!isCorrect && (
-                        <p className="text-green-600">
-                          Correct: {q.correctAnswer}
-                        </p>
-                      )}
-
-                      {q.rationale && (
-                        <p className="text-sm text-gray-600 mt-2">
-                          💡 {q.rationale}
-                        </p>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="text-center mt-6">
-                <button
-                  onClick={() =>
-                    navigate("/student/dashboard")
-                  }
-                  className="bg-blue-600 text-white px-6 py-2 rounded-lg"
-                >
-                  Back to Dashboard
-                </button>
-              </div>
+              {q.rationale && (
+                <p className="text-sm text-gray-600 mt-2">
+                  💡 {q.rationale}
+                </p>
+              )}
             </div>
-          </div>
-        )}
+          );
+        })}
+      </div>
+
+      <div className="text-center mt-6">
+        <button
+          onClick={() => navigate("/student/dashboard")}
+          className="bg-blue-600 text-white px-6 py-2 rounded-lg"
+        >
+          Back to Dashboard
+        </button>
+      </div>
+    </div>
+  </div>
+)}
       </div>
     </div>
   );

@@ -158,13 +158,14 @@ Explain the correct answer like a nursing tutor.
 
   // ================= SCORE =================
   const score = questions.reduce((acc, q) => {
-    if (answers[q._id] === q.correctAnswer) acc++;
-    return acc;
-  }, 0);
+  const userAns = String(answers[q._id] || "").trim().toUpperCase();
+  const correct = String(q.correctAnswer || "").trim().toUpperCase();
+  return userAns === correct ? acc + 1 : acc;
+}, 0);
 
   const percentage = questions.length
-    ? Math.round((score / questions.length) * 100)
-    : 0;
+  ? Math.round((score / questions.length) * 100)
+  : 0;
 
   const getColor = () => {
     if (percentage >= 80) return "text-green-600";
@@ -315,76 +316,78 @@ Explain the correct answer like a nursing tutor.
 
       {/* ================= RESULT POPUP ================= */}
       {showResult && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50">
-          <div className="bg-white p-6 rounded-2xl w-[90%] max-w-lg shadow-2xl overflow-y-auto max-h-[90vh]">
-            <h2 className="text-2xl font-bold text-center mb-4">
-              🎉 Trial Result
-            </h2>
+  <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50">
+    <div className="bg-white p-6 rounded-2xl w-[90%] max-w-lg shadow-2xl overflow-y-auto max-h-[90vh]">
+      <h2 className="text-2xl font-bold text-center mb-4">
+        🎉 Trial Result
+      </h2>
 
-            <h1 className={`text-4xl text-center ${getColor()}`}>
-              {backendResult?.score ?? score}/{questions.length}
-            </h1>
+      <h1 className={`text-4xl text-center ${getColor()}`}>
+        {backendResult?.score ?? score}/{questions.length}
+      </h1>
 
-            <p className={`text-center font-bold ${getColor()}`}>
-              {backendResult?.percentage ?? percentage}%
-            </p>
+      <p className={`text-center font-bold ${getColor()}`}>
+        {backendResult?.percentage ?? percentage}%
+      </p>
 
-            <p className="text-center mt-2 text-sm font-semibold capitalize text-gray-700">
-  Performance:{" "}
-  <span className="text-blue-600">
-    {backendResult?.performance || "—"}
-  </span>
-</p>
+      <p className="text-center mt-2 text-sm font-semibold capitalize text-gray-700">
+        Performance:{" "}
+        <span className="text-blue-600">
+          {backendResult?.performance || "—"}
+        </span>
+      </p>
 
-            {/* RATIONALE */}
-            <div className="mt-6 space-y-4">
-              {questions.map((q, index) => {
-                const userAns = answers[q._id];
-                const correct = q.correctAnswer;
+      <div className="mt-6 space-y-4">
+        {questions.map((q, index) => {
+          const userAns = answers[q._id];
+          const correct = q.correctAnswer;
 
-                return (
-                  <div
-                    key={q._id}
-                    className="p-4 border rounded-lg"
-                  >
-                    <p className="font-semibold">
-                      {index + 1}. {q.question}
-                    </p>
+          const normalizedUser = String(userAns || "").trim().toUpperCase();
+          const normalizedCorrect = String(correct || "").trim().toUpperCase();
+          const isCorrect = normalizedUser === normalizedCorrect;
 
-                    <p>
-                      Your Answer:{" "}
-                      <span className="text-blue-600">
-                        {userAns || "None"}
-                      </span>
-                    </p>
+          return (
+            <div
+              key={q._id}
+              className="p-4 border rounded-lg"
+            >
+              <p className="font-semibold">
+                {index + 1}. {q.question}
+              </p>
 
-                    <p>
-                      Correct Answer:{" "}
-                      <span className="text-green-600">
-                        {correct}
-                      </span>
-                    </p>
+              <p>
+                Your Answer:{" "}
+                <span className={isCorrect ? "text-green-600" : "text-red-600"}>
+                  {userAns || "None"}
+                </span>
+              </p>
 
-                    {q.rationale && (
-                      <p className="mt-2 text-sm text-gray-600">
-                        📘 {q.rationale}
-                      </p>
-                    )}
-                  </div>
-                );
-              })}
+              <p>
+                Correct Answer:{" "}
+                <span className="text-green-600">
+                  {correct}
+                </span>
+              </p>
+
+              {q.rationale && (
+                <p className="mt-2 text-sm text-gray-600">
+                  📘 {q.rationale}
+                </p>
+              )}
             </div>
+          );
+        })}
+      </div>
 
-             {/* ✅ CLOSE BUTTON NAVIGATES TO PROGRESS */}
-        <button
-          onClick={() => navigate("/student/progress")}
-          className="mt-6 w-full bg-blue-600 text-white py-2 rounded"
-        >
-          Close & View Progress
-        </button>
-          </div>
-        </div>
-      )}
+      <button
+        onClick={() => navigate("/student/progress")}
+        className="mt-6 w-full bg-blue-600 text-white py-2 rounded"
+      >
+        Close & View Progress
+      </button>
+    </div>
+  </div>
+)}
     </div>
   );
 };
