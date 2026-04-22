@@ -1,7 +1,7 @@
 import Question from "../models/Question.js";
 import ExamAttempt from "../models/ExamAttempt.js";
 
-// ✅ START EXAM (Student only)
+// ✅ START EXAM
 export const startExam = async (req, res) => {
   try {
     const { courseId, subjectId } = req.body;
@@ -10,7 +10,6 @@ export const startExam = async (req, res) => {
       return res.status(400).json({ message: "Course and Subject required" });
     }
 
-    // Check for existing in-progress attempt
     let attempt = await ExamAttempt.findOne({
       userId: req.user._id,
       courseId,
@@ -18,7 +17,6 @@ export const startExam = async (req, res) => {
       status: "in-progress"
     });
 
-    // Get questions
     const questions = await Question.find({
       courseId,
       subjectId,
@@ -31,7 +29,6 @@ export const startExam = async (req, res) => {
 
     const duration = (questions[0].examTime || 30) * 60;
 
-    // If there's an in-progress attempt, return it
     if (attempt) {
       return res.json({
         attemptId: attempt._id,
@@ -40,7 +37,6 @@ export const startExam = async (req, res) => {
       });
     }
 
-    // Check for completed exam without resit
     const completedAttempt = await ExamAttempt.findOne({
       userId: req.user._id,
       courseId,
@@ -55,7 +51,6 @@ export const startExam = async (req, res) => {
       });
     }
 
-    // Get attempt number
     const lastAttempt = await ExamAttempt.findOne({
       userId: req.user._id,
       courseId,
@@ -64,15 +59,14 @@ export const startExam = async (req, res) => {
 
     const attemptNumber = lastAttempt ? lastAttempt.attemptNumber + 1 : 1;
 
-    // Create questions array in the format expected by the model
+    // Store the correct answer TEXT, not letter
     const formattedQuestions = questions.map((q) => ({
       questionId: q._id,
-      correct: q.correctAnswer,
+      correct: q.correctAnswer, // This is TEXT
       selected: "",
       isCorrect: false,
     }));
 
-    // Create new attempt
     attempt = await ExamAttempt.create({
       userId: req.user._id,
       courseId,
@@ -100,7 +94,7 @@ export const startExam = async (req, res) => {
   }
 };
 
-// ✅ SAVE PROGRESS (Student only)
+// ✅ SAVE PROGRESS
 export const saveProgress = async (req, res) => {
   try {
     const { attemptId, answers } = req.body;
@@ -114,15 +108,31 @@ export const saveProgress = async (req, res) => {
       return res.status(403).json({ message: "Cannot save a submitted exam." });
     }
 
+    // Get questions to convert letter to text
+    const questions = await Question.find({
+      _id: { $in: attempt.questions.map(q => q.questionId) }
+    });
+
     // Update each question's selected answer
     attempt.questions.forEach(question => {
-      const answer = answers[question.questionId.toString()];
-      if (answer !== undefined) {
-        question.selected = answer;
-        // Check if answer is correct
-        const isCorrect = answer && question.correct && 
-          answer.toUpperCase().trim() === question.correct.toUpperCase().trim();
-        question.isCorrect = isCorrect;
+      const answerLetter = answers[question.questionId.toString()];
+      if (answerLetter !== undefined) {
+        question.selected = answerLetter;
+        
+        // Find the full question to get the text
+        const fullQuestion = questions.find(q => q._id.toString() === question.questionId.toString());
+        
+        if (fullQuestion && answerLetter) {
+          // Convert letter to text
+          const answerIndex = answerLetter.charCodeAt(0) - 65;
+          const answerText = fullQuestion.options[answerIndex];
+          const correctText = question.correct;
+          
+          // Compare TEXT
+          const isCorrect = answerText && correctText && 
+            answerText.toLowerCase().trim() === correctText.toLowerCase().trim();
+          question.isCorrect = isCorrect;
+        }
       }
     });
 
@@ -135,7 +145,7 @@ export const saveProgress = async (req, res) => {
   }
 };
 
-// ✅ SUBMIT EXAM (Student only)
+// ✅ SUBMIT EXAM - FIXED with TEXT comparison
 export const submitExam = async (req, res) => {
   try {
     const { attemptId, answers } = req.body;
@@ -157,14 +167,41 @@ export const submitExam = async (req, res) => {
       return res.status(403).json({ message: "Exam already submitted" });
     }
 
-    // Update answers and calculate correctness
+    // Get all questions to convert letters to text
+    const questions = await Question.find({
+      _id: { $in: attempt.questions.map(q => q.questionId) }
+    });
+
+    let correctCount = 0;
+
+    // Update answers and calculate correctness using TEXT comparison
     attempt.questions.forEach(question => {
-      const answer = answers[question.questionId.toString()];
-      if (answer !== undefined) {
-        question.selected = answer;
-        const isCorrect = answer && question.correct && 
-          answer.toUpperCase().trim() === question.correct.toUpperCase().trim();
-        question.isCorrect = isCorrect;
+      const answerLetter = answers[question.questionId.toString()];
+      if (answerLetter !== undefined) {
+        question.selected = answerLetter;
+        
+        // Find the full question
+        const fullQuestion = questions.find(q => q._id.toString() === question.questionId.toString());
+        
+        if (fullQuestion && answerLetter) {
+          // Convert letter to text
+          const answerIndex = answerLetter.charCodeAt(0) - 65;
+          const answerText = fullQuestion.options[answerIndex];
+          const correctText = question.correct;
+          
+          // Compare TEXT (case-insensitive)
+          const isCorrect = answerText && correctText && 
+            answerText.toLowerCase().trim() === correctText.toLowerCase().trim();
+          
+          question.isCorrect = isCorrect;
+          if (isCorrect) correctCount++;
+          
+          console.log(`Question: ${fullQuestion.question.substring(0, 50)}...`);
+          console.log(`  Answer Letter: ${answerLetter}`);
+          console.log(`  Answer Text: "${answerText}"`);
+          console.log(`  Correct Text: "${correctText}"`);
+          console.log(`  Is Correct: ${isCorrect}`);
+        }
       }
     });
 
@@ -173,19 +210,25 @@ export const submitExam = async (req, res) => {
     
     await attempt.save();
 
-    console.log(`✅ Exam submitted! Score: ${attempt.score}/${attempt.totalQuestions} (${attempt.percentage}%) - ${attempt.result}`);
+    console.log(`\n✅ Exam submitted! Score: ${attempt.score}/${attempt.totalQuestions} (${attempt.percentage}%) - ${attempt.result}`);
 
-    // Get question details for response
-    const questions = await Question.find({
-      _id: { $in: attempt.questions.map(q => q.questionId) }
-    });
-
+    // Prepare question results for frontend
     const questionResults = attempt.questions.map(q => {
       const fullQuestion = questions.find(qu => qu._id.toString() === q.questionId.toString());
+      // Get the text for the student's answer
+      let answerText = null;
+      if (q.selected) {
+        const answerIndex = q.selected.charCodeAt(0) - 65;
+        if (fullQuestion && answerIndex >= 0 && answerIndex < fullQuestion.options.length) {
+          answerText = fullQuestion.options[answerIndex];
+        }
+      }
+      
       return {
         questionId: q.questionId,
         questionText: fullQuestion?.question || "",
-        userAnswer: q.selected,
+        userAnswerLetter: q.selected,
+        userAnswerText: answerText,
         correctAnswer: q.correct,
         isCorrect: q.isCorrect,
         rationale: fullQuestion?.rationale || ""
