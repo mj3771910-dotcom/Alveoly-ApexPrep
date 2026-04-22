@@ -120,10 +120,14 @@ export const saveProgress = async (req, res) => {
   }
 };
 
-// ✅ SUBMIT EXAM - FIXED to compare TEXT answers
+// ✅ SUBMIT EXAM - COMPLETE REWRITE WITH PROPER DEBUGGING
 export const submitExam = async (req, res) => {
   try {
     const { attemptId, answers } = req.body;
+
+    console.log("\n========== EXAM SUBMISSION START ==========");
+    console.log("Attempt ID:", attemptId);
+    console.log("Answers received:", JSON.stringify(answers, null, 2));
 
     if (!attemptId) {
       return res.status(400).json({ message: "Attempt ID required" });
@@ -140,42 +144,108 @@ export const submitExam = async (req, res) => {
     }
 
     // Get all questions for this exam
+    const questionIds = attempt.questions.map(q => q.questionId);
+    console.log("Question IDs:", questionIds);
+    
     const questions = await Question.find({
-      _id: { $in: attempt.questions.map(q => q.questionId) }
+      _id: { $in: questionIds }
     });
+    
+    console.log(`Found ${questions.length} questions`);
 
-    // Calculate score by comparing TEXT answers
     let correctCount = 0;
     const questionResults = [];
 
-    for (const question of questions) {
-      const studentAnswerLetter = answers[question._id.toString()];
+    for (let i = 0; i < questions.length; i++) {
+      const question = questions[i];
+      const questionIdStr = question._id.toString();
       
-      // Get the actual text of the student's answer
+      // Get student's answer (this is a letter like "A", "B", "C", "D")
+      const studentAnswerLetter = answers[questionIdStr];
+      
+      console.log(`\n--- Question ${i + 1} ---`);
+      console.log(`Question ID: ${questionIdStr}`);
+      console.log(`Question Text: ${question.question}`);
+      console.log(`Student Answer Letter: ${studentAnswerLetter}`);
+      console.log(`Stored Correct Answer: "${question.correctAnswer}"`);
+      
+      // Find the index of the student's answer (0 for A, 1 for B, etc.)
       let studentAnswerText = null;
-      if (studentAnswerLetter && question.options) {
-        const optionIndex = studentAnswerLetter.charCodeAt(0) - 65;
-        studentAnswerText = question.options[optionIndex];
+      let studentAnswerIndex = -1;
+      
+      if (studentAnswerLetter) {
+        studentAnswerIndex = studentAnswerLetter.charCodeAt(0) - 65; // 'A' = 0, 'B' = 1, etc.
+        if (studentAnswerIndex >= 0 && studentAnswerIndex < question.options.length) {
+          studentAnswerText = question.options[studentAnswerIndex];
+        }
       }
       
-      // The correct answer is stored as TEXT
-      const correctAnswerText = question.correctAnswer;
+      console.log(`Student Answer Index: ${studentAnswerIndex}`);
+      console.log(`Student Answer Text: "${studentAnswerText}"`);
+      console.log(`Question Options:`, question.options);
       
-      // Compare the TEXT of the answers
-      const isCorrect = studentAnswerText && correctAnswerText && 
-        studentAnswerText.toLowerCase().trim() === correctAnswerText.toLowerCase().trim();
+      // Determine if answer is correct using multiple methods
+      let isCorrect = false;
+      let matchType = "";
+      
+      // Method 1: Compare letter with stored correct answer (if stored as letter)
+      if (studentAnswerLetter && question.correctAnswer) {
+        const normalizedStudentLetter = studentAnswerLetter.toUpperCase().trim();
+        const normalizedCorrectLetter = question.correctAnswer.toUpperCase().trim();
+        
+        if (normalizedStudentLetter === normalizedCorrectLetter) {
+          isCorrect = true;
+          matchType = "letter-to-letter";
+          console.log(`✓ Match found: Letter comparison (${normalizedStudentLetter} === ${normalizedCorrectLetter})`);
+        }
+      }
+      
+      // Method 2: Compare text with stored correct answer (if stored as text)
+      if (!isCorrect && studentAnswerText && question.correctAnswer) {
+        const normalizedStudentText = studentAnswerText.toLowerCase().trim();
+        const normalizedCorrectText = question.correctAnswer.toLowerCase().trim();
+        
+        if (normalizedStudentText === normalizedCorrectText) {
+          isCorrect = true;
+          matchType = "text-to-text";
+          console.log(`✓ Match found: Text comparison ("${normalizedStudentText}" === "${normalizedCorrectText}")`);
+        }
+      }
+      
+      // Method 3: If stored correct answer is text, try to find which option matches it
+      if (!isCorrect && question.correctAnswer && question.options) {
+        const correctTextNorm = question.correctAnswer.toLowerCase().trim();
+        for (let optIdx = 0; optIdx < question.options.length; optIdx++) {
+          const optionTextNorm = question.options[optIdx].toLowerCase().trim();
+          if (optionTextNorm === correctTextNorm) {
+            const correctLetter = String.fromCharCode(65 + optIdx);
+            if (studentAnswerLetter === correctLetter) {
+              isCorrect = true;
+              matchType = "letter-derived-from-text";
+              console.log(`✓ Match found: Student letter ${studentAnswerLetter} matches correct option ${correctLetter} derived from text`);
+            }
+            break;
+          }
+        }
+      }
       
       if (isCorrect) {
         correctCount++;
+        console.log(`✅ CORRECT! (${matchType})`);
+      } else {
+        console.log(`❌ WRONG!`);
+        console.log(`  Expected: "${question.correctAnswer}"`);
+        console.log(`  Got: ${studentAnswerLetter ? `"${studentAnswerLetter}" -> "${studentAnswerText}"` : "No answer"}`);
       }
 
       questionResults.push({
         questionId: question._id,
         questionText: question.question,
-        userAnswer: studentAnswerLetter || null,
+        userAnswerLetter: studentAnswerLetter || null,
         userAnswerText: studentAnswerText,
-        correctAnswer: correctAnswerText,
+        correctAnswer: question.correctAnswer,
         isCorrect: isCorrect,
+        matchType: matchType,
         rationale: question.rationale
       });
     }
@@ -184,6 +254,14 @@ export const submitExam = async (req, res) => {
     const score = correctCount;
     const percentage = totalQuestions ? Math.round((score / totalQuestions) * 100) : 0;
     const result = percentage >= 50 ? 'pass' : 'fail';
+
+    console.log("\n========== SCORE SUMMARY ==========");
+    console.log(`Total Questions: ${totalQuestions}`);
+    console.log(`Correct Answers: ${correctCount}`);
+    console.log(`Score: ${score}/${totalQuestions}`);
+    console.log(`Percentage: ${percentage}%`);
+    console.log(`Result: ${result}`);
+    console.log("========== EXAM SUBMISSION END ==========\n");
 
     // Update attempt
     attempt.answers = answers;
@@ -218,9 +296,15 @@ export const getExamResults = async (req, res) => {
 
     const filter = { status: "submitted" };
 
-    if (courseId) filter.courseId = new mongoose.Types.ObjectId(courseId);
-    if (subjectId) filter.subjectId = new mongoose.Types.ObjectId(subjectId);
-    if (userId) filter.userId = new mongoose.Types.ObjectId(userId);
+    if (courseId && mongoose.Types.ObjectId.isValid(courseId)) {
+      filter.courseId = new mongoose.Types.ObjectId(courseId);
+    }
+    if (subjectId && mongoose.Types.ObjectId.isValid(subjectId)) {
+      filter.subjectId = new mongoose.Types.ObjectId(subjectId);
+    }
+    if (userId && mongoose.Types.ObjectId.isValid(userId)) {
+      filter.userId = new mongoose.Types.ObjectId(userId);
+    }
 
     const results = await ExamAttempt.find(filter)
       .populate('userId', 'name email')
@@ -228,9 +312,10 @@ export const getExamResults = async (req, res) => {
       .populate('subjectId', 'name')
       .sort({ submittedAt: -1 });
 
+    // Get only the latest attempt per student per subject
     const latestResults = {};
     results.forEach(result => {
-      const key = `${result.userId?._id}-${result.subjectId?._id}`;
+      const key = `${result.userId?._id || result.userId}-${result.subjectId?._id || result.subjectId}`;
       if (!latestResults[key] || result.submittedAt > latestResults[key].submittedAt) {
         latestResults[key] = result;
       }
@@ -268,5 +353,26 @@ export const allowResit = async (req, res) => {
   } catch (err) {
     console.error("Resit Error:", err);
     res.status(500).json({ message: "Server Error: " + err.message });
+  }
+};
+
+// ✅ GET SINGLE EXAM DETAILS (for admin)
+export const getExamDetails = async (req, res) => {
+  try {
+    const { attemptId } = req.params;
+    
+    const attempt = await ExamAttempt.findById(attemptId)
+      .populate('userId', 'name email')
+      .populate('courseId', 'name')
+      .populate('subjectId', 'name');
+    
+    if (!attempt) {
+      return res.status(404).json({ message: "Exam attempt not found" });
+    }
+    
+    res.json(attempt);
+  } catch (error) {
+    console.error("Get Exam Details Error:", error);
+    res.status(500).json({ message: "Server Error: " + error.message });
   }
 };

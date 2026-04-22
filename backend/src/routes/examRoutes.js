@@ -6,6 +6,7 @@ import {
   getExamResults,
   deleteExamAttempt,
   allowResit,
+  getExamDetails,
 } from "../controllers/examController.js";
 import { protect } from "../middleware/authMiddleware.js";
 
@@ -20,5 +21,5 @@ router.post("/submit", protect, submitExam);
 router.get("/admin/exam-results", protect, getExamResults);
 router.delete("/admin/exam-attempt/:attemptId", protect, deleteExamAttempt);
 router.patch("/admin/exam-attempt/:attemptId/resit", protect, allowResit);
-
+router.get("/admin/exam-attempt/:attemptId/details", protect, getExamDetails);
 export default router;
