@@ -37,7 +37,7 @@ export const submitTrial = async (req, res) => {
 
     // Calculate score by comparing answer letters
     questions.forEach((question) => {
-      const studentAnswer = answers[question._id];
+      const studentAnswer = answers[question._id.toString()];
       const correctAnswer = question.correctAnswer;
       
       // Direct comparison of letters (A, B, C, D)
@@ -53,8 +53,8 @@ export const submitTrial = async (req, res) => {
         userAnswer: studentAnswer || null,
         correctAnswer: correctAnswer,
         isCorrect: isCorrect,
-        userAnswerText: studentAnswer ? question.options[studentAnswer.charCodeAt(0) - 65] : null,
-        correctAnswerText: correctAnswer ? question.options[correctAnswer.charCodeAt(0) - 65] : null
+        userAnswerText: studentAnswer && question.options ? question.options[studentAnswer.charCodeAt(0) - 65] : null,
+        correctAnswerText: correctAnswer && question.options ? question.options[correctAnswer.charCodeAt(0) - 65] : null
       });
     });
 
@@ -78,10 +78,11 @@ export const submitTrial = async (req, res) => {
       totalQuestions,
       duration: duration || 0,
       performance,
-      detailedResults, // Save detailed results for future reference
+      detailedResults,
     });
 
-    res.json({
+    res.status(200).json({
+      success: true,
       message: "Trial submitted successfully",
       attempt: {
         _id: attempt._id,
@@ -97,7 +98,8 @@ export const submitTrial = async (req, res) => {
   } catch (error) {
     console.error("❌ Trial Submit Error:", error);
     res.status(500).json({
-      message: "Server error",
+      success: false,
+      message: "Server error: " + error.message,
     });
   }
 };
@@ -154,6 +156,7 @@ export const getTrialProgress = async (req, res) => {
 
     // ================= RESPONSE =================
     res.json({
+      success: true,
       attempts,
       stats: {
         totalAttempts: attempts.length,
@@ -167,7 +170,8 @@ export const getTrialProgress = async (req, res) => {
   } catch (error) {
     console.error("❌ Progress Error:", error);
     res.status(500).json({
-      message: "Failed to fetch progress",
+      success: false,
+      message: "Failed to fetch progress: " + error.message,
     });
   }
 };
@@ -190,9 +194,12 @@ export const getTrialDetails = async (req, res) => {
       return res.status(403).json({ message: "Unauthorized to view this attempt" });
     }
     
-    res.json(attempt);
+    res.json({
+      success: true,
+      attempt
+    });
   } catch (error) {
     console.error("❌ Get Trial Details Error:", error);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: "Server error: " + error.message });
   }
 };
