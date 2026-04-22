@@ -41,12 +41,6 @@ const buildFilter = async (query) => {
   return filter;
 };
 
-import mongoose from "mongoose";
-import ExamAttempt from "../models/ExamAttempt.js";
-import Course from "../models/Course.js";
-import Subject from "../models/Subject.js";
-import User from "../models/User.js";
-
 // ✅ GET RESULTS - Return ALL attempts for debugging
 export const getExamResults = async (req, res) => {
   try {
