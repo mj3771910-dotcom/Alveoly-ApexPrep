@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import axios from "../api/axios";
-import { FaSearch, FaTrash, FaRedo, FaUserGraduate } from "react-icons/fa";
+import { FaSearch, FaTrash, FaRedo, FaUserGraduate, FaEye } from "react-icons/fa";
 import toast, { Toaster } from "react-hot-toast";
 
 const AdminExamResults = () => {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedResult, setSelectedResult] = useState(null);
+  const [showDetails, setShowDetails] = useState(false);
   const [filters, setFilters] = useState({
     courseId: "",
     subjectId: "",
@@ -64,6 +66,17 @@ const AdminExamResults = () => {
     fetchResults();
   };
 
+  const viewDetails = async (attemptId) => {
+    try {
+      const res = await axios.get(`/admin/exam-attempt/${attemptId}/details`);
+      setSelectedResult(res.data);
+      setShowDetails(true);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to load details");
+    }
+  };
+
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <Toaster position="top-right" />
@@ -76,19 +89,19 @@ const AdminExamResults = () => {
       <form onSubmit={handleFilter} className="bg-white shadow-lg rounded-2xl p-4 mb-6 border">
         <div className="flex flex-wrap gap-3 items-center">
           <input
-            placeholder="Course (e.g Midwifery)"
+            placeholder="Course ID"
             value={filters.courseId}
             onChange={(e) => setFilters({ ...filters, courseId: e.target.value })}
             className="border px-4 py-2 rounded-lg w-56 focus:ring-2 focus:ring-blue-500 outline-none"
           />
           <input
-            placeholder="Subject"
+            placeholder="Subject ID"
             value={filters.subjectId}
             onChange={(e) => setFilters({ ...filters, subjectId: e.target.value })}
             className="border px-4 py-2 rounded-lg w-56 focus:ring-2 focus:ring-blue-500 outline-none"
           />
           <input
-            placeholder="Student name"
+            placeholder="User ID"
             value={filters.userId}
             onChange={(e) => setFilters({ ...filters, userId: e.target.value })}
             className="border px-4 py-2 rounded-lg w-56 focus:ring-2 focus:ring-blue-500 outline-none"
@@ -132,7 +145,9 @@ const AdminExamResults = () => {
                   <td className="p-4 font-medium">{r.userId?.name || r.userName || "User Deleted"}</td>
                   <td className="p-4">{r.courseId?.name || r.courseName || "N/A"}</td>
                   <td className="p-4">{r.subjectId?.name || r.subjectName || "N/A"}</td>
-                  <td className="p-4 font-semibold">{r.score}</td>
+                  <td className="p-4 font-semibold">
+                    {r.score}/{r.totalQuestions || "?"}
+                  </td>
                   <td className="p-4">{r.percentage}%</td>
                   <td className="p-4">
                     <span
@@ -177,6 +192,43 @@ const AdminExamResults = () => {
           </table>
         )}
       </div>
+
+      {/* Details Modal */}
+      {showDetails && selectedResult && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50">
+          <div className="bg-white p-6 rounded-2xl w-[90%] max-w-3xl shadow-2xl overflow-y-auto max-h-[80vh]">
+            <h2 className="text-2xl font-bold mb-4">Exam Details</h2>
+            <div className="mb-4">
+              <p><strong>Student:</strong> {selectedResult.userId?.name}</p>
+              <p><strong>Course:</strong> {selectedResult.courseId?.name}</p>
+              <p><strong>Subject:</strong> {selectedResult.subjectId?.name}</p>
+              <p><strong>Score:</strong> {selectedResult.score}/{selectedResult.totalQuestions} ({selectedResult.percentage}%)</p>
+              <p><strong>Result:</strong> {selectedResult.result}</p>
+            </div>
+            <div className="space-y-4">
+              <h3 className="font-bold text-lg">Question Details:</h3>
+              {selectedResult.questionResults?.map((qr, idx) => (
+                <div key={idx} className="p-3 border rounded-lg">
+                  <p className="font-semibold">{idx + 1}. {qr.questionText}</p>
+                  <p className={qr.isCorrect ? "text-green-600" : "text-red-600"}>
+                    Your Answer: {qr.userAnswerLetter} - {qr.userAnswerText || "None"}
+                  </p>
+                  {!qr.isCorrect && (
+                    <p className="text-green-600">Correct: {qr.correctAnswer}</p>
+                  )}
+                  <p className="text-xs text-gray-500">Match Type: {qr.matchType || "N/A"}</p>
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={() => setShowDetails(false)}
+              className="mt-6 w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
