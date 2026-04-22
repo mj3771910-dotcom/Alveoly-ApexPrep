@@ -41,16 +41,43 @@ const buildFilter = async (query) => {
   return filter;
 };
 
-// ✅ GET RESULTS
+// ✅ GET RESULTS - FIXED to match examController logic
 export const getExamResults = async (req, res) => {
   try {
     const { courseId, subjectId, userId } = req.query;
 
     const filter = { status: "submitted" };
 
-    if (courseId) filter.courseId = new mongoose.Types.ObjectId(courseId);
-    if (subjectId) filter.subjectId = new mongoose.Types.ObjectId(subjectId);
-    if (userId) filter.userId = new mongoose.Types.ObjectId(userId);
+    // Use the IDs directly if provided (as strings, they will be converted to ObjectId)
+    if (courseId && mongoose.Types.ObjectId.isValid(courseId)) {
+      filter.courseId = new mongoose.Types.ObjectId(courseId);
+    } else if (courseId) {
+      // Try to find course by name
+      const course = await Course.findOne({
+        name: { $regex: courseId, $options: "i" },
+      });
+      if (course) filter.courseId = course._id;
+    }
+
+    if (subjectId && mongoose.Types.ObjectId.isValid(subjectId)) {
+      filter.subjectId = new mongoose.Types.ObjectId(subjectId);
+    } else if (subjectId) {
+      const subject = await Subject.findOne({
+        name: { $regex: subjectId, $options: "i" },
+      });
+      if (subject) filter.subjectId = subject._id;
+    }
+
+    if (userId && mongoose.Types.ObjectId.isValid(userId)) {
+      filter.userId = new mongoose.Types.ObjectId(userId);
+    } else if (userId) {
+      const user = await User.findOne({
+        name: { $regex: userId, $options: "i" },
+      });
+      if (user) filter.userId = user._id;
+    }
+
+    console.log("Admin Results Filter:", JSON.stringify(filter, null, 2));
 
     const results = await ExamAttempt.find(filter)
       .populate('userId', 'name email')
@@ -58,15 +85,21 @@ export const getExamResults = async (req, res) => {
       .populate('subjectId', 'name')
       .sort({ submittedAt: -1 });
 
+    console.log(`Found ${results.length} results`);
+
+    // Get only the latest attempt per student per subject
     const latestResults = {};
     results.forEach(result => {
-      const key = `${result.userId?._id}-${result.subjectId?._id}`;
-      if (!latestResults[key] || result.submittedAt > latestResults[key].submittedAt) {
+      const key = `${result.userId?._id || result.userId}-${result.subjectId?._id || result.subjectId}`;
+      if (!latestResults[key] || new Date(result.submittedAt) > new Date(latestResults[key].submittedAt)) {
         latestResults[key] = result;
       }
     });
 
-    res.json(Object.values(latestResults));
+    const finalResults = Object.values(latestResults);
+    console.log(`Returning ${finalResults.length} unique results`);
+
+    res.json(finalResults);
 
   } catch (err) {
     console.error("Get Results Error:", err);
@@ -98,5 +131,26 @@ export const allowResit = async (req, res) => {
   } catch (err) {
     console.error("Resit Error:", err);
     res.status(500).json({ message: "Server Error: " + err.message });
+  }
+};
+
+// ✅ GET SINGLE EXAM DETAILS (for admin)
+export const getExamDetails = async (req, res) => {
+  try {
+    const { attemptId } = req.params;
+    
+    const attempt = await ExamAttempt.findById(attemptId)
+      .populate('userId', 'name email')
+      .populate('courseId', 'name')
+      .populate('subjectId', 'name');
+    
+    if (!attempt) {
+      return res.status(404).json({ message: "Exam attempt not found" });
+    }
+    
+    res.json(attempt);
+  } catch (error) {
+    console.error("Get Exam Details Error:", error);
+    res.status(500).json({ message: "Server Error: " + error.message });
   }
 };
