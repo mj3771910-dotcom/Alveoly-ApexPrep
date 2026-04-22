@@ -39,7 +39,6 @@ const AdminExamResults = () => {
     try {
       await axios.delete(`/admin/exam-attempt/${attemptId}`);
       toast.success("Exam attempt deleted");
-      // remove from local state instead of refetching
       setResults((prev) => prev.filter((r) => r._id !== attemptId));
     } catch (err) {
       console.error(err);
@@ -51,11 +50,8 @@ const AdminExamResults = () => {
     try {
       await axios.patch(`/admin/exam-attempt/${attemptId}/resit`);
       toast.success("Resit allowed");
-      // update local state for the attempt
       setResults((prev) =>
-        prev.map((r) =>
-          r._id === attemptId ? { ...r, resitAllowed: true } : r
-        )
+        prev.map((r) => (r._id === attemptId ? { ...r, resitAllowed: true } : r))
       );
     } catch (err) {
       console.error(err);
@@ -72,44 +68,29 @@ const AdminExamResults = () => {
     <div className="p-6 max-w-7xl mx-auto">
       <Toaster position="top-right" />
 
-      {/* HEADER */}
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">
-          📊 Exam Results Dashboard
-        </h1>
-        <p className="text-gray-500 text-sm mt-1">
-          Monitor student performance, manage attempts & resits
-        </p>
+        <h1 className="text-3xl font-bold text-gray-800">📊 Exam Results Dashboard</h1>
+        <p className="text-gray-500 text-sm mt-1">Monitor student performance, manage attempts & resits</p>
       </div>
 
-      {/* FILTER CARD */}
-      <form
-        onSubmit={handleFilter}
-        className="bg-white shadow-lg rounded-2xl p-4 mb-6 border"
-      >
+      <form onSubmit={handleFilter} className="bg-white shadow-lg rounded-2xl p-4 mb-6 border">
         <div className="flex flex-wrap gap-3 items-center">
           <input
             placeholder="Course (e.g Midwifery)"
             value={filters.courseId}
-            onChange={(e) =>
-              setFilters({ ...filters, courseId: e.target.value })
-            }
+            onChange={(e) => setFilters({ ...filters, courseId: e.target.value })}
             className="border px-4 py-2 rounded-lg w-56 focus:ring-2 focus:ring-blue-500 outline-none"
           />
           <input
             placeholder="Subject"
             value={filters.subjectId}
-            onChange={(e) =>
-              setFilters({ ...filters, subjectId: e.target.value })
-            }
+            onChange={(e) => setFilters({ ...filters, subjectId: e.target.value })}
             className="border px-4 py-2 rounded-lg w-56 focus:ring-2 focus:ring-blue-500 outline-none"
           />
           <input
             placeholder="Student name"
             value={filters.userId}
-            onChange={(e) =>
-              setFilters({ ...filters, userId: e.target.value })
-            }
+            onChange={(e) => setFilters({ ...filters, userId: e.target.value })}
             className="border px-4 py-2 rounded-lg w-56 focus:ring-2 focus:ring-blue-500 outline-none"
           />
           <button
@@ -121,7 +102,6 @@ const AdminExamResults = () => {
         </div>
       </form>
 
-      {/* TABLE CARD */}
       <div className="bg-white shadow-lg rounded-2xl overflow-x-auto border">
         {loading ? (
           <div className="flex justify-center items-center h-40">
@@ -146,16 +126,10 @@ const AdminExamResults = () => {
                 <th className="p-4 text-center">Actions</th>
               </tr>
             </thead>
-
             <tbody>
               {results.map((r) => (
-                <tr
-                  key={r._id} // unique now
-                  className="border-t hover:bg-gray-50 transition"
-                >
-                  <td className="p-4 font-medium">
-                    {r.userId?.name || r.userName || "User Deleted"}
-                  </td>
+                <tr key={r._id} className="border-t hover:bg-gray-50 transition">
+                  <td className="p-4 font-medium">{r.userId?.name || r.userName || "User Deleted"}</td>
                   <td className="p-4">{r.courseId?.name || r.courseName || "N/A"}</td>
                   <td className="p-4">{r.subjectId?.name || r.subjectName || "N/A"}</td>
                   <td className="p-4 font-semibold">{r.score}</td>
@@ -163,9 +137,7 @@ const AdminExamResults = () => {
                   <td className="p-4">
                     <span
                       className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                        r.result === "pass"
-                          ? "bg-green-100 text-green-700"
-                          : "bg-red-100 text-red-700"
+                        r.result === "pass" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
                       }`}
                     >
                       {r.result}
@@ -174,9 +146,7 @@ const AdminExamResults = () => {
                   <td className="p-4">
                     <span
                       className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                        r.resitAllowed
-                          ? "bg-blue-100 text-blue-700"
-                          : "bg-gray-200 text-gray-600"
+                        r.resitAllowed ? "bg-blue-100 text-blue-700" : "bg-gray-200 text-gray-600"
                       }`}
                     >
                       {r.resitAllowed ? "Allowed" : "No"}

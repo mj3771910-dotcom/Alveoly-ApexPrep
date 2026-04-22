@@ -9,6 +9,7 @@ import {
 } from "react-icons/fa";
 import { useAuth } from "../context/AuthContext";
 import { useParams, useNavigate } from "react-router-dom";
+import toast, { Toaster } from "react-hot-toast";
 
 const StudentTrial = () => {
   const { user } = useAuth();
@@ -22,10 +23,7 @@ const StudentTrial = () => {
   const [aiLoading, setAiLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [showResult, setShowResult] = useState(false);
-  // ⏱️ TIMER
-const [time, setTime] = useState(0); // seconds
-
-  // 🔥 NEW STATES
+  const [time, setTime] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [backendResult, setBackendResult] = useState(null);
 
@@ -42,8 +40,15 @@ const [time, setTime] = useState(0); // seconds
 
       const trials = res.data.filter((q) => q.type === "trial");
       setQuestions(trials);
+      
+      // Clear previous answers when new questions load
+      setAnswers({});
+      setSubmitted(false);
+      setShowResult(false);
+      setTime(0);
     } catch (err) {
       console.error(err);
+      toast.error("Failed to load questions");
     }
   };
 
@@ -62,15 +67,15 @@ const [time, setTime] = useState(0); // seconds
   }, [subjectId, courseId]);
 
   // ================= TIMER =================
-useEffect(() => {
-  if (submitted) return;
+  useEffect(() => {
+    if (submitted) return;
 
-  const interval = setInterval(() => {
-    setTime((prev) => prev + 1);
-  }, 1000);
+    const interval = setInterval(() => {
+      setTime((prev) => prev + 1);
+    }, 1000);
 
-  return () => clearInterval(interval);
-}, [submitted]);
+    return () => clearInterval(interval);
+  }, [submitted]);
 
   // ================= SELECT =================
   const handleSelect = (qId, option) => {
@@ -127,9 +132,8 @@ Explain the correct answer like a nursing tutor.
 
   // ================= SUBMIT =================
   const submitTrial = async () => {
-    // 🔥 Prevent empty submission
     if (Object.keys(answers).length === 0) {
-      alert("Please answer at least one question.");
+      toast.error("Please answer at least one question.");
       return;
     }
 
@@ -137,35 +141,41 @@ Explain the correct answer like a nursing tutor.
       setSubmitting(true);
 
       const res = await axios.post("/trial/submit", {
-  subjectId,
-  courseId,
-  answers,
-  duration: time, // 🔥 NEW
-});
+        subjectId,
+        courseId,
+        answers,
+        duration: time,
+      });
 
-      // 🔥 Save backend result
       setBackendResult(res.data.attempt);
-
       setSubmitted(true);
       setShowResult(true);
+      toast.success("Trial submitted successfully!");
     } catch (err) {
       console.error("❌ Submit Error:", err);
-      alert("Failed to submit trial.");
+      toast.error(err.response?.data?.message || "Failed to submit trial.");
     } finally {
       setSubmitting(false);
     }
   };
 
-  // ================= SCORE =================
-  const score = questions.reduce((acc, q) => {
-  const userAns = String(answers[q._id] || "").trim().toUpperCase();
-  const correct = String(q.correctAnswer || "").trim().toUpperCase();
-  return userAns === correct ? acc + 1 : acc;
-}, 0);
+  // ================= CALCULATE SCORE CORRECTLY =================
+  const calculateScore = () => {
+    let correct = 0;
+    questions.forEach((q) => {
+      const userAnswer = answers[q._id];
+      const correctAnswer = q.correctAnswer;
+      
+      // Compare the letters (A, B, C, D)
+      if (userAnswer && correctAnswer && userAnswer === correctAnswer) {
+        correct++;
+      }
+    });
+    return correct;
+  };
 
-  const percentage = questions.length
-  ? Math.round((score / questions.length) * 100)
-  : 0;
+  const score = calculateScore();
+  const percentage = questions.length ? Math.round((score / questions.length) * 100) : 0;
 
   const getColor = () => {
     if (percentage >= 80) return "text-green-600";
@@ -174,29 +184,24 @@ Explain the correct answer like a nursing tutor.
   };
 
   const formatTime = (seconds) => {
-  const hrs = Math.floor(seconds / 3600);
-  const mins = Math.floor((seconds % 3600) / 60);
-  const secs = seconds % 60;
-
-  return `${hrs > 0 ? hrs + "h " : ""}${
-    mins > 0 ? mins + "m " : ""
-  }${secs}s`;
-};
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    return `${hrs > 0 ? hrs + "h " : ""}${mins > 0 ? mins + "m " : ""}${secs}s`;
+  };
 
   // ================= UI =================
   return (
     <div className="max-w-3xl mx-auto p-6">
-      <h2 className="text-3xl font-bold mb-6 text-gray-800">
-        🧠 Trial Practice
-      </h2>
+      <Toaster position="top-right" />
+      
+      <h2 className="text-3xl font-bold mb-6 text-gray-800">🧠 Trial Practice</h2>
 
-      {/* ⏱️ TIMER DISPLAY */}
-<div className="mb-4 flex justify-between items-center text-sm text-gray-600">
-  <span>⏱️ Time Spent</span>
-  <span className="font-semibold text-blue-600">
-    {formatTime(time)}
-  </span>
-</div>
+      {/* TIMER DISPLAY */}
+      <div className="mb-4 flex justify-between items-center text-sm text-gray-600">
+        <span>⏱️ Time Spent</span>
+        <span className="font-semibold text-blue-600">{formatTime(time)}</span>
+      </div>
 
       {/* PROGRESS BAR */}
       <div className="mb-4">
@@ -221,7 +226,7 @@ Explain the correct answer like a nursing tutor.
         </div>
       </div>
 
-      {/* 🔥 QUESTION TRACKER */}
+      {/* QUESTION TRACKER */}
       <div className="flex flex-wrap gap-2 mb-4">
         {questions.map((q, i) => (
           <button
@@ -277,9 +282,7 @@ Explain the correct answer like a nursing tutor.
             <FaRobot /> Ask AI
           </button>
 
-          {aiLoading && (
-            <p className="mt-3 text-gray-500">Thinking...</p>
-          )}
+          {aiLoading && <p className="mt-3 text-gray-500">Thinking...</p>}
 
           {aiResponse && (
             <div className="mt-4 p-4 bg-gray-100 rounded-lg text-sm leading-relaxed">
@@ -303,10 +306,7 @@ Explain the correct answer like a nursing tutor.
                 <FaCheck />
               </button>
             ) : (
-              <button
-                onClick={next}
-                className="flex items-center gap-2"
-              >
+              <button onClick={next} className="flex items-center gap-2">
                 Next <FaArrowRight />
               </button>
             )}
@@ -314,80 +314,86 @@ Explain the correct answer like a nursing tutor.
         </div>
       )}
 
-      {/* ================= RESULT POPUP ================= */}
+      {/* ================= RESULT POPUP - FIXED VERSION ================= */}
       {showResult && (
-  <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50">
-    <div className="bg-white p-6 rounded-2xl w-[90%] max-w-lg shadow-2xl overflow-y-auto max-h-[90vh]">
-      <h2 className="text-2xl font-bold text-center mb-4">
-        🎉 Trial Result
-      </h2>
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50">
+          <div className="bg-white p-6 rounded-2xl w-[90%] max-w-2xl shadow-2xl overflow-y-auto max-h-[90vh]">
+            <h2 className="text-2xl font-bold text-center mb-4">🎉 Trial Result</h2>
 
-      <h1 className={`text-4xl text-center ${getColor()}`}>
-        {backendResult?.score ?? score}/{questions.length}
-      </h1>
-
-      <p className={`text-center font-bold ${getColor()}`}>
-        {backendResult?.percentage ?? percentage}%
-      </p>
-
-      <p className="text-center mt-2 text-sm font-semibold capitalize text-gray-700">
-        Performance:{" "}
-        <span className="text-blue-600">
-          {backendResult?.performance || "—"}
-        </span>
-      </p>
-
-      <div className="mt-6 space-y-4">
-        {questions.map((q, index) => {
-          const userAns = answers[q._id];
-          const correct = q.correctAnswer;
-
-          const normalizedUser = String(userAns || "").trim().toUpperCase();
-          const normalizedCorrect = String(correct || "").trim().toUpperCase();
-          const isCorrect = normalizedUser === normalizedCorrect;
-
-          return (
-            <div
-              key={q._id}
-              className="p-4 border rounded-lg"
-            >
-              <p className="font-semibold">
-                {index + 1}. {q.question}
+            <div className="text-center mb-6">
+              <h1 className={`text-4xl font-bold ${getColor()}`}>
+                {backendResult?.score ?? score}/{questions.length}
+              </h1>
+              <p className={`text-lg font-semibold ${getColor()}`}>
+                {backendResult?.percentage ?? percentage}%
               </p>
-
-              <p>
-                Your Answer:{" "}
-                <span className={isCorrect ? "text-green-600" : "text-red-600"}>
-                  {userAns || "None"}
+              <p className="text-sm text-gray-600 mt-2">
+                Performance:{" "}
+                <span className="font-semibold text-blue-600">
+                  {backendResult?.performance || 
+                    (percentage >= 80 ? "Excellent" : percentage >= 60 ? "Good" : percentage >= 40 ? "Average" : "Poor")}
                 </span>
               </p>
-
-              <p>
-                Correct Answer:{" "}
-                <span className="text-green-600">
-                  {correct}
-                </span>
-              </p>
-
-              {q.rationale && (
-                <p className="mt-2 text-sm text-gray-600">
-                  📘 {q.rationale}
-                </p>
-              )}
             </div>
-          );
-        })}
-      </div>
 
-      <button
-        onClick={() => navigate("/student/progress")}
-        className="mt-6 w-full bg-blue-600 text-white py-2 rounded"
-      >
-        Close & View Progress
-      </button>
-    </div>
-  </div>
-)}
+            <div className="space-y-4">
+              {questions.map((q, index) => {
+                const userAnswerLetter = answers[q._id];
+                // Get the option text for user's answer
+                const userAnswerText = userAnswerLetter && q.options 
+                  ? q.options[userAnswerLetter.charCodeAt(0) - 65] 
+                  : null;
+                
+                const correctAnswerLetter = q.correctAnswer;
+                const correctAnswerText = correctAnswerLetter && q.options 
+                  ? q.options[correctAnswerLetter.charCodeAt(0) - 65] 
+                  : null;
+                
+                const isCorrect = userAnswerLetter === correctAnswerLetter;
+
+                return (
+                  <div key={q._id} className="p-4 border rounded-lg">
+                    <p className="font-semibold mb-2">
+                      {index + 1}. {q.question}
+                    </p>
+
+                    <div className="space-y-1">
+                      <p>
+                        <span className="font-medium">Your Answer:</span>{" "}
+                        <span className={isCorrect ? "text-green-600" : "text-red-600"}>
+                          {userAnswerLetter || "None"}
+                          {userAnswerText && ` - ${userAnswerText}`}
+                        </span>
+                      </p>
+
+                      {!isCorrect && (
+                        <p>
+                          <span className="font-medium">Correct Answer:</span>{" "}
+                          <span className="text-green-600">
+                            {correctAnswerLetter}
+                            {correctAnswerText && ` - ${correctAnswerText}`}
+                          </span>
+                        </p>
+                      )}
+                    </div>
+
+                    {q.rationale && (
+                      <p className="mt-2 text-sm text-gray-600">📘 {q.rationale}</p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <button
+              onClick={() => navigate("/student/progress")}
+              className="mt-6 w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition"
+            >
+              Close & View Progress
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
