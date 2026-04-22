@@ -232,7 +232,7 @@ const StudentExams = () => {
           </div>
         )}
 
-        {/* FIXED RESULT MODAL - Compare TEXT not letters */}
+        {/* RESULT MODAL - Uses data from backend */}
         {showResult && (
           <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
             <div className="bg-white p-8 rounded-2xl w-full max-w-2xl shadow-xl overflow-y-auto max-h-[80vh]">
@@ -246,56 +246,27 @@ const StudentExams = () => {
               </div>
 
               <div className="space-y-4">
-                {questions.map((q, i) => {
-                  const userAnswerLetter = answers[q._id];
-                  const userAnswerText = userAnswerLetter && q.options 
-                    ? q.options[userAnswerLetter.charCodeAt(0) - 65] 
-                    : null;
-                  
-                  // CORRECT ANSWER IS TEXT, not letter
-                  const correctAnswerText = q.correctAnswer;
-                  
-                  // Find which letter corresponds to the correct answer text
-                  let correctAnswerLetter = null;
-                  if (correctAnswerText && q.options) {
-                    const index = q.options.findIndex(
-                      opt => opt.toLowerCase().trim() === correctAnswerText.toLowerCase().trim()
-                    );
-                    if (index !== -1) {
-                      correctAnswerLetter = String.fromCharCode(65 + index);
-                    }
-                  }
-                  
-                  // Compare the TEXT of the answers (case-insensitive)
-                  const isCorrect = userAnswerText && correctAnswerText && 
-                    userAnswerText.toLowerCase().trim() === correctAnswerText.toLowerCase().trim();
-
-                  return (
-                    <div key={q._id} className="p-4 border rounded-lg">
-                      <p className="font-semibold mb-2">
-                        {i + 1}. {q.question}
+                {scoreData.questionResults.map((result, i) => (
+                  <div key={i} className="p-4 border rounded-lg">
+                    <p className="font-semibold mb-2">
+                      {i + 1}. {result.questionText}
+                    </p>
+                    <div className="space-y-1">
+                      <p className={result.isCorrect ? "text-green-600" : "text-red-600"}>
+                        <span className="font-medium">Your Answer:</span> {result.userAnswerLetter || "None"}
+                        {result.userAnswerText && ` - "${result.userAnswerText}"`}
                       </p>
-
-                      <div className="space-y-1">
-                        <p className={isCorrect ? "text-green-600" : "text-red-600"}>
-                          <span className="font-medium">Your Answer:</span> {userAnswerLetter || "None"}
-                          {userAnswerText && ` - ${userAnswerText}`}
+                      {!result.isCorrect && (
+                        <p className="text-green-600">
+                          <span className="font-medium">Correct Answer:</span> "{result.correctAnswer}"
                         </p>
-
-                        {!isCorrect && (
-                          <p className="text-green-600">
-                            <span className="font-medium">Correct Answer:</span> {correctAnswerLetter}
-                            {correctAnswerText && ` - ${correctAnswerText}`}
-                          </p>
-                        )}
-                      </div>
-
-                      {q.rationale && (
-                        <p className="text-sm text-gray-600 mt-2">💡 {q.rationale}</p>
                       )}
                     </div>
-                  );
-                })}
+                    {result.rationale && (
+                      <p className="text-sm text-gray-600 mt-2">💡 {result.rationale}</p>
+                    )}
+                  </div>
+                ))}
               </div>
 
               <div className="text-center mt-6">

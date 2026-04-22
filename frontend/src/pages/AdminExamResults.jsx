@@ -255,7 +255,7 @@ const AdminExamResults = () => {
                     
                     <div className="space-y-1 ml-4">
                       <p className={isAnswerCorrect ? "text-green-600" : "text-red-600"}>
-                        <span className="font-medium">Your Answer:</span>{' '}
+                        <span className="font-medium">Student Answer:</span>{' '}
                         {userAnswerLetter ? `${userAnswerLetter}` : 'None'}
                         {userAnswerText && ` - "${userAnswerText}"`}
                       </p>
