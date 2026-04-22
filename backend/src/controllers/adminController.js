@@ -41,18 +41,22 @@ const buildFilter = async (query) => {
   return filter;
 };
 
-// ✅ GET RESULTS - FIXED to match examController logic
+import mongoose from "mongoose";
+import ExamAttempt from "../models/ExamAttempt.js";
+import Course from "../models/Course.js";
+import Subject from "../models/Subject.js";
+import User from "../models/User.js";
+
+// ✅ GET RESULTS - Return ALL attempts for debugging
 export const getExamResults = async (req, res) => {
   try {
     const { courseId, subjectId, userId } = req.query;
 
     const filter = { status: "submitted" };
 
-    // Use the IDs directly if provided (as strings, they will be converted to ObjectId)
     if (courseId && mongoose.Types.ObjectId.isValid(courseId)) {
       filter.courseId = new mongoose.Types.ObjectId(courseId);
     } else if (courseId) {
-      // Try to find course by name
       const course = await Course.findOne({
         name: { $regex: courseId, $options: "i" },
       });
@@ -79,27 +83,29 @@ export const getExamResults = async (req, res) => {
 
     console.log("Admin Results Filter:", JSON.stringify(filter, null, 2));
 
+    // Get ALL attempts (not just latest)
     const results = await ExamAttempt.find(filter)
       .populate('userId', 'name email')
       .populate('courseId', 'name')
       .populate('subjectId', 'name')
       .sort({ submittedAt: -1 });
 
-    console.log(`Found ${results.length} results`);
-
-    // Get only the latest attempt per student per subject
-    const latestResults = {};
-    results.forEach(result => {
-      const key = `${result.userId?._id || result.userId}-${result.subjectId?._id || result.subjectId}`;
-      if (!latestResults[key] || new Date(result.submittedAt) > new Date(latestResults[key].submittedAt)) {
-        latestResults[key] = result;
-      }
+    console.log(`Found ${results.length} total submitted attempts`);
+    
+    // Log each attempt for debugging
+    results.forEach((result, index) => {
+      console.log(`\nAttempt ${index + 1}:`);
+      console.log(`  ID: ${result._id}`);
+      console.log(`  Student: ${result.userId?.name || result.userName}`);
+      console.log(`  Score: ${result.score}/${result.totalQuestions || '?'}`);
+      console.log(`  Percentage: ${result.percentage}%`);
+      console.log(`  Result: ${result.result}`);
+      console.log(`  Submitted: ${result.submittedAt}`);
+      console.log(`  Status: ${result.status}`);
     });
 
-    const finalResults = Object.values(latestResults);
-    console.log(`Returning ${finalResults.length} unique results`);
-
-    res.json(finalResults);
+    // Return ALL attempts so admin can see both old and new
+    res.json(results);
 
   } catch (err) {
     console.error("Get Results Error:", err);
@@ -134,7 +140,7 @@ export const allowResit = async (req, res) => {
   }
 };
 
-// ✅ GET SINGLE EXAM DETAILS (for admin)
+// ✅ GET SINGLE EXAM DETAILS
 export const getExamDetails = async (req, res) => {
   try {
     const { attemptId } = req.params;
