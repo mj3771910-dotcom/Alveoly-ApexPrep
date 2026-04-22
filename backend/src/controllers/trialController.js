@@ -33,25 +33,36 @@ export const submitTrial = async (req, res) => {
     }
 
     let score = 0;
+    const detailedResults = [];
 
-    questions.forEach((q) => {
-      const studentAnswer = String(answers[q._id] || "").trim().toUpperCase();
-      const correctAnswer = String(q.correctAnswer || "").trim().toUpperCase();
-
-      if (studentAnswer === correctAnswer) {
+    // Calculate score by comparing answer letters
+    questions.forEach((question) => {
+      const studentAnswer = answers[question._id];
+      const correctAnswer = question.correctAnswer;
+      
+      // Direct comparison of letters (A, B, C, D)
+      const isCorrect = studentAnswer && correctAnswer && studentAnswer === correctAnswer;
+      
+      if (isCorrect) {
         score++;
       }
+
+      detailedResults.push({
+        questionId: question._id,
+        question: question.question,
+        userAnswer: studentAnswer || null,
+        correctAnswer: correctAnswer,
+        isCorrect: isCorrect,
+        userAnswerText: studentAnswer ? question.options[studentAnswer.charCodeAt(0) - 65] : null,
+        correctAnswerText: correctAnswer ? question.options[correctAnswer.charCodeAt(0) - 65] : null
+      });
     });
 
     const totalQuestions = questions.length;
-
-    const percentage = totalQuestions
-      ? Math.round((score / totalQuestions) * 100)
-      : 0;
+    const percentage = totalQuestions ? Math.round((score / totalQuestions) * 100) : 0;
 
     // ================= PERFORMANCE LEVEL =================
     let performance = "poor";
-
     if (percentage >= 80) performance = "excellent";
     else if (percentage >= 60) performance = "good";
     else if (percentage >= 40) performance = "average";
@@ -67,11 +78,20 @@ export const submitTrial = async (req, res) => {
       totalQuestions,
       duration: duration || 0,
       performance,
+      detailedResults, // Save detailed results for future reference
     });
 
     res.json({
       message: "Trial submitted successfully",
-      attempt,
+      attempt: {
+        _id: attempt._id,
+        score: attempt.score,
+        percentage: attempt.percentage,
+        performance: attempt.performance,
+        totalQuestions: attempt.totalQuestions,
+        duration: attempt.duration,
+        createdAt: attempt.createdAt
+      }
     });
 
   } catch (error) {
@@ -89,6 +109,7 @@ export const getTrialProgress = async (req, res) => {
       userId: req.user._id,
     })
       .populate("subjectId", "name")
+      .populate("courseId", "name")
       .sort({ createdAt: -1 });
 
     // ================= TOTAL STUDY TIME =================
@@ -110,6 +131,27 @@ export const getTrialProgress = async (req, res) => {
       ? Math.max(...attempts.map((a) => a.percentage))
       : 0;
 
+    // ================= SUBJECT WISE PERFORMANCE =================
+    const subjectWise = {};
+    attempts.forEach(attempt => {
+      const subjectName = attempt.subjectId?.name || "Unknown Subject";
+      if (!subjectWise[subjectName]) {
+        subjectWise[subjectName] = {
+          totalScore: 0,
+          count: 0,
+          bestScore: 0
+        };
+      }
+      subjectWise[subjectName].totalScore += attempt.percentage;
+      subjectWise[subjectName].count++;
+      subjectWise[subjectName].bestScore = Math.max(subjectWise[subjectName].bestScore, attempt.percentage);
+    });
+
+    // Calculate averages for each subject
+    Object.keys(subjectWise).forEach(subject => {
+      subjectWise[subject].averageScore = Math.round(subjectWise[subject].totalScore / subjectWise[subject].count);
+    });
+
     // ================= RESPONSE =================
     res.json({
       attempts,
@@ -118,6 +160,7 @@ export const getTrialProgress = async (req, res) => {
         averageScore,
         bestScore,
         totalTime,
+        subjectWise
       },
     });
 
@@ -126,5 +169,30 @@ export const getTrialProgress = async (req, res) => {
     res.status(500).json({
       message: "Failed to fetch progress",
     });
+  }
+};
+
+// ================= GET SINGLE TRIAL DETAILS =================
+export const getTrialDetails = async (req, res) => {
+  try {
+    const { attemptId } = req.params;
+    
+    const attempt = await TrialAttempt.findById(attemptId)
+      .populate("subjectId", "name")
+      .populate("courseId", "name");
+    
+    if (!attempt) {
+      return res.status(404).json({ message: "Trial attempt not found" });
+    }
+    
+    // Check if the user owns this attempt
+    if (attempt.userId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: "Unauthorized to view this attempt" });
+    }
+    
+    res.json(attempt);
+  } catch (error) {
+    console.error("❌ Get Trial Details Error:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };

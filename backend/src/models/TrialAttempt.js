@@ -54,6 +54,38 @@ const trialSchema = new mongoose.Schema(
       default: "average",
     },
 
+    // 🔥 DETAILED RESULTS FOR EACH QUESTION
+    detailedResults: [
+      {
+        questionId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Question",
+        },
+        question: {
+          type: String,
+        },
+        userAnswer: {
+          type: String,
+          default: null,
+        },
+        correctAnswer: {
+          type: String,
+        },
+        isCorrect: {
+          type: Boolean,
+          default: false,
+        },
+        userAnswerText: {
+          type: String,
+          default: null,
+        },
+        correctAnswerText: {
+          type: String,
+          default: null,
+        },
+      },
+    ],
+
     // 🔥 OPTIONAL (future AI insights)
     weakAreas: [
       {
@@ -63,5 +95,9 @@ const trialSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+// Add an index for faster queries
+trialSchema.index({ userId: 1, createdAt: -1 });
+trialSchema.index({ subjectId: 1, courseId: 1 });
 
 export default mongoose.model("TrialAttempt", trialSchema);

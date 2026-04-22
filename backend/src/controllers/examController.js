@@ -126,66 +126,68 @@ export const saveProgress = async (req, res) => {
 };
 
 // ✅ SUBMIT EXAM
+// Make sure your exam submission logic correctly compares answers
 export const submitExam = async (req, res) => {
   try {
     const { attemptId, answers } = req.body;
+    const userId = req.user._id;
 
-    const attempt = await ExamAttempt.findById(attemptId);
+    // Find the exam attempt
+    const attempt = await ExamAttempt.findById(attemptId)
+      .populate('questions')
+      .populate('courseId')
+      .populate('subjectId');
+
     if (!attempt) {
-      return res.status(404).json({ message: "Exam attempt not found" });
+      return res.status(404).json({ message: 'Exam attempt not found' });
     }
 
-    if (attempt.status === "submitted") {
-      return res.status(200).json({
-        message: "Already submitted",
-        score: attempt.score,
-        percentage: attempt.percentage,
+    // Calculate score
+    let correctCount = 0;
+    const questionResults = [];
+
+    for (const question of attempt.questions) {
+      const userAnswer = answers[question._id];
+      const isCorrect = userAnswer === question.correctAnswer; // This should compare letters (A, B, C, D)
+      
+      if (isCorrect) {
+        correctCount++;
+      }
+
+      questionResults.push({
+        questionId: question._id,
+        userAnswer: userAnswer || null,
+        isCorrect,
+        correctAnswer: question.correctAnswer,
+        rationale: question.rationale
       });
     }
 
-    attempt.questions = attempt.questions.map((q) => {
-      const selected = answers[q.questionId] || q.selected;
+    const score = correctCount;
+    const percentage = (correctCount / attempt.questions.length) * 100;
+    const result = percentage >= 50 ? 'pass' : 'fail';
 
-      const studentAns = String(selected || "").trim().toUpperCase();
-      const correctAns = String(q.correct || "").trim().toUpperCase();
-
-      return {
-        ...q.toObject(),
-        selected,
-        isCorrect: studentAns === correctAns,
-      };
-    });
-
-    // ✅ Calculate score and percentage (this was missing before!)
-    let calculatedScore = 0;
-    attempt.questions.forEach((q) => {
-      if (q.isCorrect) calculatedScore++;
-    });
-
-    attempt.score = calculatedScore;
-    attempt.percentage = attempt.questions.length
-      ? Math.round((calculatedScore / attempt.questions.length) * 100)
-      : 0;
-
-    attempt.status = "submitted";
+    // Update attempt
+    attempt.answers = answers;
+    attempt.score = score;
+    attempt.percentage = percentage;
+    attempt.result = result;
     attempt.submittedAt = new Date();
-
+    attempt.status = 'completed';
+    attempt.questionResults = questionResults;
+    
     await attempt.save();
 
-    io.emit("exam:submitted", {
-      attemptId: attempt._id,
-      user: attempt.userId,
-    });
-
     res.json({
-      message: "Exam submitted",
-      score: attempt.score,
-      percentage: attempt.percentage,
+      success: true,
+      score,
+      percentage,
+      result,
+      questionResults
     });
-
-  } catch (err) {
-    console.error("Submit Exam Error:", err);
-    res.status(500).json({ message: "Server Error" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
