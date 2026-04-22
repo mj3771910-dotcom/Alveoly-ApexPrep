@@ -77,6 +77,16 @@ const AdminExamResults = () => {
     }
   };
 
+  // Helper function to get answer text from letter
+  const getAnswerText = (question, answerLetter) => {
+    if (!answerLetter || !question || !question.options) return null;
+    const index = answerLetter.charCodeAt(0) - 65;
+    if (index >= 0 && index < question.options.length) {
+      return question.options[index];
+    }
+    return null;
+  };
+
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <Toaster position="top-right" />
@@ -89,19 +99,19 @@ const AdminExamResults = () => {
       <form onSubmit={handleFilter} className="bg-white shadow-lg rounded-2xl p-4 mb-6 border">
         <div className="flex flex-wrap gap-3 items-center">
           <input
-            placeholder="Course ID"
+            placeholder="Course Name or ID"
             value={filters.courseId}
             onChange={(e) => setFilters({ ...filters, courseId: e.target.value })}
             className="border px-4 py-2 rounded-lg w-56 focus:ring-2 focus:ring-blue-500 outline-none"
           />
           <input
-            placeholder="Subject ID"
+            placeholder="Subject Name or ID"
             value={filters.subjectId}
             onChange={(e) => setFilters({ ...filters, subjectId: e.target.value })}
             className="border px-4 py-2 rounded-lg w-56 focus:ring-2 focus:ring-blue-500 outline-none"
           />
           <input
-            placeholder="User ID"
+            placeholder="Student Name or ID"
             value={filters.userId}
             onChange={(e) => setFilters({ ...filters, userId: e.target.value })}
             className="border px-4 py-2 rounded-lg w-56 focus:ring-2 focus:ring-blue-500 outline-none"
@@ -185,6 +195,12 @@ const AdminExamResults = () => {
                     >
                       <FaTrash /> Delete
                     </button>
+                    <button
+                      onClick={() => viewDetails(r._id)}
+                      className="bg-blue-600 text-white px-3 py-1 rounded-lg text-xs hover:bg-blue-700 flex items-center gap-1 inline-flex"
+                    >
+                      <FaEye /> View
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -193,36 +209,84 @@ const AdminExamResults = () => {
         )}
       </div>
 
-      {/* Details Modal */}
+      {/* Details Modal - FIXED VERSION */}
       {showDetails && selectedResult && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50">
           <div className="bg-white p-6 rounded-2xl w-[90%] max-w-3xl shadow-2xl overflow-y-auto max-h-[80vh]">
-            <h2 className="text-2xl font-bold mb-4">Exam Details</h2>
-            <div className="mb-4">
-              <p><strong>Student:</strong> {selectedResult.userId?.name}</p>
-              <p><strong>Course:</strong> {selectedResult.courseId?.name}</p>
-              <p><strong>Subject:</strong> {selectedResult.subjectId?.name}</p>
-              <p><strong>Score:</strong> {selectedResult.score}/{selectedResult.totalQuestions} ({selectedResult.percentage}%)</p>
-              <p><strong>Result:</strong> {selectedResult.result}</p>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-bold">Exam Details</h2>
+              <button
+                onClick={() => setShowDetails(false)}
+                className="text-gray-500 hover:text-gray-700 text-xl"
+              >
+                ✕
+              </button>
             </div>
+            
+            <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+              <p><strong className="text-gray-700">Student:</strong> {selectedResult.userId?.name || selectedResult.userName}</p>
+              <p><strong className="text-gray-700">Course:</strong> {selectedResult.courseId?.name || selectedResult.courseName}</p>
+              <p><strong className="text-gray-700">Subject:</strong> {selectedResult.subjectId?.name || selectedResult.subjectName}</p>
+              <p><strong className="text-gray-700">Score:</strong> {selectedResult.score}/{selectedResult.totalQuestions} ({selectedResult.percentage}%)</p>
+              <p><strong className="text-gray-700">Result:</strong> 
+                <span className={`ml-2 px-2 py-1 rounded-full text-xs font-semibold ${
+                  selectedResult.result === "pass" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+                }`}>
+                  {selectedResult.result}
+                </span>
+              </p>
+              <p><strong className="text-gray-700">Submitted:</strong> {new Date(selectedResult.submittedAt).toLocaleString()}</p>
+            </div>
+            
             <div className="space-y-4">
-              <h3 className="font-bold text-lg">Question Details:</h3>
-              {selectedResult.questionResults?.map((qr, idx) => (
-                <div key={idx} className="p-3 border rounded-lg">
-                  <p className="font-semibold">{idx + 1}. {qr.questionText}</p>
-                  <p className={qr.isCorrect ? "text-green-600" : "text-red-600"}>
-                    Your Answer: {qr.userAnswerLetter} - {qr.userAnswerText || "None"}
-                  </p>
-                  {!qr.isCorrect && (
-                    <p className="text-green-600">Correct: {qr.correctAnswer}</p>
-                  )}
-                  <p className="text-xs text-gray-500">Match Type: {qr.matchType || "N/A"}</p>
-                </div>
-              ))}
+              <h3 className="font-bold text-lg border-b pb-2">Question Details:</h3>
+              {selectedResult.questionResults?.map((qr, idx) => {
+                // Determine if the answer was correct based on text comparison
+                const isAnswerCorrect = qr.isCorrect;
+                const userAnswerLetter = qr.userAnswer || qr.userAnswerLetter;
+                const userAnswerText = qr.userAnswerText;
+                const correctAnswerText = qr.correctAnswer;
+                
+                return (
+                  <div key={idx} className="p-4 border rounded-lg hover:bg-gray-50 transition">
+                    <p className="font-semibold text-gray-800 mb-2">
+                      {idx + 1}. {qr.questionText}
+                    </p>
+                    
+                    <div className="space-y-1 ml-4">
+                      <p className={isAnswerCorrect ? "text-green-600" : "text-red-600"}>
+                        <span className="font-medium">Your Answer:</span>{' '}
+                        {userAnswerLetter ? `${userAnswerLetter}` : 'None'}
+                        {userAnswerText && ` - "${userAnswerText}"`}
+                      </p>
+                      
+                      {!isAnswerCorrect && (
+                        <p className="text-green-600">
+                          <span className="font-medium">Correct Answer:</span>{' '}
+                          "{correctAnswerText}"
+                        </p>
+                      )}
+                      
+                      {isAnswerCorrect && (
+                        <p className="text-green-600">
+                          <span className="font-medium">✓ Correct!</span>
+                        </p>
+                      )}
+                    </div>
+                    
+                    {qr.rationale && (
+                      <p className="mt-2 text-sm text-gray-600 bg-blue-50 p-2 rounded">
+                        💡 {qr.rationale}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
             </div>
+            
             <button
               onClick={() => setShowDetails(false)}
-              className="mt-6 w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
+              className="mt-6 w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition font-semibold"
             >
               Close
             </button>

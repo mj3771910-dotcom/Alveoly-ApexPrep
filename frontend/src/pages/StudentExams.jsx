@@ -21,7 +21,6 @@ const StudentExams = () => {
 
   const current = questions[currentIndex];
 
-  // ================= FETCH & START EXAM =================
   const startExam = async () => {
     try {
       if (attemptId) return;
@@ -86,7 +85,6 @@ const StudentExams = () => {
     };
   }, [courseId, subjectId]);
 
-  // ================= TIMER =================
   useEffect(() => {
     if (timeLeft > 0 && !submitted) {
       const timer = setInterval(() => setTimeLeft((prev) => prev - 1), 1000);
@@ -95,7 +93,6 @@ const StudentExams = () => {
     if (timeLeft === 0 && !submitted && questions.length > 0) handleSubmit();
   }, [timeLeft, submitted, questions]);
 
-  // ================= ANSWER SELECTION =================
   const handleSelect = async (qId, option) => {
     if (submitted) return;
 
@@ -115,7 +112,6 @@ const StudentExams = () => {
     }
   };
 
-  // ================= NAVIGATION =================
   const next = () => {
     if (currentIndex < questions.length - 1) setCurrentIndex((prev) => prev + 1);
   };
@@ -124,7 +120,6 @@ const StudentExams = () => {
     if (currentIndex > 0) setCurrentIndex((prev) => prev - 1);
   };
 
-  // ================= SUBMIT EXAM =================
   const handleSubmit = async () => {
     if (!attemptId) return;
 
@@ -150,18 +145,15 @@ const StudentExams = () => {
     }
   };
 
-  // ================= PROGRESS =================
   const progress = questions.length
     ? Math.round((Object.keys(answers).length / questions.length) * 100)
     : 0;
 
-  // ================= UI =================
   return (
     <div className="min-h-screen bg-gray-50 py-10 px-4">
       <Toaster position="top-right" />
 
       <div className="max-w-4xl mx-auto">
-        {/* HEADER */}
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold text-gray-800">📝 Exam Mode</h2>
 
@@ -172,7 +164,6 @@ const StudentExams = () => {
           )}
         </div>
 
-        {/* PROGRESS BAR */}
         <div className="mb-6">
           <div className="w-full bg-gray-200 rounded-full h-3">
             <div
@@ -183,7 +174,6 @@ const StudentExams = () => {
           <p className="text-sm text-gray-600 mt-2">{progress}% completed</p>
         </div>
 
-        {/* QUESTION CARD */}
         {current && !submitted && (
           <div className="bg-white rounded-2xl shadow-lg p-6">
             <h3 className="text-lg font-semibold mb-5">
@@ -214,7 +204,6 @@ const StudentExams = () => {
               })}
             </div>
 
-            {/* NAVIGATION */}
             <div className="flex justify-between mt-6">
               <button
                 onClick={prev}
@@ -243,7 +232,7 @@ const StudentExams = () => {
           </div>
         )}
 
-        {/* RESULT MODAL - FIXED VERSION */}
+        {/* FIXED RESULT MODAL - Compare TEXT not letters */}
         {showResult && (
           <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
             <div className="bg-white p-8 rounded-2xl w-full max-w-2xl shadow-xl overflow-y-auto max-h-[80vh]">
@@ -258,22 +247,28 @@ const StudentExams = () => {
 
               <div className="space-y-4">
                 {questions.map((q, i) => {
-                  // Get the user's answer (letter like A, B, C, D)
                   const userAnswerLetter = answers[q._id];
-                  
-                  // Find the actual option text for the user's answer
                   const userAnswerText = userAnswerLetter && q.options 
                     ? q.options[userAnswerLetter.charCodeAt(0) - 65] 
                     : null;
                   
-                  // Get the correct answer letter and text
-                  const correctAnswerLetter = q.correctAnswer;
-                  const correctAnswerText = correctAnswerLetter && q.options 
-                    ? q.options[correctAnswerLetter.charCodeAt(0) - 65] 
-                    : null;
+                  // CORRECT ANSWER IS TEXT, not letter
+                  const correctAnswerText = q.correctAnswer;
                   
-                  // Compare letters (not the text)
-                  const isCorrect = userAnswerLetter === correctAnswerLetter;
+                  // Find which letter corresponds to the correct answer text
+                  let correctAnswerLetter = null;
+                  if (correctAnswerText && q.options) {
+                    const index = q.options.findIndex(
+                      opt => opt.toLowerCase().trim() === correctAnswerText.toLowerCase().trim()
+                    );
+                    if (index !== -1) {
+                      correctAnswerLetter = String.fromCharCode(65 + index);
+                    }
+                  }
+                  
+                  // Compare the TEXT of the answers (case-insensitive)
+                  const isCorrect = userAnswerText && correctAnswerText && 
+                    userAnswerText.toLowerCase().trim() === correctAnswerText.toLowerCase().trim();
 
                   return (
                     <div key={q._id} className="p-4 border rounded-lg">
