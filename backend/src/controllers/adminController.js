@@ -44,50 +44,59 @@ const buildFilter = async (query) => {
 // ✅ GET RESULTS
 export const getExamResults = async (req, res) => {
   try {
-    const filter = await buildFilter(req.query);
+    const { courseId, subjectId, userId } = req.query;
 
-    if (filter === null) return res.json([]);
+    const filter = { status: "submitted" };
+
+    if (courseId) filter.courseId = new mongoose.Types.ObjectId(courseId);
+    if (subjectId) filter.subjectId = new mongoose.Types.ObjectId(subjectId);
+    if (userId) filter.userId = new mongoose.Types.ObjectId(userId);
 
     const results = await ExamAttempt.find(filter)
-      .populate("userId", "name email")
-      .populate("courseId", "name")
-      .populate("subjectId", "name")
+      .populate('userId', 'name email')
+      .populate('courseId', 'name')
+      .populate('subjectId', 'name')
       .sort({ submittedAt: -1 });
 
-    console.log("RESULTS:", results.length);
+    const latestResults = {};
+    results.forEach(result => {
+      const key = `${result.userId?._id}-${result.subjectId?._id}`;
+      if (!latestResults[key] || result.submittedAt > latestResults[key].submittedAt) {
+        latestResults[key] = result;
+      }
+    });
 
-    res.json(results);
+    res.json(Object.values(latestResults));
+
   } catch (err) {
-    console.error("Fetch Exam Results Error:", err);
-    res.status(500).json({ message: "Server Error" });
+    console.error("Get Results Error:", err);
+    res.status(500).json({ message: "Server Error: " + err.message });
   }
 };
 
-// DELETE
+// ✅ ADMIN DELETE
 export const deleteExamAttempt = async (req, res) => {
   try {
     const deleted = await ExamAttempt.findByIdAndDelete(req.params.attemptId);
-
     if (!deleted) return res.status(404).json({ message: "Not found" });
-
-    res.json({ message: "Deleted" });
+    res.json({ message: "Deleted successfully" });
   } catch (err) {
-    res.status(500).json({ message: "Server Error" });
+    console.error("Delete Error:", err);
+    res.status(500).json({ message: "Server Error: " + err.message });
   }
 };
 
-// RESIT
+// ✅ ADMIN RESIT
 export const allowResit = async (req, res) => {
   try {
     const attempt = await ExamAttempt.findById(req.params.attemptId);
-
     if (!attempt) return res.status(404).json({ message: "Not found" });
 
     attempt.resitAllowed = true;
     await attempt.save();
-
-    res.json({ message: "Resit allowed" });
+    res.json({ message: "Resit allowed successfully" });
   } catch (err) {
-    res.status(500).json({ message: "Server Error" });
+    console.error("Resit Error:", err);
+    res.status(500).json({ message: "Server Error: " + err.message });
   }
 };
