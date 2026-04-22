@@ -35,13 +35,23 @@ export const submitTrial = async (req, res) => {
     let score = 0;
     const detailedResults = [];
 
-    // Calculate score by comparing answer letters
+    // Calculate score by comparing answer text
     questions.forEach((question) => {
-      const studentAnswer = answers[question._id.toString()];
-      const correctAnswer = question.correctAnswer;
+      const studentAnswerLetter = answers[question._id.toString()];
       
-      // Direct comparison of letters (A, B, C, D)
-      const isCorrect = studentAnswer && correctAnswer && studentAnswer === correctAnswer;
+      // Get the actual text of the student's answer
+      let studentAnswerText = null;
+      if (studentAnswerLetter && question.options) {
+        const optionIndex = studentAnswerLetter.charCodeAt(0) - 65;
+        studentAnswerText = question.options[optionIndex];
+      }
+      
+      // The correct answer is stored as TEXT in the database
+      const correctAnswerText = question.correctAnswer;
+      
+      // Compare the TEXT of the answers
+      const isCorrect = studentAnswerText && correctAnswerText && 
+        studentAnswerText.toLowerCase().trim() === correctAnswerText.toLowerCase().trim();
       
       if (isCorrect) {
         score++;
@@ -50,11 +60,10 @@ export const submitTrial = async (req, res) => {
       detailedResults.push({
         questionId: question._id,
         question: question.question,
-        userAnswer: studentAnswer || null,
-        correctAnswer: correctAnswer,
+        userAnswer: studentAnswerLetter || null,
+        userAnswerText: studentAnswerText,
+        correctAnswer: correctAnswerText,
         isCorrect: isCorrect,
-        userAnswerText: studentAnswer && question.options ? question.options[studentAnswer.charCodeAt(0) - 65] : null,
-        correctAnswerText: correctAnswer && question.options ? question.options[correctAnswer.charCodeAt(0) - 65] : null
       });
     });
 
@@ -114,26 +123,16 @@ export const getTrialProgress = async (req, res) => {
       .populate("courseId", "name")
       .sort({ createdAt: -1 });
 
-    // ================= TOTAL STUDY TIME =================
-    const totalTime = attempts.reduce(
-      (acc, a) => acc + (a.duration || 0),
-      0
-    );
-
-    // ================= AVERAGE SCORE =================
+    const totalTime = attempts.reduce((acc, a) => acc + (a.duration || 0), 0);
+    
     const averageScore = attempts.length
-      ? Math.round(
-          attempts.reduce((acc, a) => acc + a.percentage, 0) /
-            attempts.length
-        )
+      ? Math.round(attempts.reduce((acc, a) => acc + a.percentage, 0) / attempts.length)
       : 0;
 
-    // ================= BEST SCORE =================
     const bestScore = attempts.length
       ? Math.max(...attempts.map((a) => a.percentage))
       : 0;
 
-    // ================= SUBJECT WISE PERFORMANCE =================
     const subjectWise = {};
     attempts.forEach(attempt => {
       const subjectName = attempt.subjectId?.name || "Unknown Subject";
@@ -149,12 +148,10 @@ export const getTrialProgress = async (req, res) => {
       subjectWise[subjectName].bestScore = Math.max(subjectWise[subjectName].bestScore, attempt.percentage);
     });
 
-    // Calculate averages for each subject
     Object.keys(subjectWise).forEach(subject => {
       subjectWise[subject].averageScore = Math.round(subjectWise[subject].totalScore / subjectWise[subject].count);
     });
 
-    // ================= RESPONSE =================
     res.json({
       success: true,
       attempts,
@@ -189,7 +186,6 @@ export const getTrialDetails = async (req, res) => {
       return res.status(404).json({ message: "Trial attempt not found" });
     }
     
-    // Check if the user owns this attempt
     if (attempt.userId.toString() !== req.user._id.toString()) {
       return res.status(403).json({ message: "Unauthorized to view this attempt" });
     }

@@ -11,7 +11,6 @@ export const startExam = async (req, res) => {
       return res.status(400).json({ message: "Course and Subject required" });
     }
 
-    // Check for existing in-progress attempt
     let attempt = await ExamAttempt.findOne({
       userId: req.user._id,
       courseId,
@@ -19,7 +18,6 @@ export const startExam = async (req, res) => {
       status: "in-progress"
     });
 
-    // Get questions
     const questions = await Question.find({
       courseId,
       subjectId,
@@ -32,7 +30,6 @@ export const startExam = async (req, res) => {
 
     const duration = (questions[0].examTime || 30) * 60;
 
-    // If there's an in-progress attempt, return it
     if (attempt && attempt.status === "in-progress") {
       return res.json({
         attemptId: attempt._id,
@@ -41,7 +38,6 @@ export const startExam = async (req, res) => {
       });
     }
 
-    // Check for submitted attempt without resit
     const submittedAttempt = await ExamAttempt.findOne({
       userId: req.user._id,
       courseId,
@@ -56,7 +52,6 @@ export const startExam = async (req, res) => {
       });
     }
 
-    // Get attempt number
     const lastAttempt = await ExamAttempt.findOne({
       userId: req.user._id,
       courseId,
@@ -65,7 +60,6 @@ export const startExam = async (req, res) => {
 
     const attemptNumber = lastAttempt ? lastAttempt.attemptNumber + 1 : 1;
 
-    // Create new attempt
     attempt = await ExamAttempt.create({
       userId: req.user._id,
       courseId,
@@ -115,7 +109,6 @@ export const saveProgress = async (req, res) => {
       });
     }
 
-    // Save answers
     attempt.answers = answers;
     await attempt.save();
 
@@ -127,7 +120,7 @@ export const saveProgress = async (req, res) => {
   }
 };
 
-// ✅ SUBMIT EXAM - FIXED VERSION
+// ✅ SUBMIT EXAM - FIXED to compare TEXT answers
 export const submitExam = async (req, res) => {
   try {
     const { attemptId, answers } = req.body;
@@ -136,7 +129,6 @@ export const submitExam = async (req, res) => {
       return res.status(400).json({ message: "Attempt ID required" });
     }
 
-    // Find the exam attempt and populate questions
     const attempt = await ExamAttempt.findById(attemptId);
 
     if (!attempt) {
@@ -152,13 +144,26 @@ export const submitExam = async (req, res) => {
       _id: { $in: attempt.questions.map(q => q.questionId) }
     });
 
-    // Calculate score
+    // Calculate score by comparing TEXT answers
     let correctCount = 0;
     const questionResults = [];
 
     for (const question of questions) {
-      const userAnswer = answers[question._id.toString()];
-      const isCorrect = userAnswer && userAnswer === question.correctAnswer;
+      const studentAnswerLetter = answers[question._id.toString()];
+      
+      // Get the actual text of the student's answer
+      let studentAnswerText = null;
+      if (studentAnswerLetter && question.options) {
+        const optionIndex = studentAnswerLetter.charCodeAt(0) - 65;
+        studentAnswerText = question.options[optionIndex];
+      }
+      
+      // The correct answer is stored as TEXT
+      const correctAnswerText = question.correctAnswer;
+      
+      // Compare the TEXT of the answers
+      const isCorrect = studentAnswerText && correctAnswerText && 
+        studentAnswerText.toLowerCase().trim() === correctAnswerText.toLowerCase().trim();
       
       if (isCorrect) {
         correctCount++;
@@ -167,8 +172,9 @@ export const submitExam = async (req, res) => {
       questionResults.push({
         questionId: question._id,
         questionText: question.question,
-        userAnswer: userAnswer || null,
-        correctAnswer: question.correctAnswer,
+        userAnswer: studentAnswerLetter || null,
+        userAnswerText: studentAnswerText,
+        correctAnswer: correctAnswerText,
         isCorrect: isCorrect,
         rationale: question.rationale
       });
@@ -222,7 +228,6 @@ export const getExamResults = async (req, res) => {
       .populate('subjectId', 'name')
       .sort({ submittedAt: -1 });
 
-    // Get only the latest attempt per student per subject
     const latestResults = {};
     results.forEach(result => {
       const key = `${result.userId?._id}-${result.subjectId?._id}`;
