@@ -1,7 +1,7 @@
 import Question from "../models/Question.js";
 import ExamAttempt from "../models/ExamAttempt.js";
 
-// ✅ START EXAM
+// ✅ START EXAM (Student only)
 export const startExam = async (req, res) => {
   try {
     const { courseId, subjectId } = req.body;
@@ -100,7 +100,7 @@ export const startExam = async (req, res) => {
   }
 };
 
-// ✅ SAVE PROGRESS
+// ✅ SAVE PROGRESS (Student only)
 export const saveProgress = async (req, res) => {
   try {
     const { attemptId, answers } = req.body;
@@ -135,7 +135,7 @@ export const saveProgress = async (req, res) => {
   }
 };
 
-// ✅ SUBMIT EXAM
+// ✅ SUBMIT EXAM (Student only)
 export const submitExam = async (req, res) => {
   try {
     const { attemptId, answers } = req.body;
@@ -168,13 +168,6 @@ export const submitExam = async (req, res) => {
       }
     });
 
-    // The model's pre-save hook will automatically calculate:
-    // - totalQuestions
-    // - correctAnswers  
-    // - score
-    // - percentage
-    // - result
-    
     attempt.status = 'submitted';
     attempt.submittedAt = new Date();
     
