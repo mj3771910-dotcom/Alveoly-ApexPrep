@@ -16,27 +16,32 @@ const AdminQuestions = () => {
   const [questions, setQuestions] = useState([]);
 
   const [filter, setFilter] = useState({ courseId: "", subjectId: "" });
+  
+  // NEW: Exam settings for the entire subject
+  const [examSettings, setExamSettings] = useState({
+    courseId: "",
+    subjectId: "",
+    examTime: "",
+    isExamLocked: false,
+  });
+  const [showExamSettings, setShowExamSettings] = useState(false);
 
   const defaultForm = {
     courseId: "",
     subjectId: "",
     type: "trial",
-    examTime: "",
-    isExamLocked: false,
     question: "",
-    options: ["", ""], // ✅ dynamic
+    options: ["", ""],
     correctAnswer: "",
     rationale: "",
   };
 
   const [questionForms, setQuestionForms] = useState([defaultForm]);
-
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const examTimes = Array.from({ length: 14 }, (_, i) => (i + 1) * 15);
 
-  // ================= FETCH =================
   useEffect(() => {
     fetchCourses();
     fetchSubjects();
@@ -92,7 +97,6 @@ const AdminQuestions = () => {
     }
   };
 
-  // ================= HANDLERS =================
   const handleFormChange = (index, field, value) => {
     const updated = [...questionForms];
     updated[index][field] = value;
@@ -123,10 +127,7 @@ const AdminQuestions = () => {
     const updated = [...questionForms];
     if (updated[qIndex].options.length <= 2) return;
     updated[qIndex].options.splice(optIndex, 1);
-
-    // reset answer if needed
     updated[qIndex].correctAnswer = "";
-
     setQuestionForms(updated);
   };
 
@@ -148,10 +149,21 @@ const AdminQuestions = () => {
     try {
       setLoading(true);
 
+      const questionsToSubmit = questionForms.map(q => ({
+        ...q,
+        // If it's an exam question, use the exam settings from the subject
+        examTime: q.type === "exam" && examSettings.subjectId === q.subjectId 
+          ? examSettings.examTime 
+          : "",
+        isExamLocked: q.type === "exam" && examSettings.subjectId === q.subjectId
+          ? examSettings.isExamLocked
+          : false,
+      }));
+
       if (editingId) {
-        await axios.put(`/questions/${editingId}`, questionForms[0]);
+        await axios.put(`/questions/${editingId}`, questionsToSubmit[0]);
       } else {
-        await axios.post("/questions/bulk", { questions: questionForms });
+        await axios.post("/questions/bulk", { questions: questionsToSubmit });
       }
 
       setQuestionForms([defaultForm]);
@@ -167,6 +179,16 @@ const AdminQuestions = () => {
   const handleEdit = (q) => {
     setEditingId(q._id);
     setQuestionForms([q]);
+    // Load exam settings for this subject
+    if (q.type === "exam") {
+      setExamSettings({
+        courseId: q.courseId,
+        subjectId: q.subjectId,
+        examTime: q.examTime,
+        isExamLocked: q.isExamLocked,
+      });
+      setShowExamSettings(true);
+    }
   };
 
   const handleDelete = async (_id) => {
@@ -227,7 +249,89 @@ const AdminQuestions = () => {
         </select>
       </div>
 
-      {/* FORMS */}
+      {/* EXAM SETTINGS SECTION - New */}
+      <div className="bg-white p-4 md:p-6 rounded-xl shadow mb-6">
+        <button
+          onClick={() => setShowExamSettings(!showExamSettings)}
+          className="bg-purple-600 text-white px-4 py-2 rounded mb-4"
+        >
+          {showExamSettings ? "Hide Exam Settings" : "Configure Exam Settings"}
+        </button>
+        
+        {showExamSettings && (
+          <div className="space-y-4 border-t pt-4">
+            <h3 className="font-semibold text-lg">Exam Configuration for Subject</h3>
+            
+            <select
+              value={examSettings.courseId}
+              onChange={(e) => {
+                setExamSettings({ ...examSettings, courseId: e.target.value, subjectId: "" });
+                fetchSubjects(e.target.value);
+              }}
+              className="w-full p-3 border rounded"
+            >
+              <option value="">Select Course</option>
+              {courses.map((c) => (
+                <option key={c._id} value={c._id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={examSettings.subjectId}
+              onChange={(e) => setExamSettings({ ...examSettings, subjectId: e.target.value })}
+              className="w-full p-3 border rounded"
+            >
+              <option value="">Select Subject</option>
+              {examSettings.courseId &&
+                filteredSubjects(examSettings.courseId).map((s) => (
+                  <option key={s._id} value={s._id}>
+                    {s.name}
+                  </option>
+                ))}
+            </select>
+
+            {examSettings.subjectId && (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <select
+                    value={examSettings.examTime}
+                    onChange={(e) =>
+                      setExamSettings({ ...examSettings, examTime: e.target.value })
+                    }
+                    className="p-3 border rounded"
+                  >
+                    <option value="">Select Exam Duration</option>
+                    {examTimes.map((t) => (
+                      <option key={t} value={t}>
+                        {t} minutes
+                      </option>
+                    ))}
+                  </select>
+
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={examSettings.isExamLocked}
+                      onChange={(e) =>
+                        setExamSettings({ ...examSettings, isExamLocked: e.target.checked })
+                      }
+                    />
+                    Lock Exam (prevent retake)
+                  </label>
+                </div>
+                
+                <div className="bg-yellow-50 p-3 rounded text-sm text-yellow-800">
+                  ⚠️ These settings will apply to ALL exam questions under this subject
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* QUESTION FORMS */}
       <div className="bg-white p-4 md:p-6 rounded-xl shadow space-y-6">
         {questionForms.map((form, index) => (
           <div
@@ -286,38 +390,10 @@ const AdminQuestions = () => {
               <option value="exam">Exam</option>
             </select>
 
-            {/* EXAM SETTINGS */}
-            {form.type === "exam" && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <select
-                  value={form.examTime}
-                  onChange={(e) =>
-                    handleFormChange(index, "examTime", e.target.value)
-                  }
-                  className="p-3 border rounded"
-                >
-                  <option value="">Select Time</option>
-                  {examTimes.map((t) => (
-                    <option key={t} value={t}>
-                      {t} mins
-                    </option>
-                  ))}
-                </select>
-
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={form.isExamLocked}
-                    onChange={(e) =>
-                      handleFormChange(
-                        index,
-                        "isExamLocked",
-                        e.target.checked
-                      )
-                    }
-                  />
-                  Lock Exam
-                </label>
+            {/* Display exam info if available */}
+            {form.type === "exam" && examSettings.subjectId === form.subjectId && examSettings.examTime && (
+              <div className="bg-blue-50 p-3 rounded text-sm">
+                📋 Exam Timer: {examSettings.examTime} minutes {examSettings.isExamLocked && "🔒 Locked"}
               </div>
             )}
 
@@ -404,15 +480,22 @@ const AdminQuestions = () => {
         </button>
       </div>
 
-      {/* LIST */}
+      {/* QUESTION LIST */}
       <div className="bg-white p-6 rounded-xl shadow mt-6 space-y-4">
+        <h3 className="font-bold text-lg mb-4">Existing Questions</h3>
         {filteredQuestions.map((q) => (
           <div key={q._id} className="border p-4 rounded-lg">
-            <div className="flex justify-between">
-              <h4 className="font-semibold break-words">{q.question}</h4>
-              <div className="flex gap-3">
-                <FaEdit onClick={() => handleEdit(q)} />
-                <FaTrash onClick={() => handleDelete(q._id)} />
+            <div className="flex justify-between items-start">
+              <div className="flex-1">
+                <h4 className="font-semibold break-words">{q.question}</h4>
+                <div className="text-sm text-gray-500 mt-1">
+                  Type: {q.type} | 
+                  {q.type === "exam" && q.examTime && ` Timer: ${q.examTime}min`}
+                </div>
+              </div>
+              <div className="flex gap-3 ml-4">
+                <FaEdit onClick={() => handleEdit(q)} className="cursor-pointer text-blue-600" />
+                <FaTrash onClick={() => handleDelete(q._id)} className="cursor-pointer text-red-600" />
               </div>
             </div>
           </div>
