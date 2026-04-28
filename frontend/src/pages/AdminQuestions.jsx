@@ -7,7 +7,6 @@ import {
   FaPlus,
   FaArrowLeft,
   FaArrowRight,
-  faCheckCircle,
 } from "react-icons/fa";
 import axios from "../api/axios";
 
