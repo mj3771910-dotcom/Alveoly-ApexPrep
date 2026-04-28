@@ -2,6 +2,31 @@ import Question from "../models/Question.js";
 import ExamAttempt from "../models/ExamAttempt.js";
 
 // ✅ START EXAM
+// Add this function to get exam settings for a subject
+export const getExamSettingsForSubject = async (req, res) => {
+  try {
+    const { subjectId } = req.params;
+    
+    // Get any exam question to retrieve the exam settings
+    const examQuestion = await Question.findOne({
+      subjectId,
+      type: "exam"
+    });
+    
+    if (!examQuestion) {
+      return res.json({ examTime: null, isExamLocked: false });
+    }
+    
+    res.json({
+      examTime: examQuestion.examTime,
+      isExamLocked: examQuestion.isExamLocked
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// Modified startExam to use consistent examTime across all questions
 export const startExam = async (req, res) => {
   try {
     const { courseId, subjectId } = req.body;
@@ -27,7 +52,12 @@ export const startExam = async (req, res) => {
       return res.status(404).json({ message: "No exam questions found" });
     }
 
-    const duration = (questions[0].examTime || 30) * 60;
+    // Get the exam time from the first question (all should have the same)
+    const examTimePerQuestion = questions[0].examTime;
+    // Total duration = examTime (in minutes) * number of questions? NO!
+    // According to your requirement, the timer should be for ALL questions combined
+    // So we use the examTime as the total duration for the entire exam
+    const duration = (examTimePerQuestion || 30) * 60; // Convert to seconds
 
     if (attempt) {
       return res.json({
@@ -59,10 +89,9 @@ export const startExam = async (req, res) => {
 
     const attemptNumber = lastAttempt ? lastAttempt.attemptNumber + 1 : 1;
 
-    // Store the correct answer TEXT, not letter
     const formattedQuestions = questions.map((q) => ({
       questionId: q._id,
-      correct: q.correctAnswer, // This is TEXT
+      correct: q.correctAnswer,
       selected: "",
       isCorrect: false,
     }));
@@ -78,14 +107,14 @@ export const startExam = async (req, res) => {
       attemptNumber,
       status: "in-progress",
       startedAt: new Date(),
-      duration,
-      resitAllowed: false,
+      duration, // Total duration for entire exam
+      resitAllowed: questions[0].isExamLocked ? false : true,
     });
 
     res.json({
       attemptId: attempt._id,
       questions,
-      duration,
+      duration, // Send total duration to frontend
     });
 
   } catch (err) {
