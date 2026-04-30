@@ -2,12 +2,12 @@ import { useEffect, useState } from "react";
 import axios from "../api/axios";
 import { FaPlayCircle, FaFilePdf, FaPlus, FaEdit, FaTrash } from "react-icons/fa";
 
-// Quiz Editor Component (moved outside)
+// Quiz Editor Component with Edit Functionality
 const QuizEditor = ({ lesson, onClose, onSave }) => {
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(false);
-  // Add this state in QuizEditor component
-const [timerMinutes, setTimerMinutes] = useState(0);
+  const [timerMinutes, setTimerMinutes] = useState(0);
+  const [editingIndex, setEditingIndex] = useState(null);
   const [currentQuestion, setCurrentQuestion] = useState({
     question: "",
     options: ["", "", "", ""],
@@ -27,13 +27,43 @@ const [timerMinutes, setTimerMinutes] = useState(0);
       const res = await axios.get(`/lesson-quiz/lesson/${lesson._id}`);
       if (res.data && res.data.length) {
         setQuestions(res.data);
+        // Set timer from existing questions if available
+        if (res.data[0]?.timerMinutes) {
+          setTimerMinutes(res.data[0].timerMinutes);
+        }
       }
     } catch (err) {
       console.error("Error fetching questions:", err);
     }
   };
 
-  const addQuestion = () => {
+  const resetForm = () => {
+    setCurrentQuestion({
+      question: "",
+      options: ["", "", "", ""],
+      correctAnswer: "",
+      rationale: "",
+      points: 1,
+    });
+    setEditingIndex(null);
+  };
+
+  const handleEditQuestion = (index) => {
+    const questionToEdit = questions[index];
+    setCurrentQuestion({
+      question: questionToEdit.question,
+      options: [...questionToEdit.options],
+      correctAnswer: questionToEdit.correctAnswer,
+      rationale: questionToEdit.rationale || "",
+      points: questionToEdit.points || 1,
+    });
+    setEditingIndex(index);
+    // Scroll to form
+    document.getElementById('question-form')?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const addOrUpdateQuestion = () => {
+    // Validation
     if (!currentQuestion.question.trim()) {
       alert("Please enter a question");
       return;
@@ -47,77 +77,126 @@ const [timerMinutes, setTimerMinutes] = useState(0);
       return;
     }
 
-    setQuestions([...questions, { ...currentQuestion, id: Date.now() }]);
-    setCurrentQuestion({
-      question: "",
-      options: ["", "", "", ""],
-      correctAnswer: "",
-      rationale: "",
-      points: 1,
-    });
+    if (editingIndex !== null) {
+      // Update existing question
+      const updatedQuestions = [...questions];
+      updatedQuestions[editingIndex] = {
+        ...updatedQuestions[editingIndex],
+        question: currentQuestion.question,
+        options: [...currentQuestion.options],
+        correctAnswer: currentQuestion.correctAnswer,
+        rationale: currentQuestion.rationale,
+        points: currentQuestion.points,
+      };
+      setQuestions(updatedQuestions);
+      alert("Question updated successfully!");
+    } else {
+      // Add new question
+      setQuestions([...questions, { ...currentQuestion, id: Date.now() }]);
+    }
+    
+    // Reset form
+    resetForm();
   };
 
   const removeQuestion = (index) => {
-    setQuestions(questions.filter((_, i) => i !== index));
+    if (window.confirm("Are you sure you want to delete this question?")) {
+      setQuestions(questions.filter((_, i) => i !== index));
+      if (editingIndex === index) {
+        resetForm();
+      } else if (editingIndex !== null && editingIndex > index) {
+        setEditingIndex(editingIndex - 1);
+      }
+    }
   };
 
   const saveQuiz = async () => {
-  if (questions.length === 0) {
-    alert("Please add at least one question");
-    return;
-  }
+    if (questions.length === 0) {
+      alert("Please add at least one question");
+      return;
+    }
 
-  setLoading(true);
-  try {
-    console.log("Saving questions for lesson:", lesson._id);
-    console.log("Questions to save:", questions);
+    setLoading(true);
+    try {
+      console.log("Saving questions for lesson:", lesson._id);
+      console.log("Questions to save:", questions);
 
-    // Format questions properly for backend
-    const formattedQuestions = questions.map(q => ({
-      question: q.question,
-      options: q.options,
-      correctAnswer: q.correctAnswer,
-      rationale: q.rationale || "",
-      points: q.points || 1,
-    }));
+      const formattedQuestions = questions.map(q => ({
+        question: q.question,
+        options: q.options,
+        correctAnswer: q.correctAnswer,
+        rationale: q.rationale || "",
+        points: q.points || 1,
+      }));
 
-    const response = await axios.post("/lesson-quiz/save", {
-  lessonId: lesson._id,
-  questions: formattedQuestions,
-  timerMinutes: timerMinutes, // Add this
-});
+      const response = await axios.post("/lesson-quiz/save", {
+        lessonId: lesson._id,
+        questions: formattedQuestions,
+        timerMinutes: timerMinutes,
+      });
 
-    console.log("Save response:", response.data);
-    alert(`✅ Saved ${questions.length} questions for this lesson!`);
-    onSave?.();
-    onClose();
-  } catch (err) {
-    console.error("Save error - Full error:", err);
-    console.error("Error response:", err.response);
-    console.error("Error message:", err.message);
-    
-    // Show detailed error message
-    const errorMsg = err.response?.data?.message || err.message || "Failed to save questions";
-    alert(`Failed to save questions: ${errorMsg}`);
-  } finally {
-    setLoading(false);
-  }
-};
+      console.log("Save response:", response.data);
+      alert(`✅ Saved ${questions.length} questions for this lesson!`);
+      onSave?.();
+      onClose();
+    } catch (err) {
+      console.error("Save error - Full error:", err);
+      console.error("Error response:", err.response);
+      
+      const errorMsg = err.response?.data?.message || err.message || "Failed to save questions";
+      alert(`Failed to save questions: ${errorMsg}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const totalPoints = questions.reduce((sum, q) => sum + (q.points || 1), 0);
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center">
-          <h2 className="text-xl font-bold">Quiz Editor: {lesson?.title}</h2>
+          <div>
+            <h2 className="text-xl font-bold">Quiz Editor: {lesson?.title}</h2>
+            <p className="text-sm text-gray-500">
+              {questions.length} question(s) | Total Points: {totalPoints}
+            </p>
+          </div>
           <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
             ✖
           </button>
         </div>
 
         <div className="p-6">
-          {/* Add Question Form */}
-          <div className="bg-gray-50 p-4 rounded-lg mb-6">
-            <h3 className="font-semibold mb-4">Add New Question</h3>
+          {/* Timer Settings */}
+          <div className="mb-6 bg-blue-50 p-4 rounded-lg">
+            <label className="block text-sm font-semibold mb-2">⏱️ Quiz Timer (minutes)</label>
+            <select
+              value={timerMinutes}
+              onChange={(e) => setTimerMinutes(parseInt(e.target.value))}
+              className="w-full p-3 border rounded-lg bg-white"
+            >
+              <option value="0">No timer (unlimited)</option>
+              <option value="5">5 minutes</option>
+              <option value="10">10 minutes</option>
+              <option value="15">15 minutes</option>
+              <option value="20">20 minutes</option>
+              <option value="30">30 minutes</option>
+              <option value="45">45 minutes</option>
+              <option value="60">60 minutes</option>
+              <option value="90">90 minutes</option>
+              <option value="120">120 minutes</option>
+            </select>
+            <p className="text-xs text-gray-500 mt-1">
+              This timer applies to the entire quiz
+            </p>
+          </div>
+
+          {/* Add/Edit Question Form */}
+          <div id="question-form" className="bg-gray-50 p-4 rounded-lg mb-6">
+            <h3 className="font-semibold mb-4">
+              {editingIndex !== null ? "✏️ Edit Question" : "➕ Add New Question"}
+            </h3>
             
             <textarea
               value={currentQuestion.question}
@@ -129,6 +208,9 @@ const [timerMinutes, setTimerMinutes] = useState(0);
 
             {currentQuestion.options.map((opt, idx) => (
               <div key={idx} className="flex gap-2 mb-2">
+                <span className="w-8 h-10 flex items-center justify-center bg-gray-200 rounded font-bold">
+                  {String.fromCharCode(65 + idx)}
+                </span>
                 <input
                   value={opt}
                   onChange={(e) => {
@@ -142,92 +224,116 @@ const [timerMinutes, setTimerMinutes] = useState(0);
               </div>
             ))}
 
-            <select
-              value={currentQuestion.correctAnswer}
-              onChange={(e) => setCurrentQuestion({ ...currentQuestion, correctAnswer: e.target.value })}
-              className="w-full p-3 border rounded mb-3"
-            >
-              <option value="">Select Correct Answer</option>
-              {currentQuestion.options.map((_, idx) => (
-                <option key={idx} value={String.fromCharCode(65 + idx)}>
-                  {String.fromCharCode(65 + idx)}
-                </option>
-              ))}
-            </select>
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <select
+                value={currentQuestion.correctAnswer}
+                onChange={(e) => setCurrentQuestion({ ...currentQuestion, correctAnswer: e.target.value })}
+                className="w-full p-3 border rounded"
+              >
+                <option value="">Select Correct Answer</option>
+                {currentQuestion.options.map((_, idx) => (
+                  <option key={idx} value={String.fromCharCode(65 + idx)}>
+                    {String.fromCharCode(65 + idx)}
+                  </option>
+                ))}
+              </select>
+
+              <input
+                type="number"
+                value={currentQuestion.points}
+                onChange={(e) => setCurrentQuestion({ ...currentQuestion, points: parseInt(e.target.value) || 1 })}
+                placeholder="Points"
+                className="w-full p-3 border rounded"
+                min="1"
+              />
+            </div>
 
             <textarea
               value={currentQuestion.rationale}
               onChange={(e) => setCurrentQuestion({ ...currentQuestion, rationale: e.target.value })}
-              placeholder="Rationale (explanation)"
+              placeholder="Rationale (explanation for correct answer)"
               className="w-full p-3 border rounded mb-3"
               rows="2"
             />
 
-            <input
-              type="number"
-              value={currentQuestion.points}
-              onChange={(e) => setCurrentQuestion({ ...currentQuestion, points: parseInt(e.target.value) || 1 })}
-              placeholder="Points"
-              className="w-32 p-3 border rounded mb-3"
-              min="1"
-            />
-
-            <button
-              onClick={addQuestion}
-              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 flex items-center gap-2"
-            >
-              <FaPlus /> Add Question
-            </button>
+            <div className="flex gap-3">
+              <button
+                onClick={addOrUpdateQuestion}
+                className={`flex-1 px-4 py-2 rounded flex items-center justify-center gap-2 ${
+                  editingIndex !== null 
+                    ? "bg-yellow-500 hover:bg-yellow-600" 
+                    : "bg-blue-600 hover:bg-blue-700"
+                } text-white transition`}
+              >
+                {editingIndex !== null ? "✏️ Update Question" : "➕ Add Question"}
+              </button>
+              
+              {editingIndex !== null && (
+                <button
+                  onClick={resetForm}
+                  className="px-4 py-2 bg-gray-400 hover:bg-gray-500 text-white rounded transition"
+                >
+                  Cancel Edit
+                </button>
+              )}
+            </div>
           </div>
-
-          <div className="mb-4">
-  <label className="block text-sm font-semibold mb-1">Quiz Timer (minutes)</label>
-  <select
-    value={timerMinutes}
-    onChange={(e) => setTimerMinutes(parseInt(e.target.value))}
-    className="w-full p-3 border rounded"
-  >
-    <option value="0">No timer</option>
-    <option value="5">5 minutes</option>
-    <option value="10">10 minutes</option>
-    <option value="15">15 minutes</option>
-    <option value="20">20 minutes</option>
-    <option value="30">30 minutes</option>
-    <option value="45">45 minutes</option>
-    <option value="60">60 minutes</option>
-  </select>
-</div>
-
 
           {/* Questions List */}
           <div className="space-y-4">
-            <h3 className="font-semibold">Questions ({questions.length})</h3>
+            <div className="flex justify-between items-center">
+              <h3 className="font-semibold text-lg">Questions List</h3>
+              <span className="text-sm text-gray-500">
+                Total Points: {totalPoints}
+              </span>
+            </div>
+            
             {questions.length === 0 ? (
-              <p className="text-gray-500 text-center py-8">No questions added yet. Add your first question above.</p>
+              <p className="text-gray-500 text-center py-8 border-2 border-dashed rounded-lg">
+                No questions added yet. Add your first question above.
+              </p>
             ) : (
               questions.map((q, idx) => (
-                <div key={idx} className="border rounded-lg p-4">
+                <div key={idx} className="border rounded-lg p-4 hover:shadow-md transition">
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
-                      <p className="font-medium">{idx + 1}. {q.question}</p>
-                      <div className="ml-4 mt-2 space-y-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="font-bold text-lg">{idx + 1}.</span>
+                        <span className="font-medium">{q.question}</span>
+                        <span className="text-xs bg-gray-200 px-2 py-1 rounded">
+                          {q.points || 1} pt{q.points !== 1 ? 's' : ''}
+                        </span>
+                      </div>
+                      <div className="ml-6 space-y-1">
                         {q.options.map((opt, i) => (
-                          <p key={i} className={String.fromCharCode(65 + i) === q.correctAnswer ? "text-green-600 font-semibold" : ""}>
+                          <p key={i} className={String.fromCharCode(65 + i) === q.correctAnswer ? "text-green-600 font-semibold" : "text-gray-700"}>
                             {String.fromCharCode(65 + i)}. {opt}
+                            {String.fromCharCode(65 + i) === q.correctAnswer && " ✓"}
                           </p>
                         ))}
                       </div>
                       {q.rationale && (
-                        <p className="text-sm text-gray-600 mt-2">💡 {q.rationale}</p>
+                        <p className="text-sm text-gray-600 mt-2 ml-6 bg-gray-50 p-2 rounded">
+                          💡 {q.rationale}
+                        </p>
                       )}
-                      <p className="text-sm text-gray-500 mt-1">Points: {q.points}</p>
                     </div>
-                    <button
-                      onClick={() => removeQuestion(idx)}
-                      className="text-red-600 hover:text-red-800 p-2"
-                    >
-                      <FaTrash />
-                    </button>
+                    <div className="flex gap-2 ml-4">
+                      <button
+                        onClick={() => handleEditQuestion(idx)}
+                        className="text-blue-600 hover:text-blue-800 p-2 rounded transition"
+                        title="Edit Question"
+                      >
+                        <FaEdit size={18} />
+                      </button>
+                      <button
+                        onClick={() => removeQuestion(idx)}
+                        className="text-red-600 hover:text-red-800 p-2 rounded transition"
+                        title="Delete Question"
+                      >
+                        <FaTrash size={18} />
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))
@@ -236,15 +342,18 @@ const [timerMinutes, setTimerMinutes] = useState(0);
         </div>
 
         <div className="sticky bottom-0 bg-white border-t p-4 flex justify-end gap-3">
-          <button onClick={onClose} className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">
+          <button 
+            onClick={onClose} 
+            className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400 transition"
+          >
             Cancel
           </button>
           <button
             onClick={saveQuiz}
-            disabled={loading}
-            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+            disabled={loading || questions.length === 0}
+            className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition disabled:opacity-50"
           >
-            {loading ? "Saving..." : "Save Quiz"}
+            {loading ? "Saving..." : `Save Quiz (${questions.length} questions)`}
           </button>
         </div>
       </div>
@@ -312,75 +421,74 @@ const AdminContent = () => {
   }, []);
 
   // Handle upload / update
-  // In AdminContent.jsx - Update handleUpload
-const handleUpload = async () => {
-  if (!form.title || (!file && !editingId)) {
-    return alert("Please fill all required fields");
-  }
-
-  // Validate subject/course selection
-  if (form.linkType === "subject" && !form.subjectId) {
-    return alert("Please select a subject");
-  }
-  
-  if (form.linkType === "course" && !form.courseId) {
-    return alert("Please select a course");
-  }
-
-  const formData = new FormData();
-  formData.append("title", form.title);
-  formData.append("type", form.type);
-  if (file) formData.append("file", file);
-  if (form.thumbnail) formData.append("thumbnail", form.thumbnail);
-
-  if (form.linkType === "subject") {
-    formData.append("subjectId", form.subjectId);
-    // Get courseId from the selected subject
-    const selectedSubject = subjects.find(s => s._id === form.subjectId);
-    if (selectedSubject && selectedSubject.courseId) {
-      formData.append("courseId", selectedSubject.courseId);
-    } else {
-      alert("Selected subject is not associated with a course");
-      return;
+  const handleUpload = async () => {
+    if (!form.title || (!file && !editingId)) {
+      return alert("Please fill all required fields");
     }
-  } else {
-    formData.append("courseId", form.courseId);
-  }
 
-  formData.append("isPaid", form.isPaid);
-  formData.append("price", form.price);
+    // Validate subject/course selection
+    if (form.linkType === "subject" && !form.subjectId) {
+      return alert("Please select a subject");
+    }
+    
+    if (form.linkType === "course" && !form.courseId) {
+      return alert("Please select a course");
+    }
 
-  try {
-    if (editingId) {
-      const res = await axios.put(`/content/${editingId}`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
+    const formData = new FormData();
+    formData.append("title", form.title);
+    formData.append("type", form.type);
+    if (file) formData.append("file", file);
+    if (form.thumbnail) formData.append("thumbnail", form.thumbnail);
+
+    if (form.linkType === "subject") {
+      formData.append("subjectId", form.subjectId);
+      // Get courseId from the selected subject
+      const selectedSubject = subjects.find(s => s._id === form.subjectId);
+      if (selectedSubject && selectedSubject.courseId) {
+        formData.append("courseId", selectedSubject.courseId);
+      } else {
+        alert("Selected subject is not associated with a course");
+        return;
+      }
+    } else {
+      formData.append("courseId", form.courseId);
+    }
+
+    formData.append("isPaid", form.isPaid);
+    formData.append("price", form.price);
+
+    try {
+      if (editingId) {
+        const res = await axios.put(`/content/${editingId}`, formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+        setContents((prev) => prev.map((c) => (c._id === editingId ? res.data : c)));
+        alert("✅ Content updated");
+      } else {
+        const res = await axios.post("/content/upload", formData);
+        setContents((prev) => [res.data, ...prev]);
+        alert("✅ Uploaded successfully");
+      }
+
+      // Reset form
+      setForm({
+        title: "",
+        type: "video",
+        linkType: "subject",
+        courseId: "",
+        subjectId: "",
+        isPaid: false,
+        price: "",
+        thumbnail: null,
       });
-      setContents((prev) => prev.map((c) => (c._id === editingId ? res.data : c)));
-      alert("✅ Content updated");
-    } else {
-      const res = await axios.post("/content/upload", formData);
-      setContents((prev) => [res.data, ...prev]);
-      alert("✅ Uploaded successfully");
+      setFile(null);
+      setEditingId(null);
+    } catch (err) {
+      console.error("Upload error:", err);
+      alert("Operation failed: " + (err.response?.data?.message || err.message));
     }
-
-    // Reset form
-    setForm({
-      title: "",
-      type: "video",
-      linkType: "subject",
-      courseId: "",
-      subjectId: "",
-      isPaid: false,
-      price: "",
-      thumbnail: null,
-    });
-    setFile(null);
-    setEditingId(null);
-  } catch (err) {
-    console.error("Upload error:", err);
-    alert("Operation failed: " + (err.response?.data?.message || err.message));
-  }
-};
+  };
 
   // Delete content
   const handleDelete = async (id) => {
@@ -682,6 +790,7 @@ const handleUpload = async () => {
           }}
           onSave={() => {
             console.log("Quiz saved for lesson:", selectedLesson.title);
+            // Refresh content list or show success message
           }}
         />
       )}

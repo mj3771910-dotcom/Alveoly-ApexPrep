@@ -1,4 +1,5 @@
-// pages/admin/PerformanceDashboard.jsx - COMPLETE FIXED VERSION
+// pages/admin/PerformanceDashboard.jsx - ADD DELETE FUNCTIONALITY
+
 import { useState, useEffect } from "react";
 import axios from "../../api/axios";
 import toast, { Toaster } from "react-hot-toast";
@@ -12,6 +13,7 @@ import {
   FaEye,
   FaTimes,
   FaCheckCircle,
+  FaTrash, // Add this icon
 } from "react-icons/fa";
 
 const PerformanceDashboard = () => {
@@ -72,7 +74,6 @@ const PerformanceDashboard = () => {
       setStudents(res.data);
     } catch (err) {
       console.error("Error fetching students:", err);
-      // Don't show error to user, just log it
     }
   };
 
@@ -85,18 +86,15 @@ const PerformanceDashboard = () => {
     try {
       let res;
       if (selectedStudent) {
-        // Fetch specific student's progress
         res = await axios.get(`/lesson-quiz/student/${selectedStudent}/progress`);
         console.log("Student progress data:", res.data);
       } else {
-        // Fetch subject-wide performance
         res = await axios.get(`/lesson-quiz/subject/${selectedSubject}/performance`);
         console.log("Subject performance data:", res.data);
       }
       setPerformance(res.data);
     } catch (err) {
       console.error("Error fetching performance:", err);
-      console.error("Error response:", err.response);
       const errorMsg = err.response?.data?.message || "Failed to fetch performance data";
       toast.error(errorMsg);
       setPerformance({ attempts: [], stats: { averageScore: 0, passRate: 0, totalAttempts: 0, completedLessons: 0 } });
@@ -117,6 +115,22 @@ const PerformanceDashboard = () => {
     } catch (err) {
       console.error("Error allowing retake:", err);
       toast.error(err.response?.data?.message || "Failed to allow retake");
+    }
+  };
+
+  // NEW: Delete attempt function
+  const handleDeleteAttempt = async (attemptId, studentName, lessonTitle) => {
+    if (!window.confirm(`Are you sure you want to DELETE this attempt for ${studentName} - "${lessonTitle}"? This action cannot be undone.`)) {
+      return;
+    }
+    
+    try {
+      await axios.delete(`/lesson-quiz/attempt/${attemptId}`);
+      toast.success(`Successfully deleted attempt for ${studentName}`);
+      await fetchPerformanceData(); // Refresh the data
+    } catch (err) {
+      console.error("Error deleting attempt:", err);
+      toast.error(err.response?.data?.message || "Failed to delete attempt");
     }
   };
 
@@ -358,6 +372,13 @@ const PerformanceDashboard = () => {
                             >
                               <FaRedoAlt size={18} />
                             </button>
+                            <button
+                              onClick={() => handleDeleteAttempt(attempt._id, attempt.userName, attempt.lessonId?.title)}
+                              className="text-red-600 hover:text-red-800 p-1 rounded transition"
+                              title="Delete Attempt"
+                            >
+                              <FaTrash size={18} />
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -451,6 +472,15 @@ const PerformanceDashboard = () => {
                 className="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition flex items-center gap-2"
               >
                 <FaRedoAlt /> Allow Retake
+              </button>
+              <button
+                onClick={() => {
+                  setShowDetailsModal(false);
+                  handleDeleteAttempt(selectedAttempt._id, selectedAttempt.userName, selectedAttempt.lessonId?.title);
+                }}
+                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition flex items-center gap-2"
+              >
+                <FaTrash /> Delete Attempt
               </button>
             </div>
           </div>
