@@ -9,6 +9,18 @@ const AdminContent = () => {
   const [contents, setContents] = useState([]);
   const [editingId, setEditingId] = useState(null);
 
+  const QuizEditor = ({ lesson, onClose, onSave }) => {
+  const [questions, setQuestions] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [currentQuestion, setCurrentQuestion] = useState({
+    question: "",
+    options: ["", "", "", ""],
+    correctAnswer: "",
+    rationale: "",
+    points: 1,
+  });
+}
+
   // ✅ VIEWER STATE (NEW)
   const [viewer, setViewer] = useState({
     open: false,
@@ -155,6 +167,79 @@ const AdminContent = () => {
   // ✅ CLOSE VIEWER
   const closeViewer = () => {
     setViewer({ open: false, type: "", url: "", title: "" });
+  };
+
+  useEffect(() => {
+    if (lesson?._id) {
+      fetchExistingQuestions();
+    }
+  }, [lesson]);
+
+  const fetchExistingQuestions = async () => {
+    try {
+      const res = await axios.get(`/lesson-quiz/lesson/${lesson._id}`);
+      if (res.data.length) {
+        setQuestions(res.data);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const addQuestion = () => {
+    if (!currentQuestion.question.trim()) {
+      alert("Please enter a question");
+      return;
+    }
+    if (currentQuestion.options.some(opt => !opt.trim())) {
+      alert("Please fill all options");
+      return;
+    }
+    if (!currentQuestion.correctAnswer) {
+      alert("Please select correct answer");
+      return;
+    }
+
+    setQuestions([...questions, { ...currentQuestion, id: Date.now() }]);
+    setCurrentQuestion({
+      question: "",
+      options: ["", "", "", ""],
+      correctAnswer: "",
+      rationale: "",
+      points: 1,
+    });
+  };
+
+  const removeQuestion = (index) => {
+    setQuestions(questions.filter((_, i) => i !== index));
+  };
+
+  const saveQuiz = async () => {
+    if (questions.length === 0) {
+      alert("Please add at least one question");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await axios.post("/lesson-quiz/save", {
+        lessonId: lesson._id,
+        questions: questions.map(q => ({
+          question: q.question,
+          options: q.options,
+          correctAnswer: q.correctAnswer,
+          rationale: q.rationale,
+          points: q.points,
+        })),
+      });
+      alert(`Saved ${questions.length} questions for this lesson!`);
+      onSave?.();
+      onClose();
+    } catch (err) {
+      alert("Failed to save questions");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -358,6 +443,128 @@ const AdminContent = () => {
           </div>
         </div>
       )}
+
+       <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center">
+          <h2 className="text-xl font-bold">Quiz Editor: {lesson?.title}</h2>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+            ✖
+          </button>
+        </div>
+
+        <div className="p-6">
+          {/* Add Question Form */}
+          <div className="bg-gray-50 p-4 rounded-lg mb-6">
+            <h3 className="font-semibold mb-4">Add New Question</h3>
+            
+            <textarea
+              value={currentQuestion.question}
+              onChange={(e) => setCurrentQuestion({ ...currentQuestion, question: e.target.value })}
+              placeholder="Enter question"
+              className="w-full p-3 border rounded mb-3"
+              rows="2"
+            />
+
+            {currentQuestion.options.map((opt, idx) => (
+              <div key={idx} className="flex gap-2 mb-2">
+                <input
+                  value={opt}
+                  onChange={(e) => {
+                    const newOpts = [...currentQuestion.options];
+                    newOpts[idx] = e.target.value;
+                    setCurrentQuestion({ ...currentQuestion, options: newOpts });
+                  }}
+                  placeholder={`Option ${String.fromCharCode(65 + idx)}`}
+                  className="flex-1 p-3 border rounded"
+                />
+              </div>
+            ))}
+
+            <select
+              value={currentQuestion.correctAnswer}
+              onChange={(e) => setCurrentQuestion({ ...currentQuestion, correctAnswer: e.target.value })}
+              className="w-full p-3 border rounded mb-3"
+            >
+              <option value="">Select Correct Answer</option>
+              {currentQuestion.options.map((_, idx) => (
+                <option key={idx} value={String.fromCharCode(65 + idx)}>
+                  {String.fromCharCode(65 + idx)}
+                </option>
+              ))}
+            </select>
+
+            <textarea
+              value={currentQuestion.rationale}
+              onChange={(e) => setCurrentQuestion({ ...currentQuestion, rationale: e.target.value })}
+              placeholder="Rationale (explanation)"
+              className="w-full p-3 border rounded mb-3"
+              rows="2"
+            />
+
+            <input
+              type="number"
+              value={currentQuestion.points}
+              onChange={(e) => setCurrentQuestion({ ...currentQuestion, points: parseInt(e.target.value) })}
+              placeholder="Points"
+              className="w-32 p-3 border rounded mb-3"
+              min="1"
+            />
+
+            <button
+              onClick={addQuestion}
+              className="bg-blue-600 text-white px-4 py-2 rounded"
+            >
+              + Add Question
+            </button>
+          </div>
+
+          {/* Questions List */}
+          <div className="space-y-4">
+            <h3 className="font-semibold">Questions ({questions.length})</h3>
+            {questions.map((q, idx) => (
+              <div key={idx} className="border rounded-lg p-4">
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <p className="font-medium">{idx + 1}. {q.question}</p>
+                    <div className="ml-4 mt-2 space-y-1">
+                      {q.options.map((opt, i) => (
+                        <p key={i} className={String.fromCharCode(65 + i) === q.correctAnswer ? "text-green-600 font-semibold" : ""}>
+                          {String.fromCharCode(65 + i)}. {opt}
+                        </p>
+                      ))}
+                    </div>
+                    {q.rationale && (
+                      <p className="text-sm text-gray-600 mt-2">💡 {q.rationale}</p>
+                    )}
+                    <p className="text-sm text-gray-500 mt-1">Points: {q.points}</p>
+                  </div>
+                  <button
+                    onClick={() => removeQuestion(idx)}
+                    className="text-red-600 hover:text-red-800"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="sticky bottom-0 bg-white border-t p-4 flex justify-end gap-3">
+          <button onClick={onClose} className="px-4 py-2 bg-gray-300 rounded">
+            Cancel
+          </button>
+          <button
+            onClick={saveQuiz}
+            disabled={loading}
+            className="px-4 py-2 bg-green-600 text-white rounded disabled:opacity-50"
+          >
+            {loading ? "Saving..." : "Save Quiz"}
+          </button>
+        </div>
+      </div>
+    </div>
     </>
   );
 };

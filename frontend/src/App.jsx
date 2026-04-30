@@ -52,6 +52,8 @@ import AdminTestimonials from "./pages/AdminTestimonials";
 import AdminInbox from "./pages/AdminInbox";
 import AdminContent from "./pages/AdminContent";
 import StudentLessons from "./pages/StudentLessons";
+import LessonQuiz from "./components/student/LessonQuiz";
+import PerformanceDashboard from "./pages/admin/PerformanceDashboard";
 
 function App() {
   return (
@@ -115,6 +117,8 @@ function App() {
           <Route path="testimonials" element={<StudentTestimonials />} />
           <Route path="lessons/:subjectId" element={<StudentLessons />} />
           <Route path="ai" element={<AIChat />} />
+          <Route path="lessons/:lessonId/quiz" element={<LessonQuiz />} />
+          <Route path="performance" element={<PerformanceDashboard />} />
         </Route>
 
         {/* Standalone AI chat for students */}
