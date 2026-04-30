@@ -55,6 +55,7 @@ import StudentLessons from "./pages/StudentLessons";
 import LessonQuiz from "./components/student/LessonQuiz";
 import PerformanceDashboard from "./pages/admin/PerformanceDashboard";
 
+
 function App() {
   return (
     <div className="min-h-screen bg-gray-100">
@@ -118,7 +119,6 @@ function App() {
           <Route path="lessons/:subjectId" element={<StudentLessons />} />
           <Route path="ai" element={<AIChat />} />
           <Route path="lessons/:lessonId/quiz" element={<LessonQuiz />} />
-          <Route path="performance" element={<PerformanceDashboard />} />
         </Route>
 
         {/* Standalone AI chat for students */}
@@ -154,6 +154,8 @@ function App() {
           <Route path="testimonials" element={<AdminTestimonials />} />
           <Route path="in-box" element={<AdminInbox />} />
           <Route path="content" element={<AdminContent />} />
+          // In the admin section, add:
+<Route path="performance" element={<PerformanceDashboard />} />
         </Route>
 
       </Routes>

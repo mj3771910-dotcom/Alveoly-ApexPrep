@@ -24,7 +24,7 @@ const AdminLayout = () => {
   const menuItems = [
     { to: "/admin", label: "Dashboard", icon: <FaHome /> },
     { to: "/admin/questions", label: "Questions", icon: <FaQuestionCircle /> },
-    { path: "/admin/performance", icon: FaChartBar, label: "Performance" },
+    { to: "/admin/performance", icon: FaChartBar, label: "Performance" },
     { to: "/admin/subjects", label: "Subjects", icon: <FaBook /> },
     { to: "/admin/users", label: "Users", icon: <FaUsers /> },
     { to: "/admin/payments", label: "Payments", icon: <FaMoneyBill /> },

@@ -1,15 +1,9 @@
 import { useEffect, useState } from "react";
 import axios from "../api/axios";
-import { FaPlayCircle, FaFilePdf } from "react-icons/fa";
+import { FaPlayCircle, FaFilePdf, FaPlus, FaEdit, FaTrash } from "react-icons/fa";
 
-const AdminContent = () => {
-  const [courses, setCourses] = useState([]);
-  const [subjects, setSubjects] = useState([]);
-  const [file, setFile] = useState(null);
-  const [contents, setContents] = useState([]);
-  const [editingId, setEditingId] = useState(null);
-
-  const QuizEditor = ({ lesson, onClose, onSave }) => {
+// Quiz Editor Component (moved outside)
+const QuizEditor = ({ lesson, onClose, onSave }) => {
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState({
@@ -19,155 +13,6 @@ const AdminContent = () => {
     rationale: "",
     points: 1,
   });
-}
-
-  // ✅ VIEWER STATE (NEW)
-  const [viewer, setViewer] = useState({
-    open: false,
-    type: "",
-    url: "",
-    title: "",
-  });
-
-  const [form, setForm] = useState({
-    title: "",
-    type: "video",
-    linkType: "subject",
-    courseId: "",
-    subjectId: "",
-    isPaid: false,
-    price: "",
-    thumbnail: null,
-  });
-
-  // Fetch courses and subjects
-  useEffect(() => {
-    const fetchData = async () => {
-      const [c, s] = await Promise.all([
-        axios.get("/courses"),
-        axios.get("/subjects"),
-      ]);
-      setCourses(c.data);
-      setSubjects(s.data);
-    };
-    fetchData();
-  }, []);
-
-  // Fetch contents
-  useEffect(() => {
-    const fetchContents = async () => {
-      const res = await axios.get("/content");
-      setContents(res.data);
-    };
-    fetchContents();
-  }, []);
-
-  // ================= HANDLE UPLOAD / UPDATE =================
-  const handleUpload = async () => {
-    if (!form.title || (!file && !editingId))
-      return alert("Fill all required fields");
-
-    const formData = new FormData();
-    formData.append("title", form.title);
-    formData.append("type", form.type);
-    if (file) formData.append("file", file);
-    if (form.thumbnail) formData.append("thumbnail", form.thumbnail);
-
-    if (form.linkType === "subject") {
-      formData.append("subjectId", form.subjectId);
-    } else {
-      formData.append("courseId", form.courseId);
-    }
-
-    formData.append("isPaid", form.isPaid);
-    formData.append("price", form.price);
-
-    try {
-      if (editingId) {
-  const formData = new FormData();
-
-  formData.append("title", form.title);
-  formData.append("isPaid", form.isPaid);
-  formData.append("price", form.price);
-
-  if (file) formData.append("file", file);
-  if (form.thumbnail) formData.append("thumbnail", form.thumbnail);
-
-  const res = await axios.put(`/content/${editingId}`, formData, {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
-
-  setContents((prev) =>
-    prev.map((c) => (c._id === editingId ? res.data : c))
-  );
-
-  alert("✅ Content updated");
-} else {
-        const res = await axios.post("/content/upload", formData);
-        setContents((prev) => [res.data, ...prev]);
-        alert("✅ Uploaded successfully");
-      }
-
-      setForm({
-        title: "",
-        type: "video",
-        linkType: "subject",
-        courseId: "",
-        subjectId: "",
-        isPaid: false,
-        price: "",
-        thumbnail: null,
-      });
-      setFile(null);
-      setEditingId(null);
-    } catch (err) {
-      console.error(err);
-      alert("Operation failed");
-    }
-  };
-
-  // ================= DELETE =================
-  const handleDelete = async (id) => {
-    if (!window.confirm("Delete this content?")) return;
-    try {
-      await axios.delete(`/content/${id}`);
-      setContents((prev) => prev.filter((c) => c._id !== id));
-    } catch (err) {
-      console.error(err);
-      alert("Delete failed");
-    }
-  };
-
-  // ================= EDIT =================
-  const handleEdit = (content) => {
-    setEditingId(content._id);
-    setForm({
-      title: content.title,
-      type: content.type,
-      linkType: content.subjectId ? "subject" : "course",
-      courseId: content.courseId || "",
-      subjectId: content.subjectId || "",
-      isPaid: content.isPaid,
-      price: content.price,
-      thumbnail: null,
-    });
-    setFile(null);
-  };
-
-  // ✅ OPEN VIEWER
-  const openViewer = (c) => {
-    setViewer({
-      open: true,
-      type: c.type,
-      url: c.fileUrl,
-      title: c.title,
-    });
-  };
-
-  // ✅ CLOSE VIEWER
-  const closeViewer = () => {
-    setViewer({ open: false, type: "", url: "", title: "" });
-  };
 
   useEffect(() => {
     if (lesson?._id) {
@@ -178,11 +23,11 @@ const AdminContent = () => {
   const fetchExistingQuestions = async () => {
     try {
       const res = await axios.get(`/lesson-quiz/lesson/${lesson._id}`);
-      if (res.data.length) {
+      if (res.data && res.data.length) {
         setQuestions(res.data);
       }
     } catch (err) {
-      console.error(err);
+      console.error("Error fetching questions:", err);
     }
   };
 
@@ -232,10 +77,11 @@ const AdminContent = () => {
           points: q.points,
         })),
       });
-      alert(`Saved ${questions.length} questions for this lesson!`);
+      alert(`✅ Saved ${questions.length} questions for this lesson!`);
       onSave?.();
       onClose();
     } catch (err) {
+      console.error("Save error:", err);
       alert("Failed to save questions");
     } finally {
       setLoading(false);
@@ -243,208 +89,7 @@ const AdminContent = () => {
   };
 
   return (
-    <>
-      <div className="max-w-6xl mx-auto px-6 py-10">
-        <h2 className="text-3xl font-bold mb-8 text-gray-800">
-          {editingId ? "✏️ Edit Content" : "📤 Upload Learning Content"}
-        </h2>
-
-        {/* FORM */}
-        <div className="bg-white p-8 rounded-2xl shadow-md space-y-6 border">
-          {/* Title */}
-          <div>
-            <label className="block text-sm font-semibold mb-1">Title</label>
-            <input
-              placeholder="Enter content title"
-              value={form.title}
-              onChange={(e) =>
-                setForm({ ...form, title: e.target.value })
-              }
-              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-            />
-          </div>
-
-          {/* Type + Link Type */}
-          <div className="grid md:grid-cols-2 gap-4">
-            <select
-              value={form.type}
-              onChange={(e) =>
-                setForm({ ...form, type: e.target.value })
-              }
-              className="p-3 border rounded-lg"
-            >
-              <option value="video">🎥 Video</option>
-              <option value="image">🖼 Image</option>
-              <option value="pdf">📄 PDF</option>
-            </select>
-
-            <select
-              value={form.linkType}
-              onChange={(e) =>
-                setForm({ ...form, linkType: e.target.value })
-              }
-              className="p-3 border rounded-lg"
-            >
-              <option value="subject">Attach to Subject</option>
-              <option value="course">Attach to Course</option>
-            </select>
-          </div>
-
-          {/* Subject / Course */}
-          {form.linkType === "subject" ? (
-            <select
-              value={form.subjectId}
-              onChange={(e) =>
-                setForm({ ...form, subjectId: e.target.value })
-              }
-              className="w-full p-3 border rounded-lg"
-            >
-              <option value="">Select Subject</option>
-              {subjects.map((s) => (
-                <option key={s._id} value={s._id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <select
-              value={form.courseId}
-              onChange={(e) =>
-                setForm({ ...form, courseId: e.target.value })
-              }
-              className="w-full p-3 border rounded-lg"
-            >
-              <option value="">Select Course</option>
-              {courses.map((c) => (
-                <option key={c._id} value={c._id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          )}
-
-          {/* FILES */}
-          <div className="grid md:grid-cols-2 gap-6">
-            <input
-              type="file"
-              onChange={(e) => setFile(e.target.files[0])}
-            />
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) =>
-                setForm({ ...form, thumbnail: e.target.files[0] })
-              }
-            />
-          </div>
-
-          {/* BUTTON */}
-          <button
-            onClick={handleUpload}
-            className={`w-full py-3 rounded-xl text-white ${
-              editingId ? "bg-yellow-500" : "bg-blue-600"
-            }`}
-          >
-            {editingId ? "Update Content" : "Upload Content"}
-          </button>
-        </div>
-
-        {/* CONTENT GRID */}
-        <div className="mt-12">
-          <h3 className="text-2xl font-bold mb-6">
-            📚 Uploaded Content
-          </h3>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {contents.map((c) => (
-              <div
-                key={c._id}
-                onClick={() => openViewer(c)}
-                className="bg-white rounded-2xl shadow hover:shadow-xl transition overflow-hidden border group cursor-pointer"
-              >
-                {/* THUMBNAIL */}
-                <div className="relative h-40 w-full">
-                  <img
-                    src={c.thumbnailUrl || "/placeholder.jpg"}
-                    className="w-full h-full object-cover"
-                    alt={c.title}
-                  />
-
-                  {/* TYPE */}
-                  <div className="absolute top-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
-                    {c.type}
-                  </div>
-
-                  {/* ▶ VIDEO */}
-                  {c.type === "video" && (
-                    <FaPlayCircle className="absolute inset-0 m-auto text-white text-5xl" />
-                  )}
-
-                  {/* 📄 PDF */}
-                  {c.type === "pdf" && (
-                    <FaFilePdf className="absolute inset-0 m-auto text-red-600 text-4xl" />
-                  )}
-                </div>
-
-                <div className="p-4">
-                  <h4 className="font-semibold text-lg">{c.title}</h4>
-
-                  <div className="flex gap-2 mt-4">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEdit(c);
-                      }}
-                      className="flex-1 bg-yellow-500 text-white py-2 rounded-lg text-sm"
-                    >
-                      Edit
-                    </button>
-
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDelete(c._id);
-                      }}
-                      className="flex-1 bg-red-500 text-white py-2 rounded-lg text-sm"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* ================= MODAL ================= */}
-      {viewer.open && (
-        <div className="fixed inset-0 bg-black/90 z-50 flex flex-col">
-          <div className="flex justify-between items-center p-4 text-white">
-            <h3>{viewer.title}</h3>
-            <button onClick={closeViewer}>✖</button>
-          </div>
-
-          <div className="flex-1 flex items-center justify-center p-4">
-            {viewer.type === "video" && (
-              <video src={viewer.url} controls autoPlay className="max-h-full" />
-            )}
-
-            {viewer.type === "image" && (
-              <img src={viewer.url} className="max-h-full" />
-            )}
-
-             {viewer.type === "pdf" && (
-  <iframe
-    src={`https://docs.google.com/gview?url=${viewer.url}&embedded=true`}
-    className="w-full h-full rounded-lg"
-  />
-            )}
-          </div>
-        </div>
-      )}
-
-       <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center">
           <h2 className="text-xl font-bold">Quiz Editor: {lesson?.title}</h2>
@@ -505,7 +150,7 @@ const AdminContent = () => {
             <input
               type="number"
               value={currentQuestion.points}
-              onChange={(e) => setCurrentQuestion({ ...currentQuestion, points: parseInt(e.target.value) })}
+              onChange={(e) => setCurrentQuestion({ ...currentQuestion, points: parseInt(e.target.value) || 1 })}
               placeholder="Points"
               className="w-32 p-3 border rounded mb-3"
               min="1"
@@ -513,58 +158,480 @@ const AdminContent = () => {
 
             <button
               onClick={addQuestion}
-              className="bg-blue-600 text-white px-4 py-2 rounded"
+              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 flex items-center gap-2"
             >
-              + Add Question
+              <FaPlus /> Add Question
             </button>
           </div>
 
           {/* Questions List */}
           <div className="space-y-4">
             <h3 className="font-semibold">Questions ({questions.length})</h3>
-            {questions.map((q, idx) => (
-              <div key={idx} className="border rounded-lg p-4">
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <p className="font-medium">{idx + 1}. {q.question}</p>
-                    <div className="ml-4 mt-2 space-y-1">
-                      {q.options.map((opt, i) => (
-                        <p key={i} className={String.fromCharCode(65 + i) === q.correctAnswer ? "text-green-600 font-semibold" : ""}>
-                          {String.fromCharCode(65 + i)}. {opt}
-                        </p>
-                      ))}
+            {questions.length === 0 ? (
+              <p className="text-gray-500 text-center py-8">No questions added yet. Add your first question above.</p>
+            ) : (
+              questions.map((q, idx) => (
+                <div key={idx} className="border rounded-lg p-4">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <p className="font-medium">{idx + 1}. {q.question}</p>
+                      <div className="ml-4 mt-2 space-y-1">
+                        {q.options.map((opt, i) => (
+                          <p key={i} className={String.fromCharCode(65 + i) === q.correctAnswer ? "text-green-600 font-semibold" : ""}>
+                            {String.fromCharCode(65 + i)}. {opt}
+                          </p>
+                        ))}
+                      </div>
+                      {q.rationale && (
+                        <p className="text-sm text-gray-600 mt-2">💡 {q.rationale}</p>
+                      )}
+                      <p className="text-sm text-gray-500 mt-1">Points: {q.points}</p>
                     </div>
-                    {q.rationale && (
-                      <p className="text-sm text-gray-600 mt-2">💡 {q.rationale}</p>
-                    )}
-                    <p className="text-sm text-gray-500 mt-1">Points: {q.points}</p>
+                    <button
+                      onClick={() => removeQuestion(idx)}
+                      className="text-red-600 hover:text-red-800 p-2"
+                    >
+                      <FaTrash />
+                    </button>
                   </div>
-                  <button
-                    onClick={() => removeQuestion(idx)}
-                    className="text-red-600 hover:text-red-800"
-                  >
-                    Delete
-                  </button>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 
         <div className="sticky bottom-0 bg-white border-t p-4 flex justify-end gap-3">
-          <button onClick={onClose} className="px-4 py-2 bg-gray-300 rounded">
+          <button onClick={onClose} className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">
             Cancel
           </button>
           <button
             onClick={saveQuiz}
             disabled={loading}
-            className="px-4 py-2 bg-green-600 text-white rounded disabled:opacity-50"
+            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
           >
             {loading ? "Saving..." : "Save Quiz"}
           </button>
         </div>
       </div>
     </div>
+  );
+};
+
+// Main AdminContent Component
+const AdminContent = () => {
+  const [courses, setCourses] = useState([]);
+  const [subjects, setSubjects] = useState([]);
+  const [file, setFile] = useState(null);
+  const [contents, setContents] = useState([]);
+  const [editingId, setEditingId] = useState(null);
+  const [showQuizEditor, setShowQuizEditor] = useState(false);
+  const [selectedLesson, setSelectedLesson] = useState(null);
+
+  // Viewer state
+  const [viewer, setViewer] = useState({
+    open: false,
+    type: "",
+    url: "",
+    title: "",
+  });
+
+  const [form, setForm] = useState({
+    title: "",
+    type: "video",
+    linkType: "subject",
+    courseId: "",
+    subjectId: "",
+    isPaid: false,
+    price: "",
+    thumbnail: null,
+  });
+
+  // Fetch courses and subjects
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [c, s] = await Promise.all([
+          axios.get("/courses"),
+          axios.get("/subjects"),
+        ]);
+        setCourses(c.data);
+        setSubjects(s.data);
+      } catch (err) {
+        console.error("Error fetching data:", err);
+      }
+    };
+    fetchData();
+  }, []);
+
+  // Fetch contents
+  useEffect(() => {
+    const fetchContents = async () => {
+      try {
+        const res = await axios.get("/content");
+        setContents(res.data);
+      } catch (err) {
+        console.error("Error fetching contents:", err);
+      }
+    };
+    fetchContents();
+  }, []);
+
+  // Handle upload / update
+  const handleUpload = async () => {
+    if (!form.title || (!file && !editingId)) {
+      return alert("Please fill all required fields");
+    }
+
+    const formData = new FormData();
+    formData.append("title", form.title);
+    formData.append("type", form.type);
+    if (file) formData.append("file", file);
+    if (form.thumbnail) formData.append("thumbnail", form.thumbnail);
+
+    if (form.linkType === "subject") {
+      formData.append("subjectId", form.subjectId);
+    } else {
+      formData.append("courseId", form.courseId);
+    }
+
+    formData.append("isPaid", form.isPaid);
+    formData.append("price", form.price);
+
+    try {
+      if (editingId) {
+        const res = await axios.put(`/content/${editingId}`, formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+        setContents((prev) => prev.map((c) => (c._id === editingId ? res.data : c)));
+        alert("✅ Content updated");
+      } else {
+        const res = await axios.post("/content/upload", formData);
+        setContents((prev) => [res.data, ...prev]);
+        alert("✅ Uploaded successfully");
+      }
+
+      // Reset form
+      setForm({
+        title: "",
+        type: "video",
+        linkType: "subject",
+        courseId: "",
+        subjectId: "",
+        isPaid: false,
+        price: "",
+        thumbnail: null,
+      });
+      setFile(null);
+      setEditingId(null);
+    } catch (err) {
+      console.error("Upload error:", err);
+      alert("Operation failed: " + (err.response?.data?.message || err.message));
+    }
+  };
+
+  // Delete content
+  const handleDelete = async (id) => {
+    if (!window.confirm("Delete this content?")) return;
+    try {
+      await axios.delete(`/content/${id}`);
+      setContents((prev) => prev.filter((c) => c._id !== id));
+      alert("✅ Deleted successfully");
+    } catch (err) {
+      console.error(err);
+      alert("Delete failed");
+    }
+  };
+
+  // Edit content
+  const handleEdit = (content) => {
+    setEditingId(content._id);
+    setForm({
+      title: content.title,
+      type: content.type,
+      linkType: content.subjectId ? "subject" : "course",
+      courseId: content.courseId || "",
+      subjectId: content.subjectId || "",
+      isPaid: content.isPaid,
+      price: content.price,
+      thumbnail: null,
+    });
+    setFile(null);
+  };
+
+  // Open viewer
+  const openViewer = (c) => {
+    setViewer({
+      open: true,
+      type: c.type,
+      url: c.fileUrl,
+      title: c.title,
+    });
+  };
+
+  // Close viewer
+  const closeViewer = () => {
+    setViewer({ open: false, type: "", url: "", title: "" });
+  };
+
+  // Open quiz editor
+  const openQuizEditor = (lesson) => {
+    setSelectedLesson(lesson);
+    setShowQuizEditor(true);
+  };
+
+  return (
+    <>
+      <div className="max-w-6xl mx-auto px-6 py-10">
+        <h2 className="text-3xl font-bold mb-8 text-gray-800">
+          {editingId ? "✏️ Edit Content" : "📤 Upload Learning Content"}
+        </h2>
+
+        {/* FORM */}
+        <div className="bg-white p-8 rounded-2xl shadow-md space-y-6 border">
+          {/* Title */}
+          <div>
+            <label className="block text-sm font-semibold mb-1">Title</label>
+            <input
+              placeholder="Enter content title"
+              value={form.title}
+              onChange={(e) => setForm({ ...form, title: e.target.value })}
+              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+            />
+          </div>
+
+          {/* Type + Link Type */}
+          <div className="grid md:grid-cols-2 gap-4">
+            <select
+              value={form.type}
+              onChange={(e) => setForm({ ...form, type: e.target.value })}
+              className="p-3 border rounded-lg"
+            >
+              <option value="video">🎥 Video</option>
+              <option value="image">🖼 Image</option>
+              <option value="pdf">📄 PDF</option>
+            </select>
+
+            <select
+              value={form.linkType}
+              onChange={(e) => setForm({ ...form, linkType: e.target.value })}
+              className="p-3 border rounded-lg"
+            >
+              <option value="subject">Attach to Subject</option>
+              <option value="course">Attach to Course</option>
+            </select>
+          </div>
+
+          {/* Subject / Course */}
+          {form.linkType === "subject" ? (
+            <select
+              value={form.subjectId}
+              onChange={(e) => setForm({ ...form, subjectId: e.target.value })}
+              className="w-full p-3 border rounded-lg"
+            >
+              <option value="">Select Subject</option>
+              {subjects.map((s) => (
+                <option key={s._id} value={s._id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <select
+              value={form.courseId}
+              onChange={(e) => setForm({ ...form, courseId: e.target.value })}
+              className="w-full p-3 border rounded-lg"
+            >
+              <option value="">Select Course</option>
+              {courses.map((c) => (
+                <option key={c._id} value={c._id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          )}
+
+          {/* Paid Content Toggle */}
+          <div className="flex items-center gap-4">
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={form.isPaid}
+                onChange={(e) => setForm({ ...form, isPaid: e.target.checked })}
+              />
+              This is paid content
+            </label>
+            {form.isPaid && (
+              <input
+                type="number"
+                placeholder="Price (₵)"
+                value={form.price}
+                onChange={(e) => setForm({ ...form, price: e.target.value })}
+                className="p-2 border rounded w-32"
+              />
+            )}
+          </div>
+
+          {/* FILES */}
+          <div className="grid md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-semibold mb-1">Content File</label>
+              <input
+                type="file"
+                accept="video/*,image/*,application/pdf"
+                onChange={(e) => setFile(e.target.files[0])}
+                className="w-full p-2 border rounded"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold mb-1">Thumbnail (Optional)</label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => setForm({ ...form, thumbnail: e.target.files[0] })}
+                className="w-full p-2 border rounded"
+              />
+            </div>
+          </div>
+
+          {/* BUTTON */}
+          <button
+            onClick={handleUpload}
+            className={`w-full py-3 rounded-xl text-white font-semibold transition ${
+              editingId ? "bg-yellow-500 hover:bg-yellow-600" : "bg-blue-600 hover:bg-blue-700"
+            }`}
+          >
+            {editingId ? "Update Content" : "Upload Content"}
+          </button>
+        </div>
+
+        {/* CONTENT GRID */}
+        <div className="mt-12">
+          <h3 className="text-2xl font-bold mb-6">📚 Uploaded Content</h3>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {contents.map((c) => (
+              <div
+                key={c._id}
+                className="bg-white rounded-2xl shadow hover:shadow-xl transition overflow-hidden border group cursor-pointer"
+              >
+                <div onClick={() => openViewer(c)}>
+                  {/* THUMBNAIL */}
+                  <div className="relative h-40 w-full bg-gray-100">
+                    <img
+                      src={c.thumbnailUrl || "/placeholder.jpg"}
+                      className="w-full h-full object-cover group-hover:scale-105 transition"
+                      alt={c.title}
+                      onError={(e) => {
+                        e.target.src = "/placeholder.jpg";
+                      }}
+                    />
+
+                    {/* TYPE BADGE */}
+                    <div className="absolute top-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                      {c.type === "video" ? "🎥 Video" : c.type === "pdf" ? "📄 PDF" : "🖼 Image"}
+                    </div>
+
+                    {/* PLAY BUTTON FOR VIDEO */}
+                    {c.type === "video" && (
+                      <FaPlayCircle className="absolute inset-0 m-auto text-white text-5xl opacity-90" />
+                    )}
+
+                    {/* PDF ICON */}
+                    {c.type === "pdf" && (
+                      <FaFilePdf className="absolute inset-0 m-auto text-red-600 text-4xl" />
+                    )}
+
+                    {/* PAID BADGE */}
+                    {c.isPaid && (
+                      <div className="absolute top-2 right-2 bg-yellow-500 text-white text-xs px-2 py-1 rounded">
+                        ₵{c.price}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="p-4">
+                    <h4 className="font-semibold text-lg group-hover:text-blue-600 transition">
+                      {c.title}
+                    </h4>
+                  </div>
+                </div>
+
+                <div className="p-4 pt-0 flex gap-2">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEdit(c);
+                    }}
+                    className="flex-1 bg-yellow-500 text-white py-2 rounded-lg text-sm hover:bg-yellow-600 transition flex items-center justify-center gap-2"
+                  >
+                    <FaEdit /> Edit
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(c._id);
+                    }}
+                    className="flex-1 bg-red-500 text-white py-2 rounded-lg text-sm hover:bg-red-600 transition flex items-center justify-center gap-2"
+                  >
+                    <FaTrash /> Delete
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openQuizEditor(c);
+                    }}
+                    className="flex-1 bg-green-500 text-white py-2 rounded-lg text-sm hover:bg-green-600 transition flex items-center justify-center gap-2"
+                  >
+                    <FaPlus /> Quiz
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* VIEWER MODAL */}
+      {viewer.open && (
+        <div className="fixed inset-0 bg-black/90 z-50 flex flex-col">
+          <div className="flex justify-between items-center p-4 text-white bg-black/50">
+            <h3 className="text-lg font-semibold">{viewer.title}</h3>
+            <button onClick={closeViewer} className="hover:text-gray-300 text-2xl">
+              ✖
+            </button>
+          </div>
+
+          <div className="flex-1 flex items-center justify-center p-4">
+            {viewer.type === "video" && (
+              <video src={viewer.url} controls autoPlay className="max-h-full max-w-full rounded-lg" />
+            )}
+            {viewer.type === "image" && (
+              <img src={viewer.url} alt={viewer.title} className="max-h-full max-w-full rounded-lg" />
+            )}
+            {viewer.type === "pdf" && (
+              <iframe
+                src={`https://docs.google.com/gview?url=${encodeURIComponent(viewer.url)}&embedded=true`}
+                title={viewer.title}
+                className="w-full h-full rounded-lg"
+              />
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* QUIZ EDITOR MODAL */}
+      {showQuizEditor && selectedLesson && (
+        <QuizEditor
+          lesson={selectedLesson}
+          onClose={() => {
+            setShowQuizEditor(false);
+            setSelectedLesson(null);
+          }}
+          onSave={() => {
+            console.log("Quiz saved for lesson:", selectedLesson.title);
+          }}
+        />
+      )}
     </>
   );
 };
