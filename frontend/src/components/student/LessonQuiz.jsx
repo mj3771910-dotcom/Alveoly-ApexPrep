@@ -16,6 +16,26 @@ const LessonQuiz = () => {
   const [submitted, setSubmitted] = useState(false);
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [timeLeft, setTimeLeft] = useState(0);
+const [timerActive, setTimerActive] = useState(true);
+
+
+useEffect(() => {
+  let interval;
+  if (timeLeft > 0 && timerActive && !submitted && !loading) {
+    interval = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          handleAutoSubmit();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }
+  return () => clearInterval(interval);
+}, [timeLeft, timerActive, submitted, loading]);
 
   useEffect(() => {
     if (lessonId) {
@@ -24,30 +44,32 @@ const LessonQuiz = () => {
   }, [lessonId]);
 
   const startQuiz = async () => {
-    try {
-      setLoading(true);
-      console.log("Starting quiz for lesson:", lessonId);
-      
-      const res = await axios.post(`/lesson-quiz/start/${lessonId}`);
-      console.log("Quiz start response:", res.data);
-      
-      if (!res.data.questions || res.data.questions.length === 0) {
-        toast.error("No questions found for this quiz");
-        navigate(-1);
-        return;
-      }
-      
-      setAttemptId(res.data.attemptId);
-      setQuestions(res.data.questions);
-    } catch (err) {
-      console.error("Start quiz error:", err);
-      const errorMsg = err.response?.data?.message || "Failed to start quiz";
-      toast.error(errorMsg);
-      setTimeout(() => navigate(-1), 2000);
-    } finally {
-      setLoading(false);
+  try {
+    setLoading(true);
+    const res = await axios.post(`/lesson-quiz/start/${lessonId}`);
+    
+    if (res.data.remainingSeconds) {
+      setTimeLeft(res.data.remainingSeconds);
+    } else if (res.data.timerMinutes) {
+      setTimeLeft(res.data.timerMinutes * 60);
     }
-  };
+    
+    setAttemptId(res.data.attemptId);
+    setQuestions(res.data.questions);
+  } catch (err) {
+    // handle error
+  } finally {
+    setLoading(false);
+  }
+};
+
+
+  const handleAutoSubmit = async () => {
+  toast.warning("Time's up! Submitting your quiz...");
+  setTimerActive(false);
+  // Auto-submit with current answers
+  await handleSubmit();
+};
 
   const handleAnswer = (questionId, answerLetter) => {
     setAnswers(prev => ({ ...prev, [questionId]: answerLetter }));
@@ -89,6 +111,20 @@ const LessonQuiz = () => {
       </div>
     );
   }
+
+  <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6">
+  <div className="flex justify-between items-center">
+    <h2 className="text-2xl font-bold">Lesson Quiz</h2>
+    {timeLeft > 0 && (
+      <div className="bg-white/20 px-4 py-2 rounded-lg">
+        <span className="font-mono text-xl">
+          {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}
+        </span>
+      </div>
+    )}
+  </div>
+  <p className="mt-1 opacity-90">Test your knowledge</p>
+</div>
 
   // Results state
   if (submitted && result) {

@@ -6,6 +6,8 @@ import { FaPlayCircle, FaFilePdf, FaPlus, FaEdit, FaTrash } from "react-icons/fa
 const QuizEditor = ({ lesson, onClose, onSave }) => {
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(false);
+  // Add this state in QuizEditor component
+const [timerMinutes, setTimerMinutes] = useState(0);
   const [currentQuestion, setCurrentQuestion] = useState({
     question: "",
     options: ["", "", "", ""],
@@ -80,9 +82,10 @@ const QuizEditor = ({ lesson, onClose, onSave }) => {
     }));
 
     const response = await axios.post("/lesson-quiz/save", {
-      lessonId: lesson._id,
-      questions: formattedQuestions,
-    });
+  lessonId: lesson._id,
+  questions: formattedQuestions,
+  timerMinutes: timerMinutes, // Add this
+});
 
     console.log("Save response:", response.data);
     alert(`✅ Saved ${questions.length} questions for this lesson!`);
@@ -176,6 +179,25 @@ const QuizEditor = ({ lesson, onClose, onSave }) => {
               <FaPlus /> Add Question
             </button>
           </div>
+
+          <div className="mb-4">
+  <label className="block text-sm font-semibold mb-1">Quiz Timer (minutes)</label>
+  <select
+    value={timerMinutes}
+    onChange={(e) => setTimerMinutes(parseInt(e.target.value))}
+    className="w-full p-3 border rounded"
+  >
+    <option value="0">No timer</option>
+    <option value="5">5 minutes</option>
+    <option value="10">10 minutes</option>
+    <option value="15">15 minutes</option>
+    <option value="20">20 minutes</option>
+    <option value="30">30 minutes</option>
+    <option value="45">45 minutes</option>
+    <option value="60">60 minutes</option>
+  </select>
+</div>
+
 
           {/* Questions List */}
           <div className="space-y-4">
