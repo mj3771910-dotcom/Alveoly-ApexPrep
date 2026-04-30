@@ -1,7 +1,32 @@
 import Question from "../models/Question.js";
 import ExamAttempt from "../models/ExamAttempt.js";
 
-// ✅ START EXAM - FIXED VERSION
+// ✅ START EXAM
+// Add this function to get exam settings for a subject
+export const getExamSettingsForSubject = async (req, res) => {
+  try {
+    const { subjectId } = req.params;
+    
+    // Get any exam question to retrieve the exam settings
+    const examQuestion = await Question.findOne({
+      subjectId,
+      type: "exam"
+    });
+    
+    if (!examQuestion) {
+      return res.json({ examTime: null, isExamLocked: false });
+    }
+    
+    res.json({
+      examTime: examQuestion.examTime,
+      isExamLocked: examQuestion.isExamLocked
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// Modified startExam to use consistent examTime across all questions
 export const startExam = async (req, res) => {
   try {
     const { courseId, subjectId } = req.body;
@@ -10,7 +35,13 @@ export const startExam = async (req, res) => {
       return res.status(400).json({ message: "Course and Subject required" });
     }
 
-    // Get the exam questions
+    let attempt = await ExamAttempt.findOne({
+      userId: req.user._id,
+      courseId,
+      subjectId,
+      status: "in-progress"
+    });
+
     const questions = await Question.find({
       courseId,
       subjectId,
@@ -21,51 +52,30 @@ export const startExam = async (req, res) => {
       return res.status(404).json({ message: "No exam questions found" });
     }
 
-    // Check if the exam is locked (no retakes allowed)
-    const isExamLocked = questions[0].isExamLocked || false;
-    
-    // If exam is locked, check if student has already submitted this exam before
-    if (isExamLocked) {
-      const existingCompletedAttempt = await ExamAttempt.findOne({
-        userId: req.user._id,
-        courseId,
-        subjectId,
-        status: "submitted"
-      });
-      
-      if (existingCompletedAttempt) {
-        return res.status(403).json({
-          message: "You have already completed this exam. Retakes are not allowed for this exam.",
-        });
-      }
-    }
+    const duration = (questions[0].examTime || 30) * 60;
 
-    // Check for existing in-progress attempt
-    let attempt = await ExamAttempt.findOne({
-      userId: req.user._id,
-      courseId,
-      subjectId,
-      status: "in-progress"
-    });
-
-    // Get exam duration (in minutes) from the question settings
-    const examDurationMinutes = questions[0].examTime || 30;
-    const durationInSeconds = examDurationMinutes * 60;
-
-    // If there's an in-progress attempt, return it
     if (attempt) {
-      // Calculate remaining time
-      const elapsedSeconds = Math.floor((Date.now() - new Date(attempt.startedAt).getTime()) / 1000);
-      const remainingSeconds = Math.max(0, attempt.duration - elapsedSeconds);
-      
       return res.json({
         attemptId: attempt._id,
         questions,
-        duration: remainingSeconds,
+        duration: attempt.duration || duration,
       });
     }
 
-    // Get attempt number for tracking
+    const completedAttempt = await ExamAttempt.findOne({
+      userId: req.user._id,
+      courseId,
+      subjectId,
+      status: "submitted",
+      resitAllowed: false
+    });
+
+    if (completedAttempt) {
+      return res.status(403).json({
+        message: "You have already completed this exam. Resit not allowed.",
+      });
+    }
+
     const lastAttempt = await ExamAttempt.findOne({
       userId: req.user._id,
       courseId,
@@ -74,15 +84,14 @@ export const startExam = async (req, res) => {
 
     const attemptNumber = lastAttempt ? lastAttempt.attemptNumber + 1 : 1;
 
-    // Format questions for the attempt
+    // Store the correct answer TEXT, not letter
     const formattedQuestions = questions.map((q) => ({
       questionId: q._id,
-      correct: q.correctAnswer,
+      correct: q.correctAnswer, // This is TEXT
       selected: "",
       isCorrect: false,
     }));
 
-    // Create new attempt
     attempt = await ExamAttempt.create({
       userId: req.user._id,
       courseId,
@@ -94,14 +103,14 @@ export const startExam = async (req, res) => {
       attemptNumber,
       status: "in-progress",
       startedAt: new Date(),
-      duration: durationInSeconds,
-      resitAllowed: !isExamLocked, // Allow resit only if exam is not locked
+      duration,
+      resitAllowed: false,
     });
 
     res.json({
       attemptId: attempt._id,
       questions,
-      duration: durationInSeconds,
+      duration,
     });
 
   } catch (err) {
@@ -161,7 +170,7 @@ export const saveProgress = async (req, res) => {
   }
 };
 
-// ✅ SUBMIT EXAM
+// ✅ SUBMIT EXAM - FIXED with TEXT comparison
 export const submitExam = async (req, res) => {
   try {
     const { attemptId, answers } = req.body;
@@ -263,43 +272,5 @@ export const submitExam = async (req, res) => {
   } catch (error) {
     console.error("Submit Exam Error:", error);
     res.status(500).json({ message: "Server Error: " + error.message });
-  }
-};
-
-// ✅ ADMIN: Allow resit for a student
-export const allowResit = async (req, res) => {
-  try {
-    const { attemptId } = req.params;
-    
-    const attempt = await ExamAttempt.findById(attemptId);
-    
-    if (!attempt) {
-      return res.status(404).json({ message: "Attempt not found" });
-    }
-    
-    if (attempt.status !== "submitted") {
-      return res.status(400).json({ message: "Can only allow resit for submitted exams" });
-    }
-    
-    attempt.resitAllowed = true;
-    await attempt.save();
-    
-    res.json({ message: "Resit allowed for student", attempt });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-};
-
-// ✅ ADMIN: Get all attempts for a subject
-export const getAttemptsBySubject = async (req, res) => {
-  try {
-    const { subjectId } = req.params;
-    
-    const attempts = await ExamAttempt.find({ subjectId })
-      .sort({ createdAt: -1 });
-    
-    res.json(attempts);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
   }
 };
