@@ -1,15 +1,12 @@
-// controllers/lessonQuestionController.js
+// controllers/lessonQuestionController.js - COMPLETE UPDATE
 import LessonQuestion from "../models/LessonQuestion.js";
 import LessonAttempt from "../models/LessonAttempt.js";
 import Content from "../models/Content.js";
 
 // ================= CREATE/UPDATE LESSON QUESTIONS =================
-// controllers/lessonQuestionController.js
 export const saveLessonQuestions = async (req, res) => {
   try {
-    console.log("Received save request:", req.body);
-    
-    const { lessonId, questions } = req.body;
+    const { lessonId, questions, timerMinutes } = req.body;
     
     if (!lessonId) {
       return res.status(400).json({ message: "Lesson ID is required" });
@@ -19,19 +16,13 @@ export const saveLessonQuestions = async (req, res) => {
       return res.status(400).json({ message: "At least one question is required" });
     }
     
-    // Get lesson to get course/subject info
     const lesson = await Content.findById(lessonId);
     if (!lesson) {
       return res.status(404).json({ message: "Lesson not found" });
     }
     
-    console.log(`Saving ${questions.length} questions for lesson: ${lesson.title}`);
+    await LessonQuestion.deleteMany({ lessonId });
     
-    // Delete existing questions for this lesson
-    const deleted = await LessonQuestion.deleteMany({ lessonId });
-    console.log(`Deleted ${deleted.deletedCount} existing questions`);
-    
-    // Create new questions with order
     const questionsToSave = questions.map((q, idx) => ({
       lessonId,
       subjectId: lesson.subjectId,
@@ -42,6 +33,7 @@ export const saveLessonQuestions = async (req, res) => {
       rationale: q.rationale || "",
       points: q.points || 1,
       order: idx,
+      timerMinutes: timerMinutes || 0,
     }));
     
     const savedQuestions = await LessonQuestion.insertMany(questionsToSave);
@@ -50,13 +42,11 @@ export const saveLessonQuestions = async (req, res) => {
       success: true,
       message: `${savedQuestions.length} questions saved for lesson`,
       questions: savedQuestions,
+      timerMinutes: timerMinutes || 0,
     });
   } catch (err) {
     console.error("Save lesson questions error:", err);
-    res.status(500).json({ 
-      message: err.message,
-      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
-    });
+    res.status(500).json({ message: err.message });
   }
 };
 
@@ -64,13 +54,9 @@ export const saveLessonQuestions = async (req, res) => {
 export const getLessonQuestions = async (req, res) => {
   try {
     const { lessonId } = req.params;
-    
-    const questions = await LessonQuestion.find({ lessonId })
-      .sort({ order: 1 });
-    
+    const questions = await LessonQuestion.find({ lessonId }).sort({ order: 1 });
     res.json(questions);
   } catch (err) {
-    console.error("Get lesson questions error:", err);
     res.status(500).json({ message: err.message });
   }
 };
@@ -80,32 +66,40 @@ export const startLessonQuiz = async (req, res) => {
   try {
     const { lessonId } = req.params;
     
-    // Get lesson details
     const lesson = await Content.findById(lessonId);
     if (!lesson) {
       return res.status(404).json({ message: "Lesson not found" });
     }
     
-    // Get questions for this lesson
-    const questions = await LessonQuestion.find({ lessonId })
-      .sort({ order: 1 });
+    const questions = await LessonQuestion.find({ lessonId }).sort({ order: 1 });
     
     if (!questions.length) {
       return res.status(404).json({ message: "No questions found for this lesson" });
     }
     
-    // Check for existing completed attempt
-    const existingAttempt = await LessonAttempt.findOne({
+    const timerMinutes = questions[0]?.timerMinutes || 0;
+    
+    // Check if student has already completed this quiz
+    const existingCompleted = await LessonAttempt.findOne({
       userId: req.user._id,
       lessonId,
-      lessonCompleted: true,
-    });
+      status: "completed",
+    }).sort({ completedAt: -1 });
     
-    if (existingAttempt && existingAttempt.isPassed) {
-      return res.status(403).json({
-        message: "You have already passed this lesson quiz",
-        canRetake: existingAttempt.attempts < existingAttempt.maxAttempts,
-      });
+    if (existingCompleted) {
+      // Check if admin has allowed retake
+      const adminAllowedRetake = existingCompleted.adminAllowedRetake;
+      
+      if (!adminAllowedRetake) {
+        return res.status(403).json({
+          message: "You have already completed this quiz. Contact admin for retake permission.",
+          canRetake: false,
+          previousScore: existingCompleted.percentage,
+        });
+      } else {
+        // If admin allowed retake, we'll replace the old result
+        console.log("Admin allowed retake - will replace previous result");
+      }
     }
     
     // Check for in-progress attempt
@@ -116,10 +110,14 @@ export const startLessonQuiz = async (req, res) => {
     });
     
     if (attempt) {
-      // Return existing attempt
+      const elapsedSeconds = Math.floor((Date.now() - new Date(attempt.startedAt).getTime()) / 1000);
+      const remainingSeconds = Math.max(0, (timerMinutes * 60) - elapsedSeconds);
+      
       return res.json({
         attemptId: attempt._id,
         questions,
+        timerMinutes,
+        remainingSeconds,
         attempt: {
           score: attempt.score,
           percentage: attempt.percentage,
@@ -128,21 +126,12 @@ export const startLessonQuiz = async (req, res) => {
       });
     }
     
-    // Check attempts count
-    const completedAttempts = await LessonAttempt.countDocuments({
-      userId: req.user._id,
-      lessonId,
-      status: "completed",
-    });
-    
-    const maxAttempts = 3; // Configurable
-    if (completedAttempts >= maxAttempts) {
-      return res.status(403).json({
-        message: `Maximum attempts (${maxAttempts}) reached for this lesson`,
-      });
+    // Check if there's a completed attempt that admin allowed retake for
+    let previousAttemptId = null;
+    if (existingCompleted && existingCompleted.adminAllowedRetake) {
+      previousAttemptId = existingCompleted._id;
     }
     
-    // Create new attempt
     const formattedQuestions = questions.map((q) => ({
       questionId: q._id,
       questionText: q.question,
@@ -166,14 +155,17 @@ export const startLessonQuiz = async (req, res) => {
       userEmail: req.user.email,
       questions: formattedQuestions,
       totalPoints,
-      attempts: completedAttempts + 1,
+      attempts: existingCompleted ? existingCompleted.attempts + 1 : 1,
       status: "in-progress",
       startedAt: new Date(),
+      replacesAttemptId: previousAttemptId,
     });
     
     res.json({
       attemptId: attempt._id,
       questions,
+      timerMinutes,
+      remainingSeconds: timerMinutes * 60,
       attempt: {
         score: attempt.score,
         percentage: attempt.percentage,
@@ -189,7 +181,7 @@ export const startLessonQuiz = async (req, res) => {
 // ================= SUBMIT LESSON QUIZ =================
 export const submitLessonQuiz = async (req, res) => {
   try {
-    const { attemptId, answers } = req.body;
+    const { attemptId, answers, timeSpentSeconds } = req.body;
     
     const attempt = await LessonAttempt.findById(attemptId);
     if (!attempt) {
@@ -200,14 +192,25 @@ export const submitLessonQuiz = async (req, res) => {
       return res.status(403).json({ message: "Quiz already submitted" });
     }
     
-    // Get all questions for this lesson
     const questions = await LessonQuestion.find({
       _id: { $in: attempt.questions.map(q => q.questionId) }
     });
     
+    const timerMinutes = questions[0]?.timerMinutes || 0;
+    
+    // Check if time expired
+    const elapsedSeconds = Math.floor((Date.now() - new Date(attempt.startedAt).getTime()) / 1000);
+    if (timerMinutes > 0 && elapsedSeconds > timerMinutes * 60) {
+      attempt.status = "expired";
+      await attempt.save();
+      return res.status(400).json({ 
+        message: "Time has expired for this quiz",
+        expired: true,
+      });
+    }
+    
     let totalScore = 0;
     
-    // Grade each question
     attempt.questions.forEach(question => {
       const userAnswerLetter = answers[question.questionId.toString()];
       const fullQuestion = questions.find(q => q._id.toString() === question.questionId.toString());
@@ -228,7 +231,6 @@ export const submitLessonQuiz = async (req, res) => {
       }
     });
     
-    // Calculate results
     const percentage = (totalScore / attempt.totalPoints) * 100;
     const isPassed = percentage >= attempt.passMark;
     
@@ -240,7 +242,12 @@ export const submitLessonQuiz = async (req, res) => {
     
     await attempt.save();
     
-    // Prepare response
+    // If this attempt replaces a previous one, delete the previous
+    if (attempt.replacesAttemptId) {
+      await LessonAttempt.findByIdAndDelete(attempt.replacesAttemptId);
+      console.log(`Replaced previous attempt: ${attempt.replacesAttemptId}`);
+    }
+    
     const questionResults = attempt.questions.map(q => ({
       questionId: q.questionId,
       questionText: q.questionText,
@@ -257,7 +264,7 @@ export const submitLessonQuiz = async (req, res) => {
       totalPoints: attempt.totalPoints,
       percentage: percentage,
       passed: isPassed,
-      message: isPassed ? "Congratulations! You passed the quiz!" : "You did not pass. You can retake the quiz.",
+      message: isPassed ? "Congratulations! You passed the quiz!" : "You did not pass.",
       questionResults,
     });
   } catch (err) {
@@ -266,22 +273,50 @@ export const submitLessonQuiz = async (req, res) => {
   }
 };
 
-// ================= GET STUDENT PROGRESS =================
+// ================= ADMIN ALLOW RETAKE =================
+export const allowRetake = async (req, res) => {
+  try {
+    const { attemptId } = req.params;
+    
+    const attempt = await LessonAttempt.findById(attemptId);
+    if (!attempt) {
+      return res.status(404).json({ message: "Attempt not found" });
+    }
+    
+    if (attempt.status !== "completed") {
+      return res.status(400).json({ message: "Can only allow retake for completed quizzes" });
+    }
+    
+    attempt.adminAllowedRetake = true;
+    await attempt.save();
+    
+    res.json({ 
+      success: true, 
+      message: "Student can now retake this quiz",
+      student: attempt.userName,
+      lesson: attempt.lessonId,
+    });
+  } catch (err) {
+    console.error("Allow retake error:", err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// ================= GET STUDENT PROGRESS (FIXED) =================
 export const getStudentProgress = async (req, res) => {
   try {
-    const { studentId, subjectId } = req.params;
+    const { studentId } = req.params;
     
-    const filter = { userId: studentId };
-    if (subjectId) filter.subjectId = subjectId;
-    
-    const attempts = await LessonAttempt.find(filter)
+    const attempts = await LessonAttempt.find({ 
+      userId: studentId, 
+      status: "completed" 
+    })
       .populate("lessonId", "title type")
       .populate("subjectId", "name")
       .sort({ completedAt: -1 });
     
-    // Calculate overall stats
+    const uniqueLessons = [...new Set(attempts.map(a => a.lessonId?._id?.toString()))];
     const completedLessons = attempts.filter(a => a.lessonCompleted).length;
-    const totalLessons = [...new Set(attempts.map(a => a.lessonId?._id?.toString()))].length;
     
     const averageScore = attempts.length > 0
       ? attempts.reduce((sum, a) => sum + (a.percentage || 0), 0) / attempts.length
@@ -291,7 +326,7 @@ export const getStudentProgress = async (req, res) => {
       attempts,
       stats: {
         completedLessons,
-        totalLessons,
+        totalLessons: uniqueLessons.length,
         averageScore: Math.round(averageScore),
         totalAttempts: attempts.length,
       },
@@ -302,12 +337,15 @@ export const getStudentProgress = async (req, res) => {
   }
 };
 
-// ================= GET LESSON PERFORMANCE (ADMIN) =================
+// ================= GET LESSON PERFORMANCE (FIXED) =================
 export const getLessonPerformance = async (req, res) => {
   try {
     const { lessonId } = req.params;
     
-    const attempts = await LessonAttempt.find({ lessonId, status: "completed" })
+    const attempts = await LessonAttempt.find({ 
+      lessonId, 
+      status: "completed" 
+    })
       .populate("userId", "name email")
       .sort({ percentage: -1 });
     

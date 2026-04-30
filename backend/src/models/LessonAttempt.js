@@ -1,4 +1,4 @@
-// models/LessonAttempt.js
+// models/LessonAttempt.js - Add retake control fields
 import mongoose from "mongoose";
 
 const lessonAttemptSchema = new mongoose.Schema({
@@ -22,8 +22,6 @@ const lessonAttemptSchema = new mongoose.Schema({
     ref: "Course",
     required: true,
   },
-  
-  // Student info
   userName: {
     type: String,
     required: true,
@@ -32,8 +30,6 @@ const lessonAttemptSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  
-  // Questions and answers
   questions: [{
     questionId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -41,16 +37,14 @@ const lessonAttemptSchema = new mongoose.Schema({
       required: true,
     },
     questionText: String,
-    selected: String, // Letter answer
-    selectedText: String, // Actual answer text
-    correct: String, // Correct answer letter
-    correctText: String, // Correct answer text
+    selected: String,
+    selectedText: String,
+    correct: String,
+    correctText: String,
     isCorrect: Boolean,
     points: Number,
     rationale: String,
   }],
-  
-  // Results
   score: {
     type: Number,
     default: 0,
@@ -63,50 +57,45 @@ const lessonAttemptSchema = new mongoose.Schema({
     type: Number,
     default: 0,
   },
-  
-  // Status
   status: {
     type: String,
-    enum: ["in-progress", "completed", "failed"],
+    enum: ["in-progress", "completed", "failed", "expired"],
     default: "in-progress",
   },
-  
-  // Timestamps
   startedAt: {
     type: Date,
     default: Date.now,
   },
   completedAt: Date,
-  
-  // Retake settings
   attempts: {
     type: Number,
     default: 1,
   },
   maxAttempts: {
     type: Number,
-    default: 3,
+    default: 1, // Changed to 1 - only one attempt unless admin allows retake
   },
-  
-  // Pass mark (percentage)
   passMark: {
     type: Number,
     default: 70,
   },
-  
-  // Whether lesson is considered completed
   lessonCompleted: {
     type: Boolean,
     default: false,
   },
+  // NEW: Track if admin has allowed retake
+  adminAllowedRetake: {
+    type: Boolean,
+    default: false,
+  },
+  // NEW: Track if this attempt replaces a previous one
+  replacesAttemptId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "LessonAttempt",
+    default: null,
+  },
 });
 
-// Indexes
-lessonAttemptSchema.index({ userId: 1, lessonId: 1 });
-lessonAttemptSchema.index({ userId: 1, subjectId: 1 });
-lessonAttemptSchema.index({ lessonId: 1, status: 1 });
-
-// Virtual for isPassed
 lessonAttemptSchema.virtual("isPassed").get(function() {
   return this.percentage >= this.passMark;
 });

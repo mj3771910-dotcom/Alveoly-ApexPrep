@@ -1,8 +1,7 @@
-// models/LessonQuestion.js
+// models/LessonQuestion.js - Add timer field
 import mongoose from "mongoose";
 
 const lessonQuestionSchema = new mongoose.Schema({
-  // Lesson association
   lessonId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Content",
@@ -18,8 +17,6 @@ const lessonQuestionSchema = new mongoose.Schema({
     ref: "Course",
     required: true,
   },
-  
-  // Question content
   question: {
     type: String,
     required: true,
@@ -29,15 +26,13 @@ const lessonQuestionSchema = new mongoose.Schema({
     required: true,
   }],
   correctAnswer: {
-    type: String, // Letter (A, B, C, D)
+    type: String,
     required: true,
   },
   rationale: {
     type: String,
     default: "",
   },
-  
-  // Settings
   points: {
     type: Number,
     default: 1,
@@ -46,14 +41,15 @@ const lessonQuestionSchema = new mongoose.Schema({
     type: Number,
     default: 0,
   },
-  
+  // NEW: Timer in minutes for the entire quiz
+  timerMinutes: {
+    type: Number,
+    default: 0, // 0 means no timer
+  },
   createdAt: {
     type: Date,
     default: Date.now,
   },
 });
-
-// Index for faster queries
-lessonQuestionSchema.index({ lessonId: 1, order: 1 });
 
 export default mongoose.model("LessonQuestion", lessonQuestionSchema);
