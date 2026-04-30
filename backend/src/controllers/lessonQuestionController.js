@@ -179,9 +179,10 @@ export const startLessonQuiz = async (req, res) => {
 };
 
 // ================= SUBMIT LESSON QUIZ =================
+// controllers/lessonQuestionController.js - FIXED submitLessonQuiz
 export const submitLessonQuiz = async (req, res) => {
   try {
-    const { attemptId, answers, timeSpentSeconds } = req.body;
+    const { attemptId, answers } = req.body;
     
     const attempt = await LessonAttempt.findById(attemptId);
     if (!attempt) {
@@ -196,19 +197,6 @@ export const submitLessonQuiz = async (req, res) => {
       _id: { $in: attempt.questions.map(q => q.questionId) }
     });
     
-    const timerMinutes = questions[0]?.timerMinutes || 0;
-    
-    // Check if time expired
-    const elapsedSeconds = Math.floor((Date.now() - new Date(attempt.startedAt).getTime()) / 1000);
-    if (timerMinutes > 0 && elapsedSeconds > timerMinutes * 60) {
-      attempt.status = "expired";
-      await attempt.save();
-      return res.status(400).json({ 
-        message: "Time has expired for this quiz",
-        expired: true,
-      });
-    }
-    
     let totalScore = 0;
     
     attempt.questions.forEach(question => {
@@ -216,10 +204,18 @@ export const submitLessonQuiz = async (req, res) => {
       const fullQuestion = questions.find(q => q._id.toString() === question.questionId.toString());
       
       if (fullQuestion && userAnswerLetter) {
+        // Get the index of the selected answer
         const answerIndex = userAnswerLetter.charCodeAt(0) - 65;
         const answerText = fullQuestion.options[answerIndex];
-        const isCorrect = answerText && 
-          answerText.toLowerCase().trim() === fullQuestion.correctAnswer.toLowerCase().trim();
+        
+        // IMPORTANT: Compare the LETTER, not the TEXT
+        // The correctAnswer is stored as a LETTER (e.g., "A", "B", "C", "D")
+        const isCorrect = userAnswerLetter === fullQuestion.correctAnswer;
+        
+        console.log(`Question: ${fullQuestion.question}`);
+        console.log(`  User answer letter: ${userAnswerLetter}`);
+        console.log(`  Correct letter: ${fullQuestion.correctAnswer}`);
+        console.log(`  Is correct: ${isCorrect}`);
         
         question.selected = userAnswerLetter;
         question.selectedText = answerText;
@@ -245,18 +241,21 @@ export const submitLessonQuiz = async (req, res) => {
     // If this attempt replaces a previous one, delete the previous
     if (attempt.replacesAttemptId) {
       await LessonAttempt.findByIdAndDelete(attempt.replacesAttemptId);
-      console.log(`Replaced previous attempt: ${attempt.replacesAttemptId}`);
     }
     
-    const questionResults = attempt.questions.map(q => ({
-      questionId: q.questionId,
-      questionText: q.questionText,
-      userAnswerLetter: q.selected,
-      userAnswerText: q.selectedText,
-      correctAnswer: q.correctText,
-      isCorrect: q.isCorrect,
-      rationale: q.rationale,
-    }));
+    const questionResults = attempt.questions.map(q => {
+      const fullQuestion = questions.find(fq => fq._id.toString() === q.questionId.toString());
+      return {
+        questionId: q.questionId,
+        questionText: q.questionText,
+        userAnswerLetter: q.selected,
+        userAnswerText: q.selectedText,
+        correctAnswer: q.correct, // This is the letter
+        correctAnswerText: fullQuestion?.options[q.correct.charCodeAt(0) - 65],
+        isCorrect: q.isCorrect,
+        rationale: q.rationale,
+      };
+    });
     
     res.json({
       success: true,
