@@ -1,4 +1,4 @@
-// models/LessonAttempt.js - Add retake control fields
+// models/LessonAttempt.js - FIXED
 import mongoose from "mongoose";
 
 const lessonAttemptSchema = new mongoose.Schema({
@@ -45,50 +45,21 @@ const lessonAttemptSchema = new mongoose.Schema({
     points: Number,
     rationale: String,
   }],
-  score: {
-    type: Number,
-    default: 0,
-  },
-  totalPoints: {
-    type: Number,
-    default: 0,
-  },
-  percentage: {
-    type: Number,
-    default: 0,
-  },
+  score: { type: Number, default: 0 },
+  totalPoints: { type: Number, default: 0 },
+  percentage: { type: Number, default: 0 },
   status: {
     type: String,
     enum: ["in-progress", "completed", "failed", "expired"],
     default: "in-progress",
   },
-  startedAt: {
-    type: Date,
-    default: Date.now,
-  },
+  startedAt: { type: Date, default: Date.now },
   completedAt: Date,
-  attempts: {
-    type: Number,
-    default: 1,
-  },
-  maxAttempts: {
-    type: Number,
-    default: 1, // Changed to 1 - only one attempt unless admin allows retake
-  },
-  passMark: {
-    type: Number,
-    default: 70,
-  },
-  lessonCompleted: {
-    type: Boolean,
-    default: false,
-  },
-  // NEW: Track if admin has allowed retake
-  adminAllowedRetake: {
-    type: Boolean,
-    default: false,
-  },
-  // NEW: Track if this attempt replaces a previous one
+  attempts: { type: Number, default: 1 },
+  maxAttempts: { type: Number, default: 1 },
+  passMark: { type: Number, default: 70 },
+  lessonCompleted: { type: Boolean, default: false },
+  adminAllowedRetake: { type: Boolean, default: false },
   replacesAttemptId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "LessonAttempt",
@@ -96,8 +67,20 @@ const lessonAttemptSchema = new mongoose.Schema({
   },
 });
 
+// Virtual for isPassed
 lessonAttemptSchema.virtual("isPassed").get(function() {
-  return this.percentage >= this.passMark;
+  return (this.percentage || 0) >= (this.passMark || 70);
 });
+
+// IMPORTANT: Include virtuals when converting to JSON
+lessonAttemptSchema.set('toJSON', { 
+  virtuals: true,
+  transform: function(doc, ret) {
+    ret.isPassed = (ret.percentage || 0) >= (ret.passMark || 70);
+    return ret;
+  }
+});
+
+lessonAttemptSchema.set('toObject', { virtuals: true });
 
 export default mongoose.model("LessonAttempt", lessonAttemptSchema);
