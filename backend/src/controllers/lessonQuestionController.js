@@ -4,12 +4,19 @@ import LessonAttempt from "../models/LessonAttempt.js";
 import Content from "../models/Content.js";
 
 // ================= CREATE/UPDATE LESSON QUESTIONS =================
+// controllers/lessonQuestionController.js
 export const saveLessonQuestions = async (req, res) => {
   try {
-    const { lessonId, questions, settings } = req.body;
+    console.log("Received save request:", req.body);
     
-    if (!lessonId || !questions || !questions.length) {
-      return res.status(400).json({ message: "Lesson ID and questions required" });
+    const { lessonId, questions } = req.body;
+    
+    if (!lessonId) {
+      return res.status(400).json({ message: "Lesson ID is required" });
+    }
+    
+    if (!questions || !Array.isArray(questions) || questions.length === 0) {
+      return res.status(400).json({ message: "At least one question is required" });
     }
     
     // Get lesson to get course/subject info
@@ -18,15 +25,22 @@ export const saveLessonQuestions = async (req, res) => {
       return res.status(404).json({ message: "Lesson not found" });
     }
     
+    console.log(`Saving ${questions.length} questions for lesson: ${lesson.title}`);
+    
     // Delete existing questions for this lesson
-    await LessonQuestion.deleteMany({ lessonId });
+    const deleted = await LessonQuestion.deleteMany({ lessonId });
+    console.log(`Deleted ${deleted.deletedCount} existing questions`);
     
     // Create new questions with order
     const questionsToSave = questions.map((q, idx) => ({
-      ...q,
       lessonId,
       subjectId: lesson.subjectId,
       courseId: lesson.courseId,
+      question: q.question,
+      options: q.options,
+      correctAnswer: q.correctAnswer,
+      rationale: q.rationale || "",
+      points: q.points || 1,
       order: idx,
     }));
     
@@ -39,7 +53,10 @@ export const saveLessonQuestions = async (req, res) => {
     });
   } catch (err) {
     console.error("Save lesson questions error:", err);
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ 
+      message: err.message,
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    });
   }
 };
 
