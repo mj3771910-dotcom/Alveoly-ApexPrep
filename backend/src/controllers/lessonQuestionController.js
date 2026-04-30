@@ -337,6 +337,51 @@ export const getStudentProgress = async (req, res) => {
   }
 };
 
+// ================= GET SUBJECT PERFORMANCE (ADMIN) =================
+export const getSubjectPerformance = async (req, res) => {
+  try {
+    const { subjectId } = req.params;
+    
+    console.log("Fetching performance for subject:", subjectId);
+    
+    // Find all attempts for this subject
+    const attempts = await LessonAttempt.find({ 
+      subjectId: subjectId,
+      status: "completed" 
+    })
+      .populate("userId", "name email")
+      .populate("lessonId", "title")
+      .sort({ completedAt: -1 });
+    
+    console.log(`Found ${attempts.length} attempts for subject ${subjectId}`);
+    
+    // Calculate statistics
+    const completedLessonsSet = new Set();
+    let totalScore = 0;
+    let passedCount = 0;
+    
+    attempts.forEach(attempt => {
+      if (attempt.lessonCompleted) {
+        completedLessonsSet.add(attempt.lessonId?._id?.toString());
+      }
+      totalScore += attempt.percentage || 0;
+      if (attempt.isPassed) passedCount++;
+    });
+    
+    const stats = {
+      totalAttempts: attempts.length,
+      averageScore: attempts.length > 0 ? Math.round(totalScore / attempts.length) : 0,
+      passRate: attempts.length > 0 ? Math.round((passedCount / attempts.length) * 100) : 0,
+      completedLessons: completedLessonsSet.size,
+    };
+    
+    res.json({ attempts, stats });
+  } catch (err) {
+    console.error("Get subject performance error:", err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
 // ================= GET LESSON PERFORMANCE (FIXED) =================
 export const getLessonPerformance = async (req, res) => {
   try {

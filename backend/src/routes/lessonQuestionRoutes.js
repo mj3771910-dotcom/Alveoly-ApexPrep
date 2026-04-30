@@ -8,6 +8,7 @@ import {
   getStudentProgress,
   getLessonPerformance,
   allowRetake,
+  getSubjectPerformance,
 } from "../controllers/lessonQuestionController.js";
 import { protect, adminOnly } from "../middleware/authMiddleware.js";
 
@@ -27,5 +28,6 @@ router.get("/student/:studentId/progress", protect, adminOnly, getStudentProgres
 router.get("/student/:studentId/subject/:subjectId/progress", protect, adminOnly, getStudentProgress);
 // routes/lessonQuestionRoutes.js - Add this route
 router.post("/allow-retake/:attemptId", protect, adminOnly, allowRetake);
+router.get("/subject/:subjectId/performance", protect, adminOnly, getSubjectPerformance);
 
 export default router;
