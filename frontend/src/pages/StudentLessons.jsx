@@ -161,17 +161,24 @@ const StudentLessons = () => {
     }
   };
 
-  const openViewer = (c) => {
-    if (c.isPaid) return;
-    
-    setViewer({
-      open: true,
-      type: c.type,
-      url: c.fileUrl,
-      title: c.title,
-      lessonId: c._id,
-    });
-  };
+  // In StudentLessons.jsx - Update openViewer function
+const openViewer = (c) => {
+  if (c.isPaid) return;
+  
+  if (c.type === "quiz") {
+    // For quiz content, navigate directly to quiz
+    navigate(`/student/lessons/${c._id}/quiz`);
+    return;
+  }
+  
+  setViewer({
+    open: true,
+    type: c.type,
+    url: c.fileUrl,
+    title: c.title,
+    lessonId: c._id,
+  });
+};
 
   const closeViewer = () => {
     setViewer({

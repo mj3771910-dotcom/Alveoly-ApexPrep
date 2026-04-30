@@ -1,12 +1,14 @@
+// AdminContent.jsx - UPDATED with Quiz type
 import { useEffect, useState } from "react";
 import axios from "../api/axios";
-import { FaPlayCircle, FaFilePdf, FaPlus, FaEdit, FaTrash } from "react-icons/fa";
+import { FaPlayCircle, FaFilePdf, FaPlus, FaEdit, FaTrash, FaQuestionCircle } from "react-icons/fa";
 
-// Quiz Editor Component with Edit Functionality
-const QuizEditor = ({ lesson, onClose, onSave }) => {
+// Quiz Editor Component for standalone quizzes
+const StandaloneQuizEditor = ({ content, onClose, onSave }) => {
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [timerMinutes, setTimerMinutes] = useState(0);
+  const [timerMinutes, setTimerMinutes] = useState(content?.quizTimerMinutes || 0);
+  const [passMark, setPassMark] = useState(content?.quizPassMark || 70);
   const [editingIndex, setEditingIndex] = useState(null);
   const [currentQuestion, setCurrentQuestion] = useState({
     question: "",
@@ -17,17 +19,16 @@ const QuizEditor = ({ lesson, onClose, onSave }) => {
   });
 
   useEffect(() => {
-    if (lesson?._id) {
+    if (content?._id) {
       fetchExistingQuestions();
     }
-  }, [lesson]);
+  }, [content]);
 
   const fetchExistingQuestions = async () => {
     try {
-      const res = await axios.get(`/lesson-quiz/lesson/${lesson._id}`);
+      const res = await axios.get(`/lesson-quiz/lesson/${content._id}`);
       if (res.data && res.data.length) {
         setQuestions(res.data);
-        // Set timer from existing questions if available
         if (res.data[0]?.timerMinutes) {
           setTimerMinutes(res.data[0].timerMinutes);
         }
@@ -58,12 +59,10 @@ const QuizEditor = ({ lesson, onClose, onSave }) => {
       points: questionToEdit.points || 1,
     });
     setEditingIndex(index);
-    // Scroll to form
     document.getElementById('question-form')?.scrollIntoView({ behavior: 'smooth' });
   };
 
   const addOrUpdateQuestion = () => {
-    // Validation
     if (!currentQuestion.question.trim()) {
       alert("Please enter a question");
       return;
@@ -78,7 +77,6 @@ const QuizEditor = ({ lesson, onClose, onSave }) => {
     }
 
     if (editingIndex !== null) {
-      // Update existing question
       const updatedQuestions = [...questions];
       updatedQuestions[editingIndex] = {
         ...updatedQuestions[editingIndex],
@@ -91,11 +89,9 @@ const QuizEditor = ({ lesson, onClose, onSave }) => {
       setQuestions(updatedQuestions);
       alert("Question updated successfully!");
     } else {
-      // Add new question
       setQuestions([...questions, { ...currentQuestion, id: Date.now() }]);
     }
     
-    // Reset form
     resetForm();
   };
 
@@ -118,9 +114,6 @@ const QuizEditor = ({ lesson, onClose, onSave }) => {
 
     setLoading(true);
     try {
-      console.log("Saving questions for lesson:", lesson._id);
-      console.log("Questions to save:", questions);
-
       const formattedQuestions = questions.map(q => ({
         question: q.question,
         options: q.options,
@@ -129,22 +122,26 @@ const QuizEditor = ({ lesson, onClose, onSave }) => {
         points: q.points || 1,
       }));
 
+      // First save the content with quiz settings
+      await axios.put(`/content/${content._id}`, {
+        title: content.title,
+        quizTimerMinutes: timerMinutes,
+        quizPassMark: passMark,
+      });
+
+      // Then save the questions
       const response = await axios.post("/lesson-quiz/save", {
-        lessonId: lesson._id,
+        lessonId: content._id,
         questions: formattedQuestions,
         timerMinutes: timerMinutes,
       });
 
-      console.log("Save response:", response.data);
-      alert(`✅ Saved ${questions.length} questions for this lesson!`);
+      alert(`✅ Saved ${questions.length} questions for "${content.title}"!`);
       onSave?.();
       onClose();
     } catch (err) {
-      console.error("Save error - Full error:", err);
-      console.error("Error response:", err.response);
-      
-      const errorMsg = err.response?.data?.message || err.message || "Failed to save questions";
-      alert(`Failed to save questions: ${errorMsg}`);
+      console.error("Save error:", err);
+      alert("Failed to save quiz: " + (err.response?.data?.message || err.message));
     } finally {
       setLoading(false);
     }
@@ -157,7 +154,7 @@ const QuizEditor = ({ lesson, onClose, onSave }) => {
       <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center">
           <div>
-            <h2 className="text-xl font-bold">Quiz Editor: {lesson?.title}</h2>
+            <h2 className="text-xl font-bold">Quiz Editor: {content?.title}</h2>
             <p className="text-sm text-gray-500">
               {questions.length} question(s) | Total Points: {totalPoints}
             </p>
@@ -168,28 +165,41 @@ const QuizEditor = ({ lesson, onClose, onSave }) => {
         </div>
 
         <div className="p-6">
-          {/* Timer Settings */}
+          {/* Quiz Settings */}
           <div className="mb-6 bg-blue-50 p-4 rounded-lg">
-            <label className="block text-sm font-semibold mb-2">⏱️ Quiz Timer (minutes)</label>
-            <select
-              value={timerMinutes}
-              onChange={(e) => setTimerMinutes(parseInt(e.target.value))}
-              className="w-full p-3 border rounded-lg bg-white"
-            >
-              <option value="0">No timer (unlimited)</option>
-              <option value="5">5 minutes</option>
-              <option value="10">10 minutes</option>
-              <option value="15">15 minutes</option>
-              <option value="20">20 minutes</option>
-              <option value="30">30 minutes</option>
-              <option value="45">45 minutes</option>
-              <option value="60">60 minutes</option>
-              <option value="90">90 minutes</option>
-              <option value="120">120 minutes</option>
-            </select>
-            <p className="text-xs text-gray-500 mt-1">
-              This timer applies to the entire quiz
-            </p>
+            <h3 className="font-semibold mb-3">Quiz Settings</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-semibold mb-1">⏱️ Timer (minutes)</label>
+                <select
+                  value={timerMinutes}
+                  onChange={(e) => setTimerMinutes(parseInt(e.target.value))}
+                  className="w-full p-3 border rounded-lg bg-white"
+                >
+                  <option value="0">No timer</option>
+                  <option value="5">5 minutes</option>
+                  <option value="10">10 minutes</option>
+                  <option value="15">15 minutes</option>
+                  <option value="20">20 minutes</option>
+                  <option value="30">30 minutes</option>
+                  <option value="45">45 minutes</option>
+                  <option value="60">60 minutes</option>
+                  <option value="90">90 minutes</option>
+                  <option value="120">120 minutes</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold mb-1">🎯 Pass Mark (%)</label>
+                <input
+                  type="number"
+                  value={passMark}
+                  onChange={(e) => setPassMark(Math.min(100, Math.max(0, parseInt(e.target.value) || 70)))}
+                  className="w-full p-3 border rounded-lg bg-white"
+                  min="0"
+                  max="100"
+                />
+              </div>
+            </div>
           </div>
 
           {/* Add/Edit Question Form */}
@@ -283,9 +293,7 @@ const QuizEditor = ({ lesson, onClose, onSave }) => {
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <h3 className="font-semibold text-lg">Questions List</h3>
-              <span className="text-sm text-gray-500">
-                Total Points: {totalPoints}
-              </span>
+              <span className="text-sm text-gray-500">Total Points: {totalPoints}</span>
             </div>
             
             {questions.length === 0 ? (
@@ -342,10 +350,7 @@ const QuizEditor = ({ lesson, onClose, onSave }) => {
         </div>
 
         <div className="sticky bottom-0 bg-white border-t p-4 flex justify-end gap-3">
-          <button 
-            onClick={onClose} 
-            className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400 transition"
-          >
+          <button onClick={onClose} className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400 transition">
             Cancel
           </button>
           <button
@@ -371,7 +376,6 @@ const AdminContent = () => {
   const [showQuizEditor, setShowQuizEditor] = useState(false);
   const [selectedLesson, setSelectedLesson] = useState(null);
 
-  // Viewer state
   const [viewer, setViewer] = useState({
     open: false,
     type: "",
@@ -390,7 +394,6 @@ const AdminContent = () => {
     thumbnail: null,
   });
 
-  // Fetch courses and subjects
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -407,7 +410,6 @@ const AdminContent = () => {
     fetchData();
   }, []);
 
-  // Fetch contents
   useEffect(() => {
     const fetchContents = async () => {
       try {
@@ -420,13 +422,11 @@ const AdminContent = () => {
     fetchContents();
   }, []);
 
-  // Handle upload / update
   const handleUpload = async () => {
-    if (!form.title || (!file && !editingId)) {
+    if (!form.title || (!file && !editingId && form.type !== "quiz")) {
       return alert("Please fill all required fields");
     }
 
-    // Validate subject/course selection
     if (form.linkType === "subject" && !form.subjectId) {
       return alert("Please select a subject");
     }
@@ -438,12 +438,11 @@ const AdminContent = () => {
     const formData = new FormData();
     formData.append("title", form.title);
     formData.append("type", form.type);
-    if (file) formData.append("file", file);
+    if (file && form.type !== "quiz") formData.append("file", file);
     if (form.thumbnail) formData.append("thumbnail", form.thumbnail);
 
     if (form.linkType === "subject") {
       formData.append("subjectId", form.subjectId);
-      // Get courseId from the selected subject
       const selectedSubject = subjects.find(s => s._id === form.subjectId);
       if (selectedSubject && selectedSubject.courseId) {
         formData.append("courseId", selectedSubject.courseId);
@@ -459,19 +458,25 @@ const AdminContent = () => {
     formData.append("price", form.price);
 
     try {
+      let res;
       if (editingId) {
-        const res = await axios.put(`/content/${editingId}`, formData, {
+        res = await axios.put(`/content/${editingId}`, formData, {
           headers: { "Content-Type": "multipart/form-data" },
         });
         setContents((prev) => prev.map((c) => (c._id === editingId ? res.data : c)));
         alert("✅ Content updated");
       } else {
-        const res = await axios.post("/content/upload", formData);
+        res = await axios.post("/content/upload", formData);
         setContents((prev) => [res.data, ...prev]);
         alert("✅ Uploaded successfully");
       }
 
-      // Reset form
+      // If this is a quiz content, open the quiz editor
+      if (form.type === "quiz" && res.data) {
+        setSelectedLesson(res.data);
+        setShowQuizEditor(true);
+      }
+
       setForm({
         title: "",
         type: "video",
@@ -490,7 +495,6 @@ const AdminContent = () => {
     }
   };
 
-  // Delete content
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this content?")) return;
     try {
@@ -503,7 +507,6 @@ const AdminContent = () => {
     }
   };
 
-  // Edit content
   const handleEdit = (content) => {
     setEditingId(content._id);
     setForm({
@@ -519,8 +522,13 @@ const AdminContent = () => {
     setFile(null);
   };
 
-  // Open viewer
   const openViewer = (c) => {
+    if (c.type === "quiz") {
+      // For quiz content, open the quiz editor instead of viewer
+      setSelectedLesson(c);
+      setShowQuizEditor(true);
+      return;
+    }
     setViewer({
       open: true,
       type: c.type,
@@ -529,15 +537,22 @@ const AdminContent = () => {
     });
   };
 
-  // Close viewer
   const closeViewer = () => {
     setViewer({ open: false, type: "", url: "", title: "" });
   };
 
-  // Open quiz editor
   const openQuizEditor = (lesson) => {
     setSelectedLesson(lesson);
     setShowQuizEditor(true);
+  };
+
+  const getTypeIcon = (type) => {
+    switch(type) {
+      case "video": return <FaPlayCircle className="text-blue-500" />;
+      case "pdf": return <FaFilePdf className="text-red-500" />;
+      case "quiz": return <FaQuestionCircle className="text-purple-500" />;
+      default: return <FaPlayCircle />;
+    }
   };
 
   return (
@@ -547,9 +562,7 @@ const AdminContent = () => {
           {editingId ? "✏️ Edit Content" : "📤 Upload Learning Content"}
         </h2>
 
-        {/* FORM */}
         <div className="bg-white p-8 rounded-2xl shadow-md space-y-6 border">
-          {/* Title */}
           <div>
             <label className="block text-sm font-semibold mb-1">Title</label>
             <input
@@ -560,7 +573,6 @@ const AdminContent = () => {
             />
           </div>
 
-          {/* Type + Link Type */}
           <div className="grid md:grid-cols-2 gap-4">
             <select
               value={form.type}
@@ -570,6 +582,7 @@ const AdminContent = () => {
               <option value="video">🎥 Video</option>
               <option value="image">🖼 Image</option>
               <option value="pdf">📄 PDF</option>
+              <option value="quiz">📝 Quiz (Standalone)</option>
             </select>
 
             <select
@@ -582,7 +595,6 @@ const AdminContent = () => {
             </select>
           </div>
 
-          {/* Subject / Course */}
           {form.linkType === "subject" ? (
             <select
               value={form.subjectId}
@@ -611,7 +623,6 @@ const AdminContent = () => {
             </select>
           )}
 
-          {/* Paid Content Toggle */}
           <div className="flex items-center gap-4">
             <label className="flex items-center gap-2">
               <input
@@ -632,29 +643,37 @@ const AdminContent = () => {
             )}
           </div>
 
-          {/* FILES */}
-          <div className="grid md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-semibold mb-1">Content File</label>
-              <input
-                type="file"
-                accept="video/*,image/*,application/pdf"
-                onChange={(e) => setFile(e.target.files[0])}
-                className="w-full p-2 border rounded"
-              />
+          {form.type !== "quiz" && (
+            <div className="grid md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-semibold mb-1">Content File</label>
+                <input
+                  type="file"
+                  accept="video/*,image/*,application/pdf"
+                  onChange={(e) => setFile(e.target.files[0])}
+                  className="w-full p-2 border rounded"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold mb-1">Thumbnail (Optional)</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setForm({ ...form, thumbnail: e.target.files[0] })}
+                  className="w-full p-2 border rounded"
+                />
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-semibold mb-1">Thumbnail (Optional)</label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => setForm({ ...form, thumbnail: e.target.files[0] })}
-                className="w-full p-2 border rounded"
-              />
-            </div>
-          </div>
+          )}
 
-          {/* BUTTON */}
+          {form.type === "quiz" && (
+            <div className="bg-purple-50 p-4 rounded-lg">
+              <p className="text-purple-700 text-sm flex items-center gap-2">
+                <FaQuestionCircle /> After creating the quiz content, you'll be able to add questions, set timer, and configure pass mark.
+              </p>
+            </div>
+          )}
+
           <button
             onClick={handleUpload}
             className={`w-full py-3 rounded-xl text-white font-semibold transition ${
@@ -665,7 +684,6 @@ const AdminContent = () => {
           </button>
         </div>
 
-        {/* CONTENT GRID */}
         <div className="mt-12">
           <h3 className="text-2xl font-bold mb-6">📚 Uploaded Content</h3>
 
@@ -674,47 +692,39 @@ const AdminContent = () => {
               <div
                 key={c._id}
                 className="bg-white rounded-2xl shadow hover:shadow-xl transition overflow-hidden border group cursor-pointer"
+                onClick={() => openViewer(c)}
               >
-                <div onClick={() => openViewer(c)}>
-                  {/* THUMBNAIL */}
-                  <div className="relative h-40 w-full bg-gray-100">
+                <div className="relative h-40 w-full bg-gray-100">
+                  {c.type === "quiz" ? (
+                    <div className="w-full h-full bg-gradient-to-br from-purple-100 to-purple-200 flex flex-col items-center justify-center">
+                      <FaQuestionCircle className="text-purple-500 text-6xl mb-2" />
+                      <span className="text-purple-700 font-semibold">Quiz Content</span>
+                    </div>
+                  ) : (
                     <img
                       src={c.thumbnailUrl || "/placeholder.jpg"}
                       className="w-full h-full object-cover group-hover:scale-105 transition"
                       alt={c.title}
-                      onError={(e) => {
-                        e.target.src = "/placeholder.jpg";
-                      }}
+                      onError={(e) => { e.target.src = "/placeholder.jpg"; }}
                     />
+                  )}
 
-                    {/* TYPE BADGE */}
-                    <div className="absolute top-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
-                      {c.type === "video" ? "🎥 Video" : c.type === "pdf" ? "📄 PDF" : "🖼 Image"}
+                  <div className="absolute top-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded flex items-center gap-1">
+                    {getTypeIcon(c.type)}
+                    <span>{c.type === "quiz" ? "📝 Quiz" : c.type === "video" ? "🎥 Video" : c.type === "pdf" ? "📄 PDF" : "🖼 Image"}</span>
+                  </div>
+
+                  {c.isPaid && (
+                    <div className="absolute top-2 right-2 bg-yellow-500 text-white text-xs px-2 py-1 rounded">
+                      ₵{c.price}
                     </div>
+                  )}
+                </div>
 
-                    {/* PLAY BUTTON FOR VIDEO */}
-                    {c.type === "video" && (
-                      <FaPlayCircle className="absolute inset-0 m-auto text-white text-5xl opacity-90" />
-                    )}
-
-                    {/* PDF ICON */}
-                    {c.type === "pdf" && (
-                      <FaFilePdf className="absolute inset-0 m-auto text-red-600 text-4xl" />
-                    )}
-
-                    {/* PAID BADGE */}
-                    {c.isPaid && (
-                      <div className="absolute top-2 right-2 bg-yellow-500 text-white text-xs px-2 py-1 rounded">
-                        ₵{c.price}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="p-4">
-                    <h4 className="font-semibold text-lg group-hover:text-blue-600 transition">
-                      {c.title}
-                    </h4>
-                  </div>
+                <div className="p-4">
+                  <h4 className="font-semibold text-lg group-hover:text-blue-600 transition">
+                    {c.title}
+                  </h4>
                 </div>
 
                 <div className="p-4 pt-0 flex gap-2">
@@ -743,7 +753,7 @@ const AdminContent = () => {
                     }}
                     className="flex-1 bg-green-500 text-white py-2 rounded-lg text-sm hover:bg-green-600 transition flex items-center justify-center gap-2"
                   >
-                    <FaPlus /> Quiz
+                    <FaPlus /> {c.type === "quiz" ? "Edit Quiz" : "Add Quiz"}
                   </button>
                 </div>
               </div>
@@ -752,8 +762,7 @@ const AdminContent = () => {
         </div>
       </div>
 
-      {/* VIEWER MODAL */}
-      {viewer.open && (
+      {viewer.open && viewer.type !== "quiz" && (
         <div className="fixed inset-0 bg-black/90 z-50 flex flex-col">
           <div className="flex justify-between items-center p-4 text-white bg-black/50">
             <h3 className="text-lg font-semibold">{viewer.title}</h3>
@@ -761,7 +770,6 @@ const AdminContent = () => {
               ✖
             </button>
           </div>
-
           <div className="flex-1 flex items-center justify-center p-4">
             {viewer.type === "video" && (
               <video src={viewer.url} controls autoPlay className="max-h-full max-w-full rounded-lg" />
@@ -780,17 +788,16 @@ const AdminContent = () => {
         </div>
       )}
 
-      {/* QUIZ EDITOR MODAL */}
       {showQuizEditor && selectedLesson && (
-        <QuizEditor
-          lesson={selectedLesson}
+        <StandaloneQuizEditor
+          content={selectedLesson}
           onClose={() => {
             setShowQuizEditor(false);
             setSelectedLesson(null);
           }}
           onSave={() => {
-            console.log("Quiz saved for lesson:", selectedLesson.title);
-            // Refresh content list or show success message
+            console.log("Quiz saved for:", selectedLesson.title);
+            fetchContents();
           }}
         />
       )}
