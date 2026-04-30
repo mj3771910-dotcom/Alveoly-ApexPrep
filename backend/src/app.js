@@ -23,6 +23,7 @@ import messageRoutes from "./routes/messageRoutes.js";
 import contentRoutes from "./routes/contentRoutes.js";
 import contentPaymentRoutes from "./routes/contentPaymentRoutes.js";
 import manualAccessRoutes from "./routes/manualAccessRoutes.js";
+import lessonQuestionRoutes from "./routes/lessonQuestionRoutes.js";
 
 const app = express();
 
@@ -90,6 +91,7 @@ app.use("/api/messages", messageRoutes);
 app.use("/api/content", contentRoutes);
 app.use("/api/content-payments", contentPaymentRoutes);
 app.use("/api/manual-access", manualAccessRoutes);
+app.use("/api/lesson-quiz", lessonQuestionRoutes);
 
 // ================= HEALTH CHECK =================
 app.get("/", (req, res) => {
