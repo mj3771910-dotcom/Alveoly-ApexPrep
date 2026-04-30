@@ -1,4 +1,4 @@
-// components/student/LessonQuiz.jsx - FIXED VERSION
+// components/student/LessonQuiz.jsx - COMPLETE FIXED VERSION
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "../../api/axios";
@@ -6,7 +6,7 @@ import toast, { Toaster } from "react-hot-toast";
 import { FaArrowLeft, FaArrowRight, FaCheck, FaTimes } from "react-icons/fa";
 
 const LessonQuiz = () => {
-  const { lessonId } = useParams(); // Get lessonId from URL
+  const { lessonId } = useParams();
   const navigate = useNavigate();
   
   const [questions, setQuestions] = useState([]);
@@ -17,25 +17,24 @@ const LessonQuiz = () => {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(true);
   const [timeLeft, setTimeLeft] = useState(0);
-const [timerActive, setTimerActive] = useState(true);
+  const [timerActive, setTimerActive] = useState(true);
 
-
-useEffect(() => {
-  let interval;
-  if (timeLeft > 0 && timerActive && !submitted && !loading) {
-    interval = setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          handleAutoSubmit();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-  }
-  return () => clearInterval(interval);
-}, [timeLeft, timerActive, submitted, loading]);
+  useEffect(() => {
+    let interval;
+    if (timeLeft > 0 && timerActive && !submitted && !loading) {
+      interval = setInterval(() => {
+        setTimeLeft(prev => {
+          if (prev <= 1) {
+            clearInterval(interval);
+            handleAutoSubmit();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [timeLeft, timerActive, submitted, loading]);
 
   useEffect(() => {
     if (lessonId) {
@@ -44,32 +43,37 @@ useEffect(() => {
   }, [lessonId]);
 
   const startQuiz = async () => {
-  try {
-    setLoading(true);
-    const res = await axios.post(`/lesson-quiz/start/${lessonId}`);
-    
-    if (res.data.remainingSeconds) {
-      setTimeLeft(res.data.remainingSeconds);
-    } else if (res.data.timerMinutes) {
-      setTimeLeft(res.data.timerMinutes * 60);
+    try {
+      setLoading(true);
+      const res = await axios.post(`/lesson-quiz/start/${lessonId}`);
+      
+      if (res.data.remainingSeconds) {
+        setTimeLeft(res.data.remainingSeconds);
+      } else if (res.data.timerMinutes) {
+        setTimeLeft(res.data.timerMinutes * 60);
+      }
+      
+      setAttemptId(res.data.attemptId);
+      setQuestions(res.data.questions);
+    } catch (err) {
+      console.error("Start quiz error:", err);
+      const errorMsg = err.response?.data?.message || "Failed to start quiz";
+      toast.error(errorMsg);
+      if (err.response?.status === 403) {
+        setTimeout(() => navigate(-1), 2000);
+      }
+    } finally {
+      setLoading(false);
     }
-    
-    setAttemptId(res.data.attemptId);
-    setQuestions(res.data.questions);
-  } catch (err) {
-    // handle error
-  } finally {
-    setLoading(false);
-  }
-};
-
+  };
 
   const handleAutoSubmit = async () => {
-  toast.warning("Time's up! Submitting your quiz...");
-  setTimerActive(false);
-  // Auto-submit with current answers
-  await handleSubmit();
-};
+    toast.warning("Time's up! Submitting your quiz...");
+    setTimerActive(false);
+    if (Object.keys(answers).length > 0) {
+      await handleSubmit();
+    }
+  };
 
   const handleAnswer = (questionId, answerLetter) => {
     setAnswers(prev => ({ ...prev, [questionId]: answerLetter }));
@@ -103,7 +107,6 @@ useEffect(() => {
 
   const currentQuestion = questions[currentIndex];
 
-  // Loading state
   if (loading && !submitted) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -112,21 +115,6 @@ useEffect(() => {
     );
   }
 
-  <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6">
-  <div className="flex justify-between items-center">
-    <h2 className="text-2xl font-bold">Lesson Quiz</h2>
-    {timeLeft > 0 && (
-      <div className="bg-white/20 px-4 py-2 rounded-lg">
-        <span className="font-mono text-xl">
-          {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}
-        </span>
-      </div>
-    )}
-  </div>
-  <p className="mt-1 opacity-90">Test your knowledge</p>
-</div>
-
-  // Results state
   if (submitted && result) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-10">
@@ -169,12 +157,12 @@ useEffect(() => {
                   </p>
                   <p className="text-sm">
                     Your answer: <span className={q.isCorrect ? 'text-green-700' : 'text-red-700'}>
-                      {q.userAnswerLetter}. {q.userAnswerText}
+                      {q.userAnswerLetter}. {q.userAnswerText || 'No answer'}
                     </span>
                   </p>
                   {!q.isCorrect && (
                     <p className="text-sm text-green-700 mt-1">
-                      Correct answer: {q.correctAnswer}
+                      Correct answer: {q.correctAnswer}. {q.correctAnswerText || ''}
                     </p>
                   )}
                   {q.rationale && (
@@ -211,7 +199,6 @@ useEffect(() => {
     );
   }
 
-  // No questions found
   if (!currentQuestion) {
     return (
       <div className="text-center py-20">
@@ -223,15 +210,25 @@ useEffect(() => {
     );
   }
 
-  // Quiz taking state
   const progress = ((currentIndex + 1) / questions.length) * 100;
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-10">
       <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
         <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6">
-          <h2 className="text-2xl font-bold">Lesson Quiz</h2>
-          <p className="mt-1 opacity-90">Test your knowledge</p>
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-2xl font-bold">Lesson Quiz</h2>
+              <p className="mt-1 opacity-90">Test your knowledge</p>
+            </div>
+            {timeLeft > 0 && (
+              <div className="bg-white/20 px-4 py-2 rounded-lg">
+                <span className="font-mono text-xl">
+                  {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}
+                </span>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="p-6">
