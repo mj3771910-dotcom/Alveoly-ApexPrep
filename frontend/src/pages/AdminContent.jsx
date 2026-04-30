@@ -290,57 +290,75 @@ const AdminContent = () => {
   }, []);
 
   // Handle upload / update
-  const handleUpload = async () => {
-    if (!form.title || (!file && !editingId)) {
-      return alert("Please fill all required fields");
-    }
+  // In AdminContent.jsx - Update handleUpload
+const handleUpload = async () => {
+  if (!form.title || (!file && !editingId)) {
+    return alert("Please fill all required fields");
+  }
 
-    const formData = new FormData();
-    formData.append("title", form.title);
-    formData.append("type", form.type);
-    if (file) formData.append("file", file);
-    if (form.thumbnail) formData.append("thumbnail", form.thumbnail);
+  // Validate subject/course selection
+  if (form.linkType === "subject" && !form.subjectId) {
+    return alert("Please select a subject");
+  }
+  
+  if (form.linkType === "course" && !form.courseId) {
+    return alert("Please select a course");
+  }
 
-    if (form.linkType === "subject") {
-      formData.append("subjectId", form.subjectId);
+  const formData = new FormData();
+  formData.append("title", form.title);
+  formData.append("type", form.type);
+  if (file) formData.append("file", file);
+  if (form.thumbnail) formData.append("thumbnail", form.thumbnail);
+
+  if (form.linkType === "subject") {
+    formData.append("subjectId", form.subjectId);
+    // Get courseId from the selected subject
+    const selectedSubject = subjects.find(s => s._id === form.subjectId);
+    if (selectedSubject && selectedSubject.courseId) {
+      formData.append("courseId", selectedSubject.courseId);
     } else {
-      formData.append("courseId", form.courseId);
+      alert("Selected subject is not associated with a course");
+      return;
     }
+  } else {
+    formData.append("courseId", form.courseId);
+  }
 
-    formData.append("isPaid", form.isPaid);
-    formData.append("price", form.price);
+  formData.append("isPaid", form.isPaid);
+  formData.append("price", form.price);
 
-    try {
-      if (editingId) {
-        const res = await axios.put(`/content/${editingId}`, formData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
-        setContents((prev) => prev.map((c) => (c._id === editingId ? res.data : c)));
-        alert("✅ Content updated");
-      } else {
-        const res = await axios.post("/content/upload", formData);
-        setContents((prev) => [res.data, ...prev]);
-        alert("✅ Uploaded successfully");
-      }
-
-      // Reset form
-      setForm({
-        title: "",
-        type: "video",
-        linkType: "subject",
-        courseId: "",
-        subjectId: "",
-        isPaid: false,
-        price: "",
-        thumbnail: null,
+  try {
+    if (editingId) {
+      const res = await axios.put(`/content/${editingId}`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
       });
-      setFile(null);
-      setEditingId(null);
-    } catch (err) {
-      console.error("Upload error:", err);
-      alert("Operation failed: " + (err.response?.data?.message || err.message));
+      setContents((prev) => prev.map((c) => (c._id === editingId ? res.data : c)));
+      alert("✅ Content updated");
+    } else {
+      const res = await axios.post("/content/upload", formData);
+      setContents((prev) => [res.data, ...prev]);
+      alert("✅ Uploaded successfully");
     }
-  };
+
+    // Reset form
+    setForm({
+      title: "",
+      type: "video",
+      linkType: "subject",
+      courseId: "",
+      subjectId: "",
+      isPaid: false,
+      price: "",
+      thumbnail: null,
+    });
+    setFile(null);
+    setEditingId(null);
+  } catch (err) {
+    console.error("Upload error:", err);
+    alert("Operation failed: " + (err.response?.data?.message || err.message));
+  }
+};
 
   // Delete content
   const handleDelete = async (id) => {
