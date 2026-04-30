@@ -6,9 +6,10 @@ import { io } from "../../server.js";
 
 // ================= UPLOAD CONTENT =================
 // controllers/contentController.js - Update uploadContent
+// controllers/contentController.js - UPDATE uploadContent to handle quiz type
 export const uploadContent = async (req, res) => {
   try {
-    const { title, type, courseId, subjectId, isPaid, price } = req.body;
+    const { title, type, courseId, subjectId, isPaid, price, quizTimerMinutes, quizPassMark } = req.body;
 
     // VALIDATION: Ensure both courseId and subjectId are provided
     if (!subjectId && req.body.linkType === "subject") {
@@ -19,11 +20,22 @@ export const uploadContent = async (req, res) => {
       return res.status(400).json({ message: "Course ID is required" });
     }
 
-    const uploadToCloudinary = (file, type, folder = "alveoly-content") =>
+    // For quiz type, file is not required
+    let mainUpload = null;
+    let thumbUpload = null;
+    let finalFileUrl = null;
+    let finalPublicId = null;
+    let finalThumbnailUrl = null;
+    let finalThumbnailPublicId = null;
+
+    const mainFile = req.files?.file?.[0];
+    const thumbFile = req.files?.thumbnail?.[0];
+
+    const uploadToCloudinary = (file, fileType, folder = "alveoly-content") =>
       new Promise((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
           {
-            resource_type: type === "pdf" ? "raw" : "auto",
+            resource_type: fileType === "pdf" ? "raw" : "auto",
             folder,
           },
           (err, result) => {
@@ -34,46 +46,50 @@ export const uploadContent = async (req, res) => {
         streamifier.createReadStream(file.buffer).pipe(stream);
       });
 
-    const mainFile = req.files?.file?.[0];
-    const thumbFile = req.files?.thumbnail?.[0];
-
-    if (!mainFile) {
-      return res.status(400).json({ message: "Main file required" });
-    }
-
-    // Upload main content
-    const mainUpload = await uploadToCloudinary(mainFile, type);
-
-    // Generate thumbnail
-    let thumbUpload = null;
-    if (thumbFile) {
-      thumbUpload = await uploadToCloudinary(thumbFile, "image", "alveoly-thumbnails");
-    } else {
-      if (type === "video") {
-        thumbUpload = {
-          secure_url: cloudinary.url(mainUpload.public_id + ".jpg", { 
-            resource_type: "video", 
-            quality: "auto", 
-            fetch_format: "auto" 
-          }),
-          public_id: mainUpload.public_id + "-thumb",
-        };
-      } else if (type === "pdf") {
-        thumbUpload = {
-          secure_url: cloudinary.url(mainUpload.public_id + ".jpg", { 
-            resource_type: "image", 
-            page: 1, 
-            quality: "auto", 
-            fetch_format: "auto" 
-          }),
-          public_id: mainUpload.public_id + "-thumb",
-        };
-      } else if (type === "image") {
-        thumbUpload = {
-          secure_url: mainUpload.secure_url,
-          public_id: mainUpload.public_id + "-thumb",
-        };
+    // Only upload file if it's not a quiz
+    if (type !== "quiz") {
+      if (!mainFile) {
+        return res.status(400).json({ message: "Main file required for video, image, or pdf content" });
       }
+
+      // Upload main content
+      mainUpload = await uploadToCloudinary(mainFile, type);
+
+      // Generate thumbnail
+      if (thumbFile) {
+        thumbUpload = await uploadToCloudinary(thumbFile, "image", "alveoly-thumbnails");
+      } else {
+        if (type === "video") {
+          thumbUpload = {
+            secure_url: cloudinary.url(mainUpload.public_id + ".jpg", { 
+              resource_type: "video", 
+              quality: "auto", 
+              fetch_format: "auto" 
+            }),
+            public_id: mainUpload.public_id + "-thumb",
+          };
+        } else if (type === "pdf") {
+          thumbUpload = {
+            secure_url: cloudinary.url(mainUpload.public_id + ".jpg", { 
+              resource_type: "image", 
+              page: 1, 
+              quality: "auto", 
+              fetch_format: "auto" 
+            }),
+            public_id: mainUpload.public_id + "-thumb",
+          };
+        } else if (type === "image") {
+          thumbUpload = {
+            secure_url: mainUpload.secure_url,
+            public_id: mainUpload.public_id + "-thumb",
+          };
+        }
+      }
+
+      finalFileUrl = mainUpload.secure_url;
+      finalPublicId = mainUpload.public_id;
+      finalThumbnailUrl = thumbUpload?.secure_url || "";
+      finalThumbnailPublicId = thumbUpload?.public_id || "";
     }
 
     // If subjectId is provided but courseId isn't, get courseId from subject
@@ -89,18 +105,28 @@ export const uploadContent = async (req, res) => {
     }
 
     // Save to DB
-    const content = await Content.create({
+    const contentData = {
       title,
       type,
-      fileUrl: mainUpload.secure_url,
-      publicId: mainUpload.public_id,
-      thumbnailUrl: thumbUpload?.secure_url || "",
-      thumbnailPublicId: thumbUpload?.public_id || "",
       courseId: finalCourseId,
       subjectId: finalSubjectId,
       isPaid: isPaid === "true" || isPaid === true,
       price: Number(price) || 0,
-    });
+    };
+
+    // Only add file fields if not quiz
+    if (type !== "quiz") {
+      contentData.fileUrl = finalFileUrl;
+      contentData.publicId = finalPublicId;
+      contentData.thumbnailUrl = finalThumbnailUrl;
+      contentData.thumbnailPublicId = finalThumbnailPublicId;
+    } else {
+      // Add quiz-specific fields
+      contentData.quizTimerMinutes = Number(quizTimerMinutes) || 0;
+      contentData.quizPassMark = Number(quizPassMark) || 70;
+    }
+
+    const content = await Content.create(contentData);
 
     io.emit("content:created", content);
     res.json(content);
