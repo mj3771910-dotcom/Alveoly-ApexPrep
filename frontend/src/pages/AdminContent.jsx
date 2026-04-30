@@ -1,10 +1,9 @@
-// AdminContent.jsx - UPDATED with Quiz type
 import { useEffect, useState } from "react";
 import axios from "../api/axios";
 import { FaPlayCircle, FaFilePdf, FaPlus, FaEdit, FaTrash, FaQuestionCircle } from "react-icons/fa";
 
 // Quiz Editor Component for standalone quizzes
-const StandaloneQuizEditor = ({ content, onClose, onSave }) => {
+const StandaloneQuizEditor = ({ content, onClose, onSave, refreshContents }) => {
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [timerMinutes, setTimerMinutes] = useState(content?.quizTimerMinutes || 0);
@@ -130,7 +129,7 @@ const StandaloneQuizEditor = ({ content, onClose, onSave }) => {
       });
 
       // Then save the questions
-      const response = await axios.post("/lesson-quiz/save", {
+      await axios.post("/lesson-quiz/save", {
         lessonId: content._id,
         questions: formattedQuestions,
         timerMinutes: timerMinutes,
@@ -138,6 +137,7 @@ const StandaloneQuizEditor = ({ content, onClose, onSave }) => {
 
       alert(`✅ Saved ${questions.length} questions for "${content.title}"!`);
       onSave?.();
+      if (refreshContents) refreshContents();
       onClose();
     } catch (err) {
       console.error("Save error:", err);
@@ -410,21 +410,23 @@ const AdminContent = () => {
     fetchData();
   }, []);
 
+  // Define fetchContents as a reusable function
+  const fetchContents = async () => {
+    try {
+      const res = await axios.get("/content");
+      setContents(res.data);
+    } catch (err) {
+      console.error("Error fetching contents:", err);
+    }
+  };
+
   useEffect(() => {
-    const fetchContents = async () => {
-      try {
-        const res = await axios.get("/content");
-        setContents(res.data);
-      } catch (err) {
-        console.error("Error fetching contents:", err);
-      }
-    };
     fetchContents();
   }, []);
 
   const handleUpload = async () => {
-    if (!form.title || (!file && !editingId && form.type !== "quiz")) {
-      return alert("Please fill all required fields");
+    if (!form.title) {
+      return alert("Please enter a title");
     }
 
     if (form.linkType === "subject" && !form.subjectId) {
@@ -433,6 +435,11 @@ const AdminContent = () => {
     
     if (form.linkType === "course" && !form.courseId) {
       return alert("Please select a course");
+    }
+
+    // For non-quiz types, file is required
+    if (form.type !== "quiz" && !file && !editingId) {
+      return alert("Please select a file to upload");
     }
 
     const formData = new FormData();
@@ -456,6 +463,12 @@ const AdminContent = () => {
 
     formData.append("isPaid", form.isPaid);
     formData.append("price", form.price);
+
+    // Add quiz settings if type is quiz
+    if (form.type === "quiz") {
+      formData.append("quizTimerMinutes", 0);
+      formData.append("quizPassMark", 70);
+    }
 
     try {
       let res;
@@ -524,7 +537,6 @@ const AdminContent = () => {
 
   const openViewer = (c) => {
     if (c.type === "quiz") {
-      // For quiz content, open the quiz editor instead of viewer
       setSelectedLesson(c);
       setShowQuizEditor(true);
       return;
@@ -799,6 +811,7 @@ const AdminContent = () => {
             console.log("Quiz saved for:", selectedLesson.title);
             fetchContents();
           }}
+          refreshContents={fetchContents}
         />
       )}
     </>
