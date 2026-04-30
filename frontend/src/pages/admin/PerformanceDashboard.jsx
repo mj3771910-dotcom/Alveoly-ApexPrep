@@ -1,4 +1,4 @@
-// pages/admin/PerformanceDashboard.jsx - COMPLETE UPDATED VERSION
+// pages/admin/PerformanceDashboard.jsx - COMPLETE FIXED VERSION
 import { useState, useEffect } from "react";
 import axios from "../../api/axios";
 import toast, { Toaster } from "react-hot-toast";
@@ -12,7 +12,6 @@ import {
   FaEye,
   FaTimes,
   FaCheckCircle,
-  FaClock,
 } from "react-icons/fa";
 
 const PerformanceDashboard = () => {
@@ -29,7 +28,7 @@ const PerformanceDashboard = () => {
 
   useEffect(() => {
     fetchCourses();
-    fetchStudents();
+    fetchAllStudents();
   }, []);
 
   useEffect(() => {
@@ -67,13 +66,13 @@ const PerformanceDashboard = () => {
     }
   };
 
-  const fetchStudents = async () => {
+  const fetchAllStudents = async () => {
     try {
       const res = await axios.get("/users/students");
       setStudents(res.data);
     } catch (err) {
       console.error("Error fetching students:", err);
-      toast.error("Failed to fetch students");
+      // Don't show error to user, just log it
     }
   };
 
@@ -84,20 +83,23 @@ const PerformanceDashboard = () => {
     setPerformance(null);
     
     try {
+      let res;
       if (selectedStudent) {
-        // Fetch specific student's performance
-        const res = await axios.get(`/lesson-quiz/student/${selectedStudent}/progress`);
-        console.log("Student performance data:", res.data);
-        setPerformance(res.data);
+        // Fetch specific student's progress
+        res = await axios.get(`/lesson-quiz/student/${selectedStudent}/progress`);
+        console.log("Student progress data:", res.data);
       } else {
         // Fetch subject-wide performance
-        const res = await axios.get(`/lesson-quiz/subject/${selectedSubject}/performance`);
+        res = await axios.get(`/lesson-quiz/subject/${selectedSubject}/performance`);
         console.log("Subject performance data:", res.data);
-        setPerformance(res.data);
       }
+      setPerformance(res.data);
     } catch (err) {
       console.error("Error fetching performance:", err);
-      toast.error(err.response?.data?.message || "Failed to fetch performance data");
+      console.error("Error response:", err.response);
+      const errorMsg = err.response?.data?.message || "Failed to fetch performance data";
+      toast.error(errorMsg);
+      setPerformance({ attempts: [], stats: { averageScore: 0, passRate: 0, totalAttempts: 0, completedLessons: 0 } });
     } finally {
       setLoading(false);
     }
@@ -111,7 +113,6 @@ const PerformanceDashboard = () => {
     try {
       await axios.post(`/lesson-quiz/allow-retake/${attemptId}`);
       toast.success(`Retake permission granted for ${studentName}`);
-      // Refresh data
       await fetchPerformanceData();
     } catch (err) {
       console.error("Error allowing retake:", err);
@@ -129,18 +130,18 @@ const PerformanceDashboard = () => {
     
     const reportData = {
       generatedAt: new Date().toISOString(),
-      subject: subjects.find(s => s._id === selectedSubject)?.name || "All Subjects",
-      course: courses.find(c => c._id === selectedCourse)?.name || "All Courses",
+      subject: subjects.find(s => s._id === selectedSubject)?.name || "N/A",
+      course: courses.find(c => c._id === selectedCourse)?.name || "N/A",
       student: selectedStudent ? students.find(s => s._id === selectedStudent)?.name : "All Students",
       stats: performance.stats,
       attempts: performance.attempts?.map(a => ({
         student: a.userName,
         email: a.userEmail,
-        lesson: a.lessonId?.title,
+        lesson: a.lessonId?.title || "N/A",
         score: `${a.score}/${a.totalPoints}`,
         percentage: `${Math.round(a.percentage)}%`,
         status: a.isPassed ? "Passed" : "Failed",
-        date: new Date(a.completedAt).toLocaleDateString(),
+        date: a.completedAt ? new Date(a.completedAt).toLocaleDateString() : "N/A",
       })),
     };
     
@@ -154,7 +155,6 @@ const PerformanceDashboard = () => {
     toast.success("Report exported successfully");
   };
 
-  // Get selected subject name
   const selectedSubjectName = subjects.find(s => s._id === selectedSubject)?.name || "";
   const selectedCourseName = courses.find(c => c._id === selectedCourse)?.name || "";
   const selectedStudentName = students.find(s => s._id === selectedStudent)?.name || "";
@@ -177,7 +177,7 @@ const PerformanceDashboard = () => {
         </div>
         <button
           onClick={exportReport}
-          disabled={!performance}
+          disabled={!performance || !performance.attempts?.length}
           className="bg-green-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-green-700 transition disabled:opacity-50"
         >
           <FaDownload /> Export Report
@@ -286,6 +286,7 @@ const PerformanceDashboard = () => {
             {performance.attempts?.length === 0 ? (
               <div className="text-center py-12">
                 <p className="text-gray-500">No attempts found for this filter</p>
+                <p className="text-sm text-gray-400 mt-1">Students need to take quizzes to see data here</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -306,25 +307,25 @@ const PerformanceDashboard = () => {
                       <tr key={idx} className="hover:bg-gray-50 transition">
                         <td className="px-6 py-4">
                           <div>
-                            <p className="font-medium text-gray-900">{attempt.userName}</p>
-                            <p className="text-sm text-gray-500">{attempt.userEmail}</p>
+                            <p className="font-medium text-gray-900">{attempt.userName || "Unknown"}</p>
+                            <p className="text-sm text-gray-500">{attempt.userEmail || "No email"}</p>
                           </div>
                         </td>
                         <td className="px-6 py-4">
                           <span className="text-gray-900">{attempt.lessonId?.title || "N/A"}</span>
                         </td>
                         <td className="px-6 py-4">
-                          <span className="font-medium">{attempt.score} / {attempt.totalPoints}</span>
+                          <span className="font-medium">{attempt.score || 0} / {attempt.totalPoints || 0}</span>
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
                             <div className="w-24 bg-gray-200 rounded-full h-2">
                               <div
                                 className="bg-blue-600 h-2 rounded-full transition-all"
-                                style={{ width: `${attempt.percentage}%` }}
+                                style={{ width: `${attempt.percentage || 0}%` }}
                               />
                             </div>
-                            <span className="text-sm font-medium">{Math.round(attempt.percentage)}%</span>
+                            <span className="text-sm font-medium">{Math.round(attempt.percentage || 0)}%</span>
                           </div>
                         </td>
                         <td className="px-6 py-4">
@@ -339,7 +340,7 @@ const PerformanceDashboard = () => {
                           )}
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-500">
-                          {new Date(attempt.completedAt).toLocaleDateString()}
+                          {attempt.completedAt ? new Date(attempt.completedAt).toLocaleDateString() : "N/A"}
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex gap-2">
@@ -377,7 +378,7 @@ const PerformanceDashboard = () => {
               <div>
                 <h2 className="text-xl font-bold">Quiz Attempt Details</h2>
                 <p className="text-sm text-gray-500">
-                  {selectedAttempt.userName} • {selectedAttempt.lessonId?.title}
+                  {selectedAttempt.userName} • {selectedAttempt.lessonId?.title || "Unknown Lesson"}
                 </p>
               </div>
               <button
@@ -392,11 +393,11 @@ const PerformanceDashboard = () => {
               <div className="grid grid-cols-2 gap-4 mb-6">
                 <div className="bg-gray-50 p-3 rounded-lg">
                   <p className="text-sm text-gray-500">Score</p>
-                  <p className="text-xl font-bold">{selectedAttempt.score} / {selectedAttempt.totalPoints}</p>
+                  <p className="text-xl font-bold">{selectedAttempt.score || 0} / {selectedAttempt.totalPoints || 0}</p>
                 </div>
                 <div className="bg-gray-50 p-3 rounded-lg">
                   <p className="text-sm text-gray-500">Percentage</p>
-                  <p className="text-xl font-bold">{Math.round(selectedAttempt.percentage)}%</p>
+                  <p className="text-xl font-bold">{Math.round(selectedAttempt.percentage || 0)}%</p>
                 </div>
                 <div className="bg-gray-50 p-3 rounded-lg">
                   <p className="text-sm text-gray-500">Status</p>
@@ -406,7 +407,7 @@ const PerformanceDashboard = () => {
                 </div>
                 <div className="bg-gray-50 p-3 rounded-lg">
                   <p className="text-sm text-gray-500">Completed On</p>
-                  <p className="text-lg font-medium">{new Date(selectedAttempt.completedAt).toLocaleString()}</p>
+                  <p className="text-lg font-medium">{selectedAttempt.completedAt ? new Date(selectedAttempt.completedAt).toLocaleString() : "N/A"}</p>
                 </div>
               </div>
 
@@ -414,15 +415,15 @@ const PerformanceDashboard = () => {
               <div className="space-y-4">
                 {selectedAttempt.questions?.map((q, idx) => (
                   <div key={idx} className={`border rounded-lg p-4 ${q.isCorrect ? 'bg-green-50' : 'bg-red-50'}`}>
-                    <p className="font-semibold mb-2">{idx + 1}. {q.questionText}</p>
+                    <p className="font-semibold mb-2">{idx + 1}. {q.questionText || "No question text"}</p>
                     <p className="text-sm">
                       Student's answer: <span className={q.isCorrect ? 'text-green-700 font-medium' : 'text-red-700 font-medium'}>
-                        {q.selected}. {q.selectedText || 'No answer'}
+                        {q.selected || "None"}. {q.selectedText || 'No answer'}
                       </span>
                     </p>
                     {!q.isCorrect && (
                       <p className="text-sm text-green-700 mt-1">
-                        Correct answer: {q.correct}. {q.correctText}
+                        Correct answer: {q.correct || "Unknown"}. {q.correctText || ""}
                       </p>
                     )}
                     {q.rationale && (
