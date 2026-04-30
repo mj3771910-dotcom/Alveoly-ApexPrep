@@ -12,10 +12,12 @@ import { protect, adminOnly } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// Admin routes
+// Admin only routes
 router.post("/save", protect, adminOnly, saveLessonQuestions);
-router.get("/lesson/:lessonId", protect, adminOnly, getLessonQuestions);
 router.get("/lesson/:lessonId/performance", protect, adminOnly, getLessonPerformance);
+
+// Routes accessible by both admin AND students (for checking if quiz exists)
+router.get("/lesson/:lessonId", protect, getLessonQuestions); // ← REMOVED adminOnly
 
 // Student routes
 router.post("/start/:lessonId", protect, startLessonQuiz);
