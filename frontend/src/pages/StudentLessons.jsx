@@ -20,57 +20,41 @@ const StudentLessons = () => {
     lessonId: null,
   });
 
-  useEffect(() => {
-    const fetchContentsAndQuizzes = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        
-        console.log("Fetching contents for subjectId:", subjectId);
-        
-        const res = await axios.get(`/content?subjectId=${subjectId}`);
-        console.log("Contents fetched:", res.data);
-        
-        const contentsData = res.data;
-        setContents(contentsData);
-        
-        // Check which lessons have quizzes (for video/pdf/image content)
-        const quizStatus = {};
-        for (const lesson of contentsData) {
-          // For quiz type content, it IS the quiz
-          if (lesson.type === "quiz") {
-            quizStatus[lesson._id] = true;
-          } else {
-            // For other content types, check if they have associated quiz questions
-            try {
-              const quizRes = await axios.get(`/lesson-quiz/lesson/${lesson._id}`);
-              const hasQuiz = quizRes.data && quizRes.data.length > 0;
-              quizStatus[lesson._id] = hasQuiz;
-              console.log(`Lesson ${lesson.title} has quiz:`, hasQuiz);
-            } catch (err) {
-              console.error(`Error checking quiz for lesson ${lesson._id}:`, err);
-              quizStatus[lesson._id] = false;
-            }
-          }
-        }
-        setLessonQuizzes(quizStatus);
-        
-      } catch (err) {
-        console.error("Error fetching contents:", err);
-        setError("Failed to load lessons. Please try again later.");
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    if (subjectId) {
-      fetchContentsAndQuizzes();
-    } else {
-      setError("No subject selected");
+  // In StudentLessons.jsx, update the fetchContentsAndQuizzes function:
+useEffect(() => {
+  const fetchContentsAndQuizzes = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      console.log("==== DEBUGGING STUDENT LESSONS ====");
+      console.log("1. subjectId from URL:", subjectId);
+      
+      const res = await axios.get(`/content?subjectId=${subjectId}`);
+      console.log("2. API Response:", res.data);
+      console.log("3. Number of contents:", res.data.length);
+      console.log("4. Quiz contents found:", res.data.filter(c => c.type === "quiz"));
+      console.log("5. All content types:", res.data.map(c => ({ title: c.title, type: c.type, subjectId: c.subjectId })));
+      
+      const contentsData = res.data;
+      setContents(contentsData);
+      
+      // ... rest of the code
+    } catch (err) {
+      console.error("Error fetching contents:", err);
+      setError("Failed to load lessons. Please try again later.");
+    } finally {
       setLoading(false);
     }
-  }, [subjectId]);
-
+  };
+  
+  if (subjectId) {
+    fetchContentsAndQuizzes();
+  } else {
+    setError("No subject selected");
+    setLoading(false);
+  }
+}, [subjectId]);
   // Content protection effects
   useEffect(() => {
     let blurTimeout;
