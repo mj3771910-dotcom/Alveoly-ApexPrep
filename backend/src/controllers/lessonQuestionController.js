@@ -430,3 +430,36 @@ export const getLessonPerformance = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
+// Add this function to your controllers/lessonQuestionController.js
+
+// ================= DELETE ATTEMPT (ADMIN) =================
+export const deleteAttempt = async (req, res) => {
+  try {
+    const { attemptId } = req.params;
+    
+    const attempt = await LessonAttempt.findById(attemptId);
+    if (!attempt) {
+      return res.status(404).json({ message: "Attempt not found" });
+    }
+    
+    // Store info for response
+    const studentName = attempt.userName;
+    const lessonTitle = attempt.lessonId?.title || "Unknown lesson";
+    
+    // Delete the attempt
+    await LessonAttempt.findByIdAndDelete(attemptId);
+    
+    console.log(`Deleted attempt ${attemptId} for ${studentName} - ${lessonTitle}`);
+    
+    res.json({ 
+      success: true, 
+      message: `Deleted attempt for ${studentName}`,
+      student: studentName,
+      lesson: lessonTitle,
+    });
+  } catch (err) {
+    console.error("Delete attempt error:", err);
+    res.status(500).json({ message: err.message });
+  }
+};
