@@ -1,3 +1,4 @@
+// StudentLessons.jsx - COMPLETE FIXED VERSION
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "../api/axios";
@@ -8,7 +9,8 @@ const StudentLessons = () => {
   const navigate = useNavigate();
   const [contents, setContents] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [hasQuiz, setHasQuiz] = useState(false);
+  const [lessonQuizzes, setLessonQuizzes] = useState({}); // Track quizzes per lesson
+  const [error, setError] = useState(null);
 
   // Viewer state
   const [viewer, setViewer] = useState({
@@ -19,39 +21,60 @@ const StudentLessons = () => {
     lessonId: null,
   });
 
+  // Fetch contents and check for quizzes
   useEffect(() => {
-    const fetchContents = async () => {
+    const fetchContentsAndQuizzes = async () => {
       try {
+        setLoading(true);
+        setError(null);
+        
+        console.log("Fetching contents for subjectId:", subjectId);
+        
+        // Fetch contents for this subject
         const res = await axios.get(`/content?subjectId=${subjectId}`);
-        setContents(res.data);
+        console.log("Contents fetched:", res.data);
+        
+        const contentsData = res.data;
+        setContents(contentsData);
+        
+        // Check which lessons have quizzes
+        const quizStatus = {};
+        for (const lesson of contentsData) {
+          try {
+            const quizRes = await axios.get(`/lesson-quiz/lesson/${lesson._id}`);
+            const hasQuiz = quizRes.data && quizRes.data.length > 0;
+            quizStatus[lesson._id] = hasQuiz;
+            console.log(`Lesson ${lesson.title} has quiz:`, hasQuiz);
+          } catch (err) {
+            console.error(`Error checking quiz for lesson ${lesson._id}:`, err);
+            quizStatus[lesson._id] = false;
+          }
+        }
+        setLessonQuizzes(quizStatus);
+        
       } catch (err) {
-        console.error(err);
+        console.error("Error fetching contents:", err);
+        setError("Failed to load lessons. Please try again later.");
       } finally {
         setLoading(false);
       }
     };
-    fetchContents();
+    
+    if (subjectId) {
+      fetchContentsAndQuizzes();
+    } else {
+      setError("No subject selected");
+      setLoading(false);
+    }
   }, [subjectId]);
 
-  // Check if lesson has quiz
-  const checkLessonQuiz = async (lessonId) => {
-    try {
-      const res = await axios.get(`/lesson-quiz/lesson/${lessonId}`);
-      setHasQuiz(res.data && res.data.length > 0);
-    } catch (err) {
-      console.error("Error checking quiz:", err);
-      setHasQuiz(false);
-    }
-  };
-
-  // Content protection effects
+  // Content protection effects (keep your existing protection code)
   useEffect(() => {
     let blurTimeout;
     let devToolsInterval;
 
     const getViewer = () => document.getElementById("secure-viewer");
 
-    // Disable right click
     const handleContextMenu = (e) => {
       if (getViewer()) {
         e.preventDefault();
@@ -59,72 +82,49 @@ const StudentLessons = () => {
       }
     };
 
-    // Blur function
     const triggerBlur = (duration = 2000) => {
       const viewerEl = getViewer();
       if (!viewerEl) return;
-
       viewerEl.style.filter = "blur(25px)";
       viewerEl.style.transition = "0.3s";
-
       clearTimeout(blurTimeout);
       blurTimeout = setTimeout(() => {
-        if (viewerEl) {
-          viewerEl.style.filter = "none";
-        }
+        if (viewerEl) viewerEl.style.filter = "none";
       }, duration);
     };
 
-    // Detect keys (screenshots + dev tools + save)
     const handleKeyDown = (e) => {
       if (!getViewer()) return;
-
       if (e.key === "PrintScreen") {
         e.preventDefault();
         triggerBlur(3000);
         alert("⚠️ Screenshot is blocked");
       }
-
-      if (
-        (e.ctrlKey && ["s", "u", "c", "p"].includes(e.key.toLowerCase())) ||
-        (e.ctrlKey && e.shiftKey && ["i", "j", "c"].includes(e.key.toLowerCase()))
-      ) {
+      if ((e.ctrlKey && ["s", "u", "c", "p"].includes(e.key.toLowerCase())) ||
+          (e.ctrlKey && e.shiftKey && ["i", "j", "c"].includes(e.key.toLowerCase()))) {
         e.preventDefault();
         triggerBlur(2000);
         alert("⚠️ Action not allowed");
       }
     };
 
-    // Blur when tab hidden
     const handleVisibilityChange = () => {
-      if (getViewer() && document.hidden) {
-        triggerBlur(5000);
-      }
+      if (getViewer() && document.hidden) triggerBlur(5000);
     };
 
-    // Blur when user leaves screen
     const handleMouseLeave = () => {
-      if (getViewer()) {
-        triggerBlur(3000);
-      }
+      if (getViewer()) triggerBlur(3000);
     };
 
-    // Blur when window loses focus
     const handleBlur = () => {
-      if (getViewer()) {
-        triggerBlur(4000);
-      }
+      if (getViewer()) triggerBlur(4000);
     };
 
-    // DevTools detection
     const detectDevTools = () => {
       if (!getViewer()) return;
-      
       const threshold = 160;
-      if (
-        window.outerWidth - window.innerWidth > threshold ||
-        window.outerHeight - window.innerHeight > threshold
-      ) {
+      if (window.outerWidth - window.innerWidth > threshold ||
+          window.outerHeight - window.innerHeight > threshold) {
         triggerBlur(5000);
       }
     };
@@ -161,11 +161,8 @@ const StudentLessons = () => {
     }
   };
 
-  // Handle open viewer
-  const openViewer = async (c) => {
+  const openViewer = (c) => {
     if (c.isPaid) return;
-    
-    await checkLessonQuiz(c._id);
     
     setViewer({
       open: true,
@@ -184,15 +181,14 @@ const StudentLessons = () => {
       title: "",
       lessonId: null,
     });
-    setHasQuiz(false);
   };
 
   const handleTakeQuiz = () => {
     closeViewer();
+    // Navigate to quiz page
     navigate(`/student/lessons/${viewer.lessonId}/quiz`);
   };
 
-  // Loading state
   if (loading) {
     return (
       <div className="max-w-6xl mx-auto px-4 py-10">
@@ -206,13 +202,22 @@ const StudentLessons = () => {
     );
   }
 
-  // No content state
+  if (error) {
+    return (
+      <div className="text-center py-20">
+        <h2 className="text-2xl font-semibold text-red-600">Error</h2>
+        <p className="text-gray-600 mt-2">{error}</p>
+      </div>
+    );
+  }
+
   if (contents.length === 0) {
     return (
       <div className="text-center py-20">
         <h2 className="text-2xl font-semibold text-gray-600">
           No lessons available yet 📭
         </h2>
+        <p className="text-gray-500 mt-2">Check back later for new content!</p>
       </div>
     );
   }
@@ -240,6 +245,13 @@ const StudentLessons = () => {
                   }}
                 />
 
+                {/* QUIZ BADGE - ADD THIS */}
+                {lessonQuizzes[c._id] && (
+                  <div className="absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1 shadow-lg z-10">
+                    📝 Quiz
+                  </div>
+                )}
+
                 {/* TYPE BADGE */}
                 <div className="absolute top-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
                   {c.type === "video" ? "🎥 Video" : c.type === "pdf" ? "📄 PDF" : "🖼 Image"}
@@ -257,7 +269,7 @@ const StudentLessons = () => {
 
                 {/* LOCK OVERLAY FOR PAID CONTENT */}
                 {c.isPaid && (
-                  <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center text-white">
+                  <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center text-white z-20">
                     <FaLock className="text-3xl mb-2" />
                     <p className="text-sm mb-2">Premium Content</p>
                     <button
@@ -278,6 +290,11 @@ const StudentLessons = () => {
                 <h3 className="font-semibold text-lg group-hover:text-blue-600 transition">
                   {c.title}
                 </h3>
+                {lessonQuizzes[c._id] && (
+                  <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                    <span>✓</span> Includes assessment
+                  </p>
+                )}
               </div>
             </div>
           ))}
@@ -297,7 +314,7 @@ const StudentLessons = () => {
               {viewer.title}
             </h3>
             <div className="flex gap-3">
-              {hasQuiz && (
+              {lessonQuizzes[viewer.lessonId] && (
                 <button
                   onClick={handleTakeQuiz}
                   className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2"
@@ -316,7 +333,6 @@ const StudentLessons = () => {
 
           {/* CONTENT AREA */}
           <div className="flex-1 flex items-center justify-center p-4">
-            {/* VIDEO PLAYER */}
             {viewer.type === "video" && (
               <video
                 src={viewer.url}
@@ -330,7 +346,6 @@ const StudentLessons = () => {
               />
             )}
 
-            {/* IMAGE VIEWER */}
             {viewer.type === "image" && (
               <img
                 src={viewer.url}
@@ -342,7 +357,6 @@ const StudentLessons = () => {
               />
             )}
 
-            {/* PDF VIEWER */}
             {viewer.type === "pdf" && (
               <iframe
                 src={`https://docs.google.com/gview?url=${encodeURIComponent(viewer.url)}&embedded=true`}

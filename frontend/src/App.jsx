@@ -54,6 +54,7 @@ import AdminContent from "./pages/AdminContent";
 import StudentLessons from "./pages/StudentLessons";
 import LessonQuiz from "./components/student/LessonQuiz";
 import PerformanceDashboard from "./pages/admin/PerformanceDashboard";
+import QuizPage from "./components/student/QuizPage";
 
 
 function App() {
@@ -119,6 +120,7 @@ function App() {
           <Route path="lessons/:subjectId" element={<StudentLessons />} />
           <Route path="ai" element={<AIChat />} />
           <Route path="lessons/:lessonId/quiz" element={<LessonQuiz />} />
+          <Route path="/student/lessons/:lessonId/quiz" element={<QuizPage />} />
         </Route>
 
         {/* Standalone AI chat for students */}
