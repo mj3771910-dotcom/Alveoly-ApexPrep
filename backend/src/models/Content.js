@@ -1,4 +1,4 @@
-// models/Content.js - UPDATED
+// models/Content.js - UPDATED with quiz type
 import mongoose from "mongoose";
 
 const contentSchema = new mongoose.Schema(
@@ -9,24 +9,34 @@ const contentSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ["video", "image", "pdf"],
+      enum: ["video", "image", "pdf", "quiz"], // Added "quiz" type
       required: true,
     },
-    fileUrl: String,
-    publicId: String,
-    thumbnailUrl: String,
-    thumbnailPublicId: String,
-    
-    // MAKE THESE REQUIRED
+    fileUrl: {
+      type: String,
+      default: null,
+    },
+    publicId: {
+      type: String,
+      default: null,
+    },
+    thumbnailUrl: {
+      type: String,
+      default: null,
+    },
+    thumbnailPublicId: {
+      type: String,
+      default: null,
+    },
     courseId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Course",
-      required: true, // Changed from default: null
+      required: true,
     },
     subjectId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Subject",
-      required: true, // Changed from default: null
+      required: true,
     },
     isPaid: { 
       type: Boolean, 
@@ -35,6 +45,15 @@ const contentSchema = new mongoose.Schema(
     price: { 
       type: Number, 
       default: 0 
+    },
+    // Quiz-specific fields
+    quizTimerMinutes: {
+      type: Number,
+      default: 0,
+    },
+    quizPassMark: {
+      type: Number,
+      default: 70,
     },
   },
   { timestamps: true }
