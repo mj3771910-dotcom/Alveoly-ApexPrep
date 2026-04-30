@@ -1,18 +1,17 @@
-// StudentLessons.jsx - COMPLETE FIXED VERSION
+// StudentLessons.jsx - COMPLETE FIXED VERSION with Quiz support
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "../api/axios";
-import { FaLock, FaFilePdf, FaPlayCircle, FaTimes } from "react-icons/fa";
+import { FaLock, FaFilePdf, FaPlayCircle, FaTimes, FaQuestionCircle } from "react-icons/fa";
 
 const StudentLessons = () => {
   const { subjectId } = useParams();
   const navigate = useNavigate();
   const [contents, setContents] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [lessonQuizzes, setLessonQuizzes] = useState({}); // Track quizzes per lesson
+  const [lessonQuizzes, setLessonQuizzes] = useState({});
   const [error, setError] = useState(null);
 
-  // Viewer state
   const [viewer, setViewer] = useState({
     open: false,
     type: "",
@@ -21,7 +20,6 @@ const StudentLessons = () => {
     lessonId: null,
   });
 
-  // Fetch contents and check for quizzes
   useEffect(() => {
     const fetchContentsAndQuizzes = async () => {
       try {
@@ -30,24 +28,29 @@ const StudentLessons = () => {
         
         console.log("Fetching contents for subjectId:", subjectId);
         
-        // Fetch contents for this subject
         const res = await axios.get(`/content?subjectId=${subjectId}`);
         console.log("Contents fetched:", res.data);
         
         const contentsData = res.data;
         setContents(contentsData);
         
-        // Check which lessons have quizzes
+        // Check which lessons have quizzes (for video/pdf/image content)
         const quizStatus = {};
         for (const lesson of contentsData) {
-          try {
-            const quizRes = await axios.get(`/lesson-quiz/lesson/${lesson._id}`);
-            const hasQuiz = quizRes.data && quizRes.data.length > 0;
-            quizStatus[lesson._id] = hasQuiz;
-            console.log(`Lesson ${lesson.title} has quiz:`, hasQuiz);
-          } catch (err) {
-            console.error(`Error checking quiz for lesson ${lesson._id}:`, err);
-            quizStatus[lesson._id] = false;
+          // For quiz type content, it IS the quiz
+          if (lesson.type === "quiz") {
+            quizStatus[lesson._id] = true;
+          } else {
+            // For other content types, check if they have associated quiz questions
+            try {
+              const quizRes = await axios.get(`/lesson-quiz/lesson/${lesson._id}`);
+              const hasQuiz = quizRes.data && quizRes.data.length > 0;
+              quizStatus[lesson._id] = hasQuiz;
+              console.log(`Lesson ${lesson.title} has quiz:`, hasQuiz);
+            } catch (err) {
+              console.error(`Error checking quiz for lesson ${lesson._id}:`, err);
+              quizStatus[lesson._id] = false;
+            }
           }
         }
         setLessonQuizzes(quizStatus);
@@ -68,7 +71,7 @@ const StudentLessons = () => {
     }
   }, [subjectId]);
 
-  // Content protection effects (keep your existing protection code)
+  // Content protection effects
   useEffect(() => {
     let blurTimeout;
     let devToolsInterval;
@@ -161,24 +164,24 @@ const StudentLessons = () => {
     }
   };
 
-  // In StudentLessons.jsx - Update openViewer function
-const openViewer = (c) => {
-  if (c.isPaid) return;
-  
-  if (c.type === "quiz") {
-    // For quiz content, navigate directly to quiz
-    navigate(`/student/lessons/${c._id}/quiz`);
-    return;
-  }
-  
-  setViewer({
-    open: true,
-    type: c.type,
-    url: c.fileUrl,
-    title: c.title,
-    lessonId: c._id,
-  });
-};
+  const openViewer = (c) => {
+    if (c.isPaid) return;
+    
+    // For quiz content, navigate directly to quiz page
+    if (c.type === "quiz") {
+      navigate(`/student/lessons/${c._id}/quiz`);
+      return;
+    }
+    
+    // For video/image/pdf, open viewer
+    setViewer({
+      open: true,
+      type: c.type,
+      url: c.fileUrl,
+      title: c.title,
+      lessonId: c._id,
+    });
+  };
 
   const closeViewer = () => {
     setViewer({
@@ -192,8 +195,30 @@ const openViewer = (c) => {
 
   const handleTakeQuiz = () => {
     closeViewer();
-    // Navigate to quiz page
     navigate(`/student/lessons/${viewer.lessonId}/quiz`);
+  };
+
+  const getContentIcon = (content) => {
+    if (content.type === "quiz") {
+      return <FaQuestionCircle className="text-5xl text-purple-500" />;
+    }
+    if (content.type === "video") {
+      return <FaPlayCircle className="text-5xl text-white opacity-90" />;
+    }
+    if (content.type === "pdf") {
+      return <FaFilePdf className="text-5xl text-red-600" />;
+    }
+    return null;
+  };
+
+  const getTypeLabel = (type) => {
+    switch(type) {
+      case "video": return "🎥 Video";
+      case "pdf": return "📄 PDF";
+      case "image": return "🖼 Image";
+      case "quiz": return "📝 Quiz";
+      default: return type;
+    }
   };
 
   if (loading) {
@@ -241,38 +266,47 @@ const openViewer = (c) => {
               className="bg-white rounded-2xl shadow-md hover:shadow-xl transition overflow-hidden border group cursor-pointer"
               onClick={() => openViewer(c)}
             >
-              {/* THUMBNAIL */}
+              {/* THUMBNAIL / PREVIEW AREA */}
               <div className="relative w-full h-48 bg-gray-100">
-                <img
-                  src={c.thumbnailUrl || "/placeholder.jpg"}
-                  className="w-full h-full object-cover group-hover:scale-105 transition"
-                  alt={c.title}
-                  onError={(e) => {
-                    e.target.src = "/placeholder.jpg";
-                  }}
-                />
+                {c.type === "quiz" ? (
+                  // Quiz content display
+                  <div className="w-full h-full bg-gradient-to-br from-purple-100 to-purple-200 flex flex-col items-center justify-center">
+                    <FaQuestionCircle className="text-purple-500 text-6xl mb-2" />
+                    <span className="text-purple-700 font-semibold">Quiz</span>
+                  </div>
+                ) : (
+                  // Regular content display
+                  <>
+                    <img
+                      src={c.thumbnailUrl || "/placeholder.jpg"}
+                      className="w-full h-full object-cover group-hover:scale-105 transition"
+                      alt={c.title}
+                      onError={(e) => {
+                        e.target.src = "/placeholder.jpg";
+                      }}
+                    />
+                    {/* Play button overlay for video */}
+                    {c.type === "video" && !c.isPaid && (
+                      <FaPlayCircle className="absolute inset-0 m-auto text-white text-6xl opacity-90" />
+                    )}
+                    {/* PDF icon overlay */}
+                    {c.type === "pdf" && !c.isPaid && (
+                      <FaFilePdf className="absolute inset-0 m-auto text-red-600 text-5xl" />
+                    )}
+                  </>
+                )}
 
-                {/* QUIZ BADGE - ADD THIS */}
-                {lessonQuizzes[c._id] && (
+                {/* QUIZ BADGE - shows if content has quiz (for video/pdf/image) OR is quiz type */}
+                {(lessonQuizzes[c._id] || c.type === "quiz") && (
                   <div className="absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1 shadow-lg z-10">
-                    📝 Quiz
+                    📝 {c.type === "quiz" ? "Quiz" : "Quiz Available"}
                   </div>
                 )}
 
                 {/* TYPE BADGE */}
-                <div className="absolute top-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
-                  {c.type === "video" ? "🎥 Video" : c.type === "pdf" ? "📄 PDF" : "🖼 Image"}
+                <div className="absolute top-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded flex items-center gap-1">
+                  {getTypeLabel(c.type)}
                 </div>
-
-                {/* PLAY BUTTON (VIDEO) */}
-                {c.type === "video" && !c.isPaid && (
-                  <FaPlayCircle className="absolute inset-0 m-auto text-white text-6xl opacity-90" />
-                )}
-
-                {/* PDF ICON */}
-                {c.type === "pdf" && !c.isPaid && (
-                  <FaFilePdf className="absolute inset-0 m-auto text-red-600 text-5xl" />
-                )}
 
                 {/* LOCK OVERLAY FOR PAID CONTENT */}
                 {c.isPaid && (
@@ -297,9 +331,9 @@ const openViewer = (c) => {
                 <h3 className="font-semibold text-lg group-hover:text-blue-600 transition">
                   {c.title}
                 </h3>
-                {lessonQuizzes[c._id] && (
+                {(lessonQuizzes[c._id] || c.type === "quiz") && (
                   <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
-                    <span>✓</span> Includes assessment
+                    <span>✓</span> {c.type === "quiz" ? "Interactive quiz" : "Includes assessment"}
                   </p>
                 )}
               </div>
@@ -308,7 +342,7 @@ const openViewer = (c) => {
         </div>
       </div>
 
-      {/* MODAL VIEWER WITH QUIZ BUTTON */}
+      {/* MODAL VIEWER FOR VIDEO/IMAGE/PDF */}
       {viewer.open && (
         <div 
           id="secure-viewer" 
