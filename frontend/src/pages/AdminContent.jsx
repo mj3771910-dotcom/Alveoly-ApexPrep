@@ -60,33 +60,46 @@ const QuizEditor = ({ lesson, onClose, onSave }) => {
   };
 
   const saveQuiz = async () => {
-    if (questions.length === 0) {
-      alert("Please add at least one question");
-      return;
-    }
+  if (questions.length === 0) {
+    alert("Please add at least one question");
+    return;
+  }
 
-    setLoading(true);
-    try {
-      await axios.post("/lesson-quiz/save", {
-        lessonId: lesson._id,
-        questions: questions.map(q => ({
-          question: q.question,
-          options: q.options,
-          correctAnswer: q.correctAnswer,
-          rationale: q.rationale,
-          points: q.points,
-        })),
-      });
-      alert(`✅ Saved ${questions.length} questions for this lesson!`);
-      onSave?.();
-      onClose();
-    } catch (err) {
-      console.error("Save error:", err);
-      alert("Failed to save questions");
-    } finally {
-      setLoading(false);
-    }
-  };
+  setLoading(true);
+  try {
+    console.log("Saving questions for lesson:", lesson._id);
+    console.log("Questions to save:", questions);
+
+    // Format questions properly for backend
+    const formattedQuestions = questions.map(q => ({
+      question: q.question,
+      options: q.options,
+      correctAnswer: q.correctAnswer,
+      rationale: q.rationale || "",
+      points: q.points || 1,
+    }));
+
+    const response = await axios.post("/lesson-quiz/save", {
+      lessonId: lesson._id,
+      questions: formattedQuestions,
+    });
+
+    console.log("Save response:", response.data);
+    alert(`✅ Saved ${questions.length} questions for this lesson!`);
+    onSave?.();
+    onClose();
+  } catch (err) {
+    console.error("Save error - Full error:", err);
+    console.error("Error response:", err.response);
+    console.error("Error message:", err.message);
+    
+    // Show detailed error message
+    const errorMsg = err.response?.data?.message || err.message || "Failed to save questions";
+    alert(`Failed to save questions: ${errorMsg}`);
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">

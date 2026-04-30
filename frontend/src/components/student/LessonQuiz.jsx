@@ -18,17 +18,32 @@ const LessonQuiz = ({ lessonId, onClose, onComplete }) => {
     startQuiz();
   }, [lessonId]);
 
-  const startQuiz = async () => {
-    try {
-      const res = await axios.post(`/lesson-quiz/start/${lessonId}`);
-      setAttemptId(res.data.attemptId);
-      setQuestions(res.data.questions);
-      setLoading(false);
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to start quiz");
-      onClose?.();
+ // components/student/LessonQuiz.jsx - Update startQuiz
+const startQuiz = async () => {
+  try {
+    setLoading(true);
+    console.log("Starting quiz for lesson:", lessonId);
+    
+    const res = await axios.post(`/lesson-quiz/start/${lessonId}`);
+    console.log("Quiz start response:", res.data);
+    
+    setAttemptId(res.data.attemptId);
+    setQuestions(res.data.questions);
+  } catch (err) {
+    console.error("Start quiz error:", err);
+    console.error("Error response:", err.response);
+    
+    const errorMsg = err.response?.data?.message || "Failed to start quiz";
+    toast.error(errorMsg);
+    
+    if (err.response?.status === 403) {
+      // Can't retake or already passed
+      setTimeout(() => onClose?.(), 2000);
     }
-  };
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleAnswer = (questionId, answerLetter) => {
     setAnswers(prev => ({ ...prev, [questionId]: answerLetter }));
