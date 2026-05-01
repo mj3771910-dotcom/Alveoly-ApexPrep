@@ -21,25 +21,45 @@ const StudentLessons = () => {
   });
 
   // In StudentLessons.jsx, update the fetchContentsAndQuizzes function:
+// In StudentLessons.jsx - Fix the useEffect to properly handle both quiz types
 useEffect(() => {
   const fetchContentsAndQuizzes = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      console.log("==== DEBUGGING STUDENT LESSONS ====");
-      console.log("1. subjectId from URL:", subjectId);
+      console.log("Fetching contents for subjectId:", subjectId);
       
       const res = await axios.get(`/content?subjectId=${subjectId}`);
-      console.log("2. API Response:", res.data);
-      console.log("3. Number of contents:", res.data.length);
-      console.log("4. Quiz contents found:", res.data.filter(c => c.type === "quiz"));
-      console.log("5. All content types:", res.data.map(c => ({ title: c.title, type: c.type, subjectId: c.subjectId })));
+      console.log("Contents fetched:", res.data);
       
       const contentsData = res.data;
       setContents(contentsData);
       
-      // ... rest of the code
+      // Check which lessons have quizzes (for video/pdf/image content)
+      const quizStatus = {};
+      for (const lesson of contentsData) {
+        // For quiz type content, it IS the quiz - mark as having quiz
+        if (lesson.type === "quiz") {
+          quizStatus[lesson._id] = true;
+          console.log(`Standalone quiz: ${lesson.title}`);
+        } else {
+          // For other content types, check if they have associated quiz questions
+          try {
+            const quizRes = await axios.get(`/lesson-quiz/lesson/${lesson._id}`);
+            const hasQuiz = quizRes.data && quizRes.data.length > 0;
+            quizStatus[lesson._id] = hasQuiz;
+            if (hasQuiz) {
+              console.log(`Content "${lesson.title}" has attached quiz`);
+            }
+          } catch (err) {
+            console.error(`Error checking quiz for lesson ${lesson._id}:`, err);
+            quizStatus[lesson._id] = false;
+          }
+        }
+      }
+      setLessonQuizzes(quizStatus);
+      
     } catch (err) {
       console.error("Error fetching contents:", err);
       setError("Failed to load lessons. Please try again later.");
@@ -55,6 +75,7 @@ useEffect(() => {
     setLoading(false);
   }
 }, [subjectId]);
+
   // Content protection effects
   useEffect(() => {
     let blurTimeout;
