@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import axios from "../api/axios";
 import { FaPlayCircle, FaFilePdf, FaPlus, FaEdit, FaTrash, FaQuestionCircle } from "react-icons/fa";
+import toast, { Toaster } from "react-hot-toast";
 
 // Quiz Editor Component for standalone quizzes
 const StandaloneQuizEditor = ({ content, onClose, onSave, refreshContents }) => {
@@ -34,6 +35,7 @@ const StandaloneQuizEditor = ({ content, onClose, onSave, refreshContents }) => 
       }
     } catch (err) {
       console.error("Error fetching questions:", err);
+      toast.error("Failed to fetch existing questions");
     }
   };
 
@@ -63,15 +65,15 @@ const StandaloneQuizEditor = ({ content, onClose, onSave, refreshContents }) => 
 
   const addOrUpdateQuestion = () => {
     if (!currentQuestion.question.trim()) {
-      alert("Please enter a question");
+      toast.error("Please enter a question");
       return;
     }
     if (currentQuestion.options.some(opt => !opt.trim())) {
-      alert("Please fill all options");
+      toast.error("Please fill all options");
       return;
     }
     if (!currentQuestion.correctAnswer) {
-      alert("Please select correct answer");
+      toast.error("Please select correct answer");
       return;
     }
 
@@ -86,9 +88,10 @@ const StandaloneQuizEditor = ({ content, onClose, onSave, refreshContents }) => 
         points: currentQuestion.points,
       };
       setQuestions(updatedQuestions);
-      alert("Question updated successfully!");
+      toast.success("Question updated successfully!");
     } else {
       setQuestions([...questions, { ...currentQuestion, id: Date.now() }]);
+      toast.success("Question added successfully!");
     }
     
     resetForm();
@@ -102,12 +105,13 @@ const StandaloneQuizEditor = ({ content, onClose, onSave, refreshContents }) => 
       } else if (editingIndex !== null && editingIndex > index) {
         setEditingIndex(editingIndex - 1);
       }
+      toast.success("Question deleted");
     }
   };
 
   const saveQuiz = async () => {
     if (questions.length === 0) {
-      alert("Please add at least one question");
+      toast.error("Please add at least one question");
       return;
     }
 
@@ -121,27 +125,25 @@ const StandaloneQuizEditor = ({ content, onClose, onSave, refreshContents }) => 
         points: q.points || 1,
       }));
 
-      // First save the content with quiz settings
       await axios.put(`/content/${content._id}`, {
         title: content.title,
         quizTimerMinutes: timerMinutes,
         quizPassMark: passMark,
       });
 
-      // Then save the questions
       await axios.post("/lesson-quiz/save", {
         lessonId: content._id,
         questions: formattedQuestions,
         timerMinutes: timerMinutes,
       });
 
-      alert(`✅ Saved ${questions.length} questions for "${content.title}"!`);
+      toast.success(`✅ Saved ${questions.length} questions for "${content.title}"!`);
       onSave?.();
       if (refreshContents) refreshContents();
       onClose();
     } catch (err) {
       console.error("Save error:", err);
-      alert("Failed to save quiz: " + (err.response?.data?.message || err.message));
+      toast.error("Failed to save quiz: " + (err.response?.data?.message || err.message));
     } finally {
       setLoading(false);
     }
@@ -165,7 +167,6 @@ const StandaloneQuizEditor = ({ content, onClose, onSave, refreshContents }) => 
         </div>
 
         <div className="p-6">
-          {/* Quiz Settings */}
           <div className="mb-6 bg-blue-50 p-4 rounded-lg">
             <h3 className="font-semibold mb-3">Quiz Settings</h3>
             <div className="grid grid-cols-2 gap-4">
@@ -202,7 +203,6 @@ const StandaloneQuizEditor = ({ content, onClose, onSave, refreshContents }) => 
             </div>
           </div>
 
-          {/* Add/Edit Question Form */}
           <div id="question-form" className="bg-gray-50 p-4 rounded-lg mb-6">
             <h3 className="font-semibold mb-4">
               {editingIndex !== null ? "✏️ Edit Question" : "➕ Add New Question"}
@@ -212,7 +212,7 @@ const StandaloneQuizEditor = ({ content, onClose, onSave, refreshContents }) => 
               value={currentQuestion.question}
               onChange={(e) => setCurrentQuestion({ ...currentQuestion, question: e.target.value })}
               placeholder="Enter question"
-              className="w-full p-3 border rounded mb-3"
+              className="w-full p-3 border rounded mb-3 focus:ring-2 focus:ring-blue-500 outline-none"
               rows="2"
             />
 
@@ -229,7 +229,7 @@ const StandaloneQuizEditor = ({ content, onClose, onSave, refreshContents }) => 
                     setCurrentQuestion({ ...currentQuestion, options: newOpts });
                   }}
                   placeholder={`Option ${String.fromCharCode(65 + idx)}`}
-                  className="flex-1 p-3 border rounded"
+                  className="flex-1 p-3 border rounded focus:ring-2 focus:ring-blue-500 outline-none"
                 />
               </div>
             ))}
@@ -238,7 +238,7 @@ const StandaloneQuizEditor = ({ content, onClose, onSave, refreshContents }) => 
               <select
                 value={currentQuestion.correctAnswer}
                 onChange={(e) => setCurrentQuestion({ ...currentQuestion, correctAnswer: e.target.value })}
-                className="w-full p-3 border rounded"
+                className="w-full p-3 border rounded focus:ring-2 focus:ring-blue-500 outline-none"
               >
                 <option value="">Select Correct Answer</option>
                 {currentQuestion.options.map((_, idx) => (
@@ -253,7 +253,7 @@ const StandaloneQuizEditor = ({ content, onClose, onSave, refreshContents }) => 
                 value={currentQuestion.points}
                 onChange={(e) => setCurrentQuestion({ ...currentQuestion, points: parseInt(e.target.value) || 1 })}
                 placeholder="Points"
-                className="w-full p-3 border rounded"
+                className="w-full p-3 border rounded focus:ring-2 focus:ring-blue-500 outline-none"
                 min="1"
               />
             </div>
@@ -262,7 +262,7 @@ const StandaloneQuizEditor = ({ content, onClose, onSave, refreshContents }) => 
               value={currentQuestion.rationale}
               onChange={(e) => setCurrentQuestion({ ...currentQuestion, rationale: e.target.value })}
               placeholder="Rationale (explanation for correct answer)"
-              className="w-full p-3 border rounded mb-3"
+              className="w-full p-3 border rounded mb-3 focus:ring-2 focus:ring-blue-500 outline-none"
               rows="2"
             />
 
@@ -289,7 +289,6 @@ const StandaloneQuizEditor = ({ content, onClose, onSave, refreshContents }) => 
             </div>
           </div>
 
-          {/* Questions List */}
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <h3 className="font-semibold text-lg">Questions List</h3>
@@ -405,18 +404,19 @@ const AdminContent = () => {
         setSubjects(s.data);
       } catch (err) {
         console.error("Error fetching data:", err);
+        toast.error("Failed to fetch courses and subjects");
       }
     };
     fetchData();
   }, []);
 
-  // Define fetchContents as a reusable function
   const fetchContents = async () => {
     try {
       const res = await axios.get("/content");
       setContents(res.data);
     } catch (err) {
       console.error("Error fetching contents:", err);
+      toast.error("Failed to fetch contents");
     }
   };
 
@@ -426,20 +426,23 @@ const AdminContent = () => {
 
   const handleUpload = async () => {
     if (!form.title) {
-      return alert("Please enter a title");
+      toast.error("Please enter a title");
+      return;
     }
 
     if (form.linkType === "subject" && !form.subjectId) {
-      return alert("Please select a subject");
+      toast.error("Please select a subject");
+      return;
     }
     
     if (form.linkType === "course" && !form.courseId) {
-      return alert("Please select a course");
+      toast.error("Please select a course");
+      return;
     }
 
-    // For non-quiz types, file is required
     if (form.type !== "quiz" && !file && !editingId) {
-      return alert("Please select a file to upload");
+      toast.error("Please select a file to upload");
+      return;
     }
 
     const formData = new FormData();
@@ -454,7 +457,7 @@ const AdminContent = () => {
       if (selectedSubject && selectedSubject.courseId) {
         formData.append("courseId", selectedSubject.courseId);
       } else {
-        alert("Selected subject is not associated with a course");
+        toast.error("Selected subject is not associated with a course");
         return;
       }
     } else {
@@ -464,7 +467,6 @@ const AdminContent = () => {
     formData.append("isPaid", form.isPaid);
     formData.append("price", form.price);
 
-    // Add quiz settings if type is quiz
     if (form.type === "quiz") {
       formData.append("quizTimerMinutes", 0);
       formData.append("quizPassMark", 70);
@@ -477,14 +479,13 @@ const AdminContent = () => {
           headers: { "Content-Type": "multipart/form-data" },
         });
         setContents((prev) => prev.map((c) => (c._id === editingId ? res.data : c)));
-        alert("✅ Content updated");
+        toast.success("✅ Content updated");
       } else {
         res = await axios.post("/content/upload", formData);
         setContents((prev) => [res.data, ...prev]);
-        alert("✅ Uploaded successfully");
+        toast.success("✅ Uploaded successfully");
       }
 
-      // If this is a quiz content, open the quiz editor
       if (form.type === "quiz" && res.data) {
         setSelectedLesson(res.data);
         setShowQuizEditor(true);
@@ -504,7 +505,7 @@ const AdminContent = () => {
       setEditingId(null);
     } catch (err) {
       console.error("Upload error:", err);
-      alert("Operation failed: " + (err.response?.data?.message || err.message));
+      toast.error("Operation failed: " + (err.response?.data?.message || err.message));
     }
   };
 
@@ -513,10 +514,10 @@ const AdminContent = () => {
     try {
       await axios.delete(`/content/${id}`);
       setContents((prev) => prev.filter((c) => c._id !== id));
-      alert("✅ Deleted successfully");
+      toast.success("✅ Deleted successfully");
     } catch (err) {
       console.error(err);
-      alert("Delete failed");
+      toast.error("Delete failed");
     }
   };
 
@@ -567,8 +568,19 @@ const AdminContent = () => {
     }
   };
 
+  const getTypeLabel = (type) => {
+    switch(type) {
+      case "video": return "🎥 Video";
+      case "pdf": return "📄 PDF";
+      case "image": return "🖼 Image";
+      case "quiz": return "📝 Quiz";
+      default: return type;
+    }
+  };
+
   return (
     <>
+      <Toaster position="top-center" />
       <div className="max-w-6xl mx-auto px-6 py-10">
         <h2 className="text-3xl font-bold mb-8 text-gray-800">
           {editingId ? "✏️ Edit Content" : "📤 Upload Learning Content"}
@@ -589,7 +601,7 @@ const AdminContent = () => {
             <select
               value={form.type}
               onChange={(e) => setForm({ ...form, type: e.target.value })}
-              className="p-3 border rounded-lg"
+              className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
             >
               <option value="video">🎥 Video</option>
               <option value="image">🖼 Image</option>
@@ -600,7 +612,7 @@ const AdminContent = () => {
             <select
               value={form.linkType}
               onChange={(e) => setForm({ ...form, linkType: e.target.value })}
-              className="p-3 border rounded-lg"
+              className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
             >
               <option value="subject">Attach to Subject</option>
               <option value="course">Attach to Course</option>
@@ -611,7 +623,7 @@ const AdminContent = () => {
             <select
               value={form.subjectId}
               onChange={(e) => setForm({ ...form, subjectId: e.target.value })}
-              className="w-full p-3 border rounded-lg"
+              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
             >
               <option value="">Select Subject</option>
               {subjects.map((s) => (
@@ -624,7 +636,7 @@ const AdminContent = () => {
             <select
               value={form.courseId}
               onChange={(e) => setForm({ ...form, courseId: e.target.value })}
-              className="w-full p-3 border rounded-lg"
+              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
             >
               <option value="">Select Course</option>
               {courses.map((c) => (
@@ -703,27 +715,39 @@ const AdminContent = () => {
             {contents.map((c) => (
               <div
                 key={c._id}
-                className="bg-white rounded-2xl shadow hover:shadow-xl transition overflow-hidden border group cursor-pointer"
+                className="bg-white rounded-2xl shadow hover:shadow-xl transition overflow-hidden border group cursor-pointer flex flex-col"
                 onClick={() => openViewer(c)}
               >
-                <div className="relative h-40 w-full bg-gray-100">
+                <div className="relative h-48 w-full bg-gray-100 flex-shrink-0 overflow-hidden">
                   {c.type === "quiz" ? (
                     <div className="w-full h-full bg-gradient-to-br from-purple-100 to-purple-200 flex flex-col items-center justify-center">
-                      <FaQuestionCircle className="text-purple-500 text-6xl mb-2" />
-                      <span className="text-purple-700 font-semibold">Quiz Content</span>
+                      <FaQuestionCircle className="text-purple-500 text-5xl mb-2" />
+                      <span className="text-purple-700 font-semibold text-sm">Quiz Content</span>
                     </div>
                   ) : (
-                    <img
-                      src={c.thumbnailUrl || "/placeholder.jpg"}
-                      className="w-full h-full object-cover group-hover:scale-105 transition"
-                      alt={c.title}
-                      onError={(e) => { e.target.src = "/placeholder.jpg"; }}
-                    />
+                    <div className="w-full h-full relative">
+                      <img
+                        src={c.thumbnailUrl || "/placeholder.jpg"}
+                        className="w-full h-full object-contain bg-gray-900 group-hover:scale-105 transition-transform duration-300"
+                        alt={c.title}
+                        onError={(e) => { e.target.src = "/placeholder.jpg"; }}
+                      />
+                      {c.type === "video" && (
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                          <FaPlayCircle className="text-white text-5xl opacity-90 drop-shadow-lg" />
+                        </div>
+                      )}
+                      {c.type === "pdf" && (
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                          <FaFilePdf className="text-red-500 text-5xl drop-shadow-lg" />
+                        </div>
+                      )}
+                    </div>
                   )}
 
                   <div className="absolute top-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded flex items-center gap-1">
                     {getTypeIcon(c.type)}
-                    <span>{c.type === "quiz" ? "📝 Quiz" : c.type === "video" ? "🎥 Video" : c.type === "pdf" ? "📄 PDF" : "🖼 Image"}</span>
+                    <span>{getTypeLabel(c.type)}</span>
                   </div>
 
                   {c.isPaid && (
@@ -733,8 +757,8 @@ const AdminContent = () => {
                   )}
                 </div>
 
-                <div className="p-4">
-                  <h4 className="font-semibold text-lg group-hover:text-blue-600 transition">
+                <div className="p-4 flex-1">
+                  <h4 className="font-semibold text-lg group-hover:text-blue-600 transition line-clamp-2">
                     {c.title}
                   </h4>
                 </div>
@@ -747,7 +771,7 @@ const AdminContent = () => {
                     }}
                     className="flex-1 bg-yellow-500 text-white py-2 rounded-lg text-sm hover:bg-yellow-600 transition flex items-center justify-center gap-2"
                   >
-                    <FaEdit /> Edit
+                    <FaEdit size={14} /> Edit
                   </button>
                   <button
                     onClick={(e) => {
@@ -756,7 +780,7 @@ const AdminContent = () => {
                     }}
                     className="flex-1 bg-red-500 text-white py-2 rounded-lg text-sm hover:bg-red-600 transition flex items-center justify-center gap-2"
                   >
-                    <FaTrash /> Delete
+                    <FaTrash size={14} /> Delete
                   </button>
                   <button
                     onClick={(e) => {
@@ -765,7 +789,7 @@ const AdminContent = () => {
                     }}
                     className="flex-1 bg-green-500 text-white py-2 rounded-lg text-sm hover:bg-green-600 transition flex items-center justify-center gap-2"
                   >
-                    <FaPlus /> {c.type === "quiz" ? "Edit Quiz" : "Add Quiz"}
+                    <FaPlus size={14} /> {c.type === "quiz" ? "Edit Quiz" : "Add Quiz"}
                   </button>
                 </div>
               </div>
@@ -776,18 +800,18 @@ const AdminContent = () => {
 
       {viewer.open && viewer.type !== "quiz" && (
         <div className="fixed inset-0 bg-black/90 z-50 flex flex-col">
-          <div className="flex justify-between items-center p-4 text-white bg-black/50">
+          <div className="flex justify-between items-center p-4 text-white bg-black/50 flex-shrink-0">
             <h3 className="text-lg font-semibold">{viewer.title}</h3>
             <button onClick={closeViewer} className="hover:text-gray-300 text-2xl">
               ✖
             </button>
           </div>
-          <div className="flex-1 flex items-center justify-center p-4">
+          <div className="flex-1 flex items-center justify-center p-4 min-h-0">
             {viewer.type === "video" && (
-              <video src={viewer.url} controls autoPlay className="max-h-full max-w-full rounded-lg" />
+              <video src={viewer.url} controls autoPlay className="max-w-full max-h-full rounded-lg object-contain" />
             )}
             {viewer.type === "image" && (
-              <img src={viewer.url} alt={viewer.title} className="max-h-full max-w-full rounded-lg" />
+              <img src={viewer.url} alt={viewer.title} className="max-w-full max-h-full rounded-lg object-contain" />
             )}
             {viewer.type === "pdf" && (
               <iframe
