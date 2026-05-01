@@ -1,4 +1,4 @@
-// StudentLessons.jsx - COMPLETE FIXED VERSION
+// StudentLessons.jsx - FIXED payment handling
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "../api/axios";
@@ -12,6 +12,7 @@ const StudentLessons = () => {
   const [loading, setLoading] = useState(true);
   const [lessonQuizzes, setLessonQuizzes] = useState({});
   const [error, setError] = useState(null);
+  const [processingPayment, setProcessingPayment] = useState(false);
 
   const [viewer, setViewer] = useState({
     open: false,
@@ -73,6 +74,63 @@ const StudentLessons = () => {
       setLoading(false);
     }
   }, [subjectId]);
+
+  // Check for payment callback on page load
+  useEffect(() => {
+    const checkPaymentCallback = async () => {
+      // Get all URL parameters
+      const urlParams = new URLSearchParams(window.location.search);
+      
+      // Check for common payment gateway parameters
+      const reference = urlParams.get('reference');
+      const transactionId = urlParams.get('transaction_id');
+      const status = urlParams.get('status');
+      const paymentStatus = urlParams.get('payment_status');
+      const contentId = urlParams.get('content_id');
+      const sessionId = localStorage.getItem('payment_session_id');
+      
+      console.log("Payment callback detected - Params:", {
+        reference,
+        transactionId,
+        status,
+        paymentStatus,
+        contentId,
+        sessionId
+      });
+      
+      // If we have a reference or transaction ID, verify payment
+      if (reference || transactionId) {
+        setProcessingPayment(true);
+        toast.loading("Verifying payment...", { id: "payment-verification" });
+        
+        try {
+          // Call your backend to verify payment
+          const verifyRes = await axios.post("/content-payments/verify", {
+            reference: reference || transactionId,
+            contentId: contentId || sessionId,
+          });
+          
+          if (verifyRes.data.success) {
+            toast.success("Payment verified! Content unlocked.", { id: "payment-verification" });
+            // Refresh content to show unlocked status
+            await fetchContentsAndQuizzes();
+          } else {
+            toast.error("Payment verification failed. Please contact support.", { id: "payment-verification" });
+          }
+        } catch (err) {
+          console.error("Payment verification error:", err);
+          toast.error("Failed to verify payment. Please contact support.", { id: "payment-verification" });
+        } finally {
+          setProcessingPayment(false);
+          // Clean up URL parameters
+          window.history.replaceState({}, document.title, window.location.pathname);
+          localStorage.removeItem('payment_session_id');
+        }
+      }
+    };
+    
+    checkPaymentCallback();
+  }, []);
 
   // Content protection effects
   useEffect(() => {
@@ -158,46 +216,32 @@ const StudentLessons = () => {
   // Handle payment unlock
   const handleUnlock = async (c) => {
     try {
+      // Store content ID for callback
+      localStorage.setItem('payment_session_id', c._id);
+      
       const res = await axios.post("/content-payments/pay", {
         contentId: c._id,
       });
       
       if (res.data.authorizationUrl) {
+        // Redirect to payment gateway
         window.location.href = res.data.authorizationUrl;
+      } else if (res.data.reference) {
+        // If using paystack or similar that needs reference, redirect to payment page
+        window.location.href = `/payment/process?reference=${res.data.reference}&contentId=${c._id}`;
       }
     } catch (err) {
       console.error(err);
       toast.error("Payment failed: " + (err.response?.data?.message || "Please try again"));
+      localStorage.removeItem('payment_session_id');
     }
   };
-
-  // Check payment status when returning from payment
-  const checkPaymentStatus = async (contentId) => {
-    try {
-      const res = await axios.get(`/content-payments/status/${contentId}`);
-      if (res.data.isPaid) {
-        await fetchContentsAndQuizzes();
-        toast.success("Payment successful! Content unlocked.");
-      }
-    } catch (err) {
-      console.error("Error checking payment status:", err);
-    }
-  };
-
-  // Check for payment return
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const paymentSuccess = urlParams.get('payment_success');
-    const contentId = urlParams.get('content_id');
-    
-    if (paymentSuccess === 'true' && contentId) {
-      checkPaymentStatus(contentId);
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
-  }, []);
 
   const openViewer = (c) => {
-    if (c.isPaid) return;
+    if (c.isPaid) {
+      toast.error("This content is locked. Please purchase to unlock.");
+      return;
+    }
     
     if (c.type === "quiz") {
       navigate(`/student/lessons/${c._id}/quiz`);
@@ -238,7 +282,7 @@ const StudentLessons = () => {
     }
   };
 
-  if (loading) {
+  if (loading || processingPayment) {
     return (
       <div className="max-w-6xl mx-auto px-4 py-10">
         <h2 className="text-3xl font-bold mb-8">Lessons</h2>
@@ -284,7 +328,6 @@ const StudentLessons = () => {
               className="bg-white rounded-2xl shadow-md hover:shadow-xl transition overflow-hidden border group cursor-pointer flex flex-col"
               onClick={() => openViewer(c)}
             >
-              {/* THUMBNAIL / PREVIEW AREA - FIXED HEIGHT */}
               <div className="relative w-full h-48 bg-gray-100 flex-shrink-0 overflow-hidden">
                 {c.type === "quiz" ? (
                   <div className="w-full h-full bg-gradient-to-br from-purple-100 to-purple-200 flex flex-col items-center justify-center">
@@ -301,13 +344,11 @@ const StudentLessons = () => {
                         e.target.src = "/placeholder.jpg";
                       }}
                     />
-                    {/* Play button overlay for video */}
                     {c.type === "video" && !c.isPaid && (
                       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                         <FaPlayCircle className="text-white text-5xl opacity-90 drop-shadow-lg" />
                       </div>
                     )}
-                    {/* PDF icon overlay */}
                     {c.type === "pdf" && !c.isPaid && (
                       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                         <FaFilePdf className="text-red-500 text-5xl drop-shadow-lg" />
@@ -316,23 +357,21 @@ const StudentLessons = () => {
                   </div>
                 )}
 
-                {/* QUIZ BADGE */}
                 {(lessonQuizzes[c._id] || c.type === "quiz") && (
                   <div className="absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1 shadow-lg z-10">
                     📝 {c.type === "quiz" ? "Quiz" : "Quiz Available"}
                   </div>
                 )}
 
-                {/* TYPE BADGE */}
                 <div className="absolute top-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded flex items-center gap-1">
                   {getTypeLabel(c.type)}
                 </div>
 
-                {/* LOCK OVERLAY FOR PAID CONTENT */}
                 {c.isPaid && (
                   <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center text-white z-20">
                     <FaLock className="text-3xl mb-2" />
                     <p className="text-sm mb-2">Premium Content</p>
+                    <p className="text-xs mb-2">Price: ₵{c.price}</p>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -340,13 +379,12 @@ const StudentLessons = () => {
                       }}
                       className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm transition"
                     >
-                      Unlock ₵{c.price}
+                      Unlock Now
                     </button>
                   </div>
                 )}
               </div>
 
-              {/* INFO */}
               <div className="p-4 flex-1">
                 <h3 className="font-semibold text-lg group-hover:text-blue-600 transition line-clamp-2">
                   {c.title}
@@ -354,6 +392,11 @@ const StudentLessons = () => {
                 {(lessonQuizzes[c._id] || c.type === "quiz") && (
                   <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
                     <span>✓</span> {c.type === "quiz" ? "Interactive quiz" : "Includes assessment"}
+                  </p>
+                )}
+                {c.isPaid && (
+                  <p className="text-xs text-yellow-600 mt-1">
+                    💰 Premium content
                   </p>
                 )}
               </div>
@@ -369,7 +412,6 @@ const StudentLessons = () => {
           className="fixed inset-0 bg-black/95 z-50 flex flex-col"
           onContextMenu={(e) => e.preventDefault()}
         >
-          {/* HEADER */}
           <div className="flex justify-between items-center p-4 text-white bg-black/50 flex-shrink-0">
             <h3 className="font-semibold text-lg truncate flex-1">
               {viewer.title}
@@ -392,7 +434,6 @@ const StudentLessons = () => {
             </div>
           </div>
 
-          {/* CONTENT AREA - FIXED with proper sizing */}
           <div className="flex-1 flex items-center justify-center p-4 min-h-0">
             {viewer.type === "video" && (
               <video
@@ -429,7 +470,6 @@ const StudentLessons = () => {
             )}
           </div>
 
-          {/* WATERMARK OVERLAY */}
           <div className="absolute inset-0 pointer-events-none select-none">
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <p className="text-white/5 text-4xl font-bold rotate-[-30deg] select-none whitespace-nowrap">

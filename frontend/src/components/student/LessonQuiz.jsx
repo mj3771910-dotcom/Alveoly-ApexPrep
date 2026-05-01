@@ -1,486 +1,379 @@
-// StudentLessons.jsx - FIXED payment handling
-import { useEffect, useState } from "react";
+// components/student/LessonQuiz.jsx - COMPLETE FIXED VERSION
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import axios from "../api/axios";
+import axios from "../../api/axios";
 import toast, { Toaster } from "react-hot-toast";
-import { FaLock, FaFilePdf, FaPlayCircle, FaTimes, FaQuestionCircle } from "react-icons/fa";
+import { FaArrowLeft, FaArrowRight, FaCheck, FaTimes } from "react-icons/fa";
 
-const StudentLessons = () => {
-  const { subjectId } = useParams();
+const LessonQuiz = () => {
+  const { lessonId } = useParams();
   const navigate = useNavigate();
-  const [contents, setContents] = useState([]);
+  
+  const [questions, setQuestions] = useState([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [answers, setAnswers] = useState({});
+  const [attemptId, setAttemptId] = useState(null);
+  const [submitted, setSubmitted] = useState(false);
+  const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [lessonQuizzes, setLessonQuizzes] = useState({});
-  const [error, setError] = useState(null);
-  const [processingPayment, setProcessingPayment] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const autoSubmitTriggered = useRef(false);
+  const answersRef = useRef(answers);
+  const attemptIdRef = useRef(attemptId);
 
-  const [viewer, setViewer] = useState({
-    open: false,
-    type: "",
-    url: "",
-    title: "",
-    lessonId: null,
-  });
+  // Keep refs updated
+  useEffect(() => {
+    answersRef.current = answers;
+  }, [answers]);
 
-  // Fetch contents and check for quizzes
-  const fetchContentsAndQuizzes = async () => {
+  useEffect(() => {
+    attemptIdRef.current = attemptId;
+  }, [attemptId]);
+
+  // Timer effect
+  useEffect(() => {
+    let interval;
+    if (timeLeft > 0 && !submitted && !loading && !isSubmitting && !autoSubmitTriggered.current) {
+      interval = setInterval(() => {
+        setTimeLeft(prev => {
+          if (prev <= 1) {
+            clearInterval(interval);
+            if (!autoSubmitTriggered.current && !submitted) {
+              performAutoSubmit();
+            }
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [timeLeft, submitted, loading, isSubmitting]);
+
+  useEffect(() => {
+    if (lessonId) {
+      startQuiz();
+    }
+  }, [lessonId]);
+
+  const startQuiz = async () => {
     try {
       setLoading(true);
-      setError(null);
+      const res = await axios.post(`/lesson-quiz/start/${lessonId}`);
       
-      console.log("Fetching contents for subjectId:", subjectId);
-      
-      const res = await axios.get(`/content?subjectId=${subjectId}`);
-      console.log("Contents fetched:", res.data);
-      
-      const contentsData = res.data;
-      setContents(contentsData);
-      
-      // Check which lessons have quizzes
-      const quizStatus = {};
-      for (const lesson of contentsData) {
-        if (lesson.type === "quiz") {
-          quizStatus[lesson._id] = true;
-          console.log(`Standalone quiz: ${lesson.title}`);
-        } else {
-          try {
-            const quizRes = await axios.get(`/lesson-quiz/lesson/${lesson._id}`);
-            const hasQuiz = quizRes.data && quizRes.data.length > 0;
-            quizStatus[lesson._id] = hasQuiz;
-            if (hasQuiz) {
-              console.log(`Content "${lesson.title}" has attached quiz`);
-            }
-          } catch (err) {
-            console.error(`Error checking quiz for lesson ${lesson._id}:`, err);
-            quizStatus[lesson._id] = false;
-          }
-        }
+      if (res.data.remainingSeconds) {
+        setTimeLeft(res.data.remainingSeconds);
+      } else if (res.data.timerMinutes) {
+        setTimeLeft(res.data.timerMinutes * 60);
       }
-      setLessonQuizzes(quizStatus);
       
+      setAttemptId(res.data.attemptId);
+      setQuestions(res.data.questions);
     } catch (err) {
-      console.error("Error fetching contents:", err);
-      setError("Failed to load lessons. Please try again later.");
+      console.error("Start quiz error:", err);
+      const errorMsg = err.response?.data?.message || "Failed to start quiz";
+      toast.error(errorMsg);
+      if (err.response?.status === 403) {
+        setTimeout(() => navigate(-1), 2000);
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    if (subjectId) {
-      fetchContentsAndQuizzes();
-    } else {
-      setError("No subject selected");
-      setLoading(false);
+  const performAutoSubmit = async () => {
+    if (autoSubmitTriggered.current || isSubmitting || submitted) {
+      return;
     }
-  }, [subjectId]);
-
-  // Check for payment callback on page load
-  useEffect(() => {
-    const checkPaymentCallback = async () => {
-      // Get all URL parameters
-      const urlParams = new URLSearchParams(window.location.search);
-      
-      // Check for common payment gateway parameters
-      const reference = urlParams.get('reference');
-      const transactionId = urlParams.get('transaction_id');
-      const status = urlParams.get('status');
-      const paymentStatus = urlParams.get('payment_status');
-      const contentId = urlParams.get('content_id');
-      const sessionId = localStorage.getItem('payment_session_id');
-      
-      console.log("Payment callback detected - Params:", {
-        reference,
-        transactionId,
-        status,
-        paymentStatus,
-        contentId,
-        sessionId
-      });
-      
-      // If we have a reference or transaction ID, verify payment
-      if (reference || transactionId) {
-        setProcessingPayment(true);
-        toast.loading("Verifying payment...", { id: "payment-verification" });
-        
-        try {
-          // Call your backend to verify payment
-          const verifyRes = await axios.post("/content-payments/verify", {
-            reference: reference || transactionId,
-            contentId: contentId || sessionId,
-          });
-          
-          if (verifyRes.data.success) {
-            toast.success("Payment verified! Content unlocked.", { id: "payment-verification" });
-            // Refresh content to show unlocked status
-            await fetchContentsAndQuizzes();
-          } else {
-            toast.error("Payment verification failed. Please contact support.", { id: "payment-verification" });
-          }
-        } catch (err) {
-          console.error("Payment verification error:", err);
-          toast.error("Failed to verify payment. Please contact support.", { id: "payment-verification" });
-        } finally {
-          setProcessingPayment(false);
-          // Clean up URL parameters
-          window.history.replaceState({}, document.title, window.location.pathname);
-          localStorage.removeItem('payment_session_id');
-        }
-      }
-    };
     
-    checkPaymentCallback();
-  }, []);
-
-  // Content protection effects
-  useEffect(() => {
-    let blurTimeout;
-    let devToolsInterval;
-
-    const getViewer = () => document.getElementById("secure-viewer");
-
-    const handleContextMenu = (e) => {
-      if (getViewer()) {
-        e.preventDefault();
-        return false;
-      }
-    };
-
-    const triggerBlur = (duration = 2000) => {
-      const viewerEl = getViewer();
-      if (!viewerEl) return;
-      viewerEl.style.filter = "blur(25px)";
-      viewerEl.style.transition = "0.3s";
-      clearTimeout(blurTimeout);
-      blurTimeout = setTimeout(() => {
-        if (viewerEl) viewerEl.style.filter = "none";
-      }, duration);
-    };
-
-    const handleKeyDown = (e) => {
-      if (!getViewer()) return;
-      if (e.key === "PrintScreen") {
-        e.preventDefault();
-        triggerBlur(3000);
-        alert("⚠️ Screenshot is blocked");
-      }
-      if ((e.ctrlKey && ["s", "u", "c", "p"].includes(e.key.toLowerCase())) ||
-          (e.ctrlKey && e.shiftKey && ["i", "j", "c"].includes(e.key.toLowerCase()))) {
-        e.preventDefault();
-        triggerBlur(2000);
-        alert("⚠️ Action not allowed");
-      }
-    };
-
-    const handleVisibilityChange = () => {
-      if (getViewer() && document.hidden) triggerBlur(5000);
-    };
-
-    const handleMouseLeave = () => {
-      if (getViewer()) triggerBlur(3000);
-    };
-
-    const handleBlur = () => {
-      if (getViewer()) triggerBlur(4000);
-    };
-
-    const detectDevTools = () => {
-      if (!getViewer()) return;
-      const threshold = 160;
-      if (window.outerWidth - window.innerWidth > threshold ||
-          window.outerHeight - window.innerHeight > threshold) {
-        triggerBlur(5000);
-      }
-    };
-
-    if (viewer.open) {
-      devToolsInterval = setInterval(detectDevTools, 1000);
-      document.addEventListener("contextmenu", handleContextMenu);
-      document.addEventListener("keydown", handleKeyDown);
-      document.addEventListener("visibilitychange", handleVisibilityChange);
-      window.addEventListener("blur", handleBlur);
-      document.addEventListener("mouseleave", handleMouseLeave);
-    }
-
-    return () => {
-      if (devToolsInterval) clearInterval(devToolsInterval);
-      document.removeEventListener("contextmenu", handleContextMenu);
-      document.removeEventListener("keydown", handleKeyDown);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener("blur", handleBlur);
-      document.removeEventListener("mouseleave", handleMouseLeave);
-      if (blurTimeout) clearTimeout(blurTimeout);
-    };
-  }, [viewer.open]);
-
-  // Handle payment unlock
-  const handleUnlock = async (c) => {
+    autoSubmitTriggered.current = true;
+    setIsSubmitting(true);
+    
+    toast.loading("Time's up! Submitting your quiz...", { id: "auto-submit" });
+    
     try {
-      // Store content ID for callback
-      localStorage.setItem('payment_session_id', c._id);
+      const currentAnswers = answersRef.current;
+      const currentAttemptId = attemptIdRef.current;
       
-      const res = await axios.post("/content-payments/pay", {
-        contentId: c._id,
+      console.log("Auto-submitting with answers:", currentAnswers);
+      
+      const res = await axios.post("/lesson-quiz/submit", {
+        attemptId: currentAttemptId,
+        answers: currentAnswers,
       });
       
-      if (res.data.authorizationUrl) {
-        // Redirect to payment gateway
-        window.location.href = res.data.authorizationUrl;
-      } else if (res.data.reference) {
-        // If using paystack or similar that needs reference, redirect to payment page
-        window.location.href = `/payment/process?reference=${res.data.reference}&contentId=${c._id}`;
-      }
+      toast.dismiss("auto-submit");
+      setSubmitted(true);
+      setResult(res.data);
+      toast.success(res.data.message);
     } catch (err) {
-      console.error(err);
-      toast.error("Payment failed: " + (err.response?.data?.message || "Please try again"));
-      localStorage.removeItem('payment_session_id');
+      console.error("Auto-submit error:", err);
+      toast.dismiss("auto-submit");
+      toast.error(err.response?.data?.message || "Failed to submit quiz. Please contact support.");
+      autoSubmitTriggered.current = false;
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const openViewer = (c) => {
-    if (c.isPaid) {
-      toast.error("This content is locked. Please purchase to unlock.");
+  const handleAnswer = (questionId, answerLetter) => {
+    if (submitted || isSubmitting) return;
+    setAnswers(prev => ({ ...prev, [questionId]: answerLetter }));
+  };
+
+  const submitQuiz = async () => {
+    if (isSubmitting || submitted) return;
+    
+    if (Object.keys(answers).length < questions.length) {
+      toast.error(`Please answer all ${questions.length} questions`);
       return;
     }
+
+    setIsSubmitting(true);
+    toast.loading("Submitting your quiz...", { id: "submit" });
     
-    if (c.type === "quiz") {
-      navigate(`/student/lessons/${c._id}/quiz`);
-      return;
-    }
-    
-    setViewer({
-      open: true,
-      type: c.type,
-      url: c.fileUrl,
-      title: c.title,
-      lessonId: c._id,
-    });
-  };
-
-  const closeViewer = () => {
-    setViewer({
-      open: false,
-      type: "",
-      url: "",
-      title: "",
-      lessonId: null,
-    });
-  };
-
-  const handleTakeQuiz = () => {
-    closeViewer();
-    navigate(`/student/lessons/${viewer.lessonId}/quiz`);
-  };
-
-  const getTypeLabel = (type) => {
-    switch(type) {
-      case "video": return "🎥 Video";
-      case "pdf": return "📄 PDF";
-      case "image": return "🖼 Image";
-      case "quiz": return "📝 Quiz";
-      default: return type;
+    try {
+      const res = await axios.post("/lesson-quiz/submit", {
+        attemptId,
+        answers,
+      });
+      
+      toast.dismiss("submit");
+      setSubmitted(true);
+      setResult(res.data);
+      toast.success(res.data.message);
+    } catch (err) {
+      console.error("Submit error:", err);
+      toast.dismiss("submit");
+      toast.error(err.response?.data?.message || "Failed to submit quiz");
+      setIsSubmitting(false);
     }
   };
 
-  if (loading || processingPayment) {
+  const handleClose = () => {
+    navigate(-1);
+  };
+
+  const handleRetake = async () => {
+    setSubmitted(false);
+    setResult(null);
+    setAnswers({});
+    setCurrentIndex(0);
+    autoSubmitTriggered.current = false;
+    setIsSubmitting(false);
+    
+    await startQuiz();
+  };
+
+  const currentQuestion = questions[currentIndex];
+
+  if (loading && !submitted) {
     return (
-      <div className="max-w-6xl mx-auto px-4 py-10">
-        <h2 className="text-3xl font-bold mb-8">Lessons</h2>
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[...Array(6)].map((_, i) => (
-            <div key={i} className="bg-gray-200 animate-pulse h-64 rounded-2xl" />
-          ))}
-        </div>
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
     );
   }
 
-  if (error) {
+  if (submitted && result) {
     return (
-      <div className="text-center py-20">
-        <h2 className="text-2xl font-semibold text-red-600">Error</h2>
-        <p className="text-gray-600 mt-2">{error}</p>
-      </div>
-    );
-  }
-
-  if (contents.length === 0) {
-    return (
-      <div className="text-center py-20">
-        <h2 className="text-2xl font-semibold text-gray-600">
-          No lessons available yet 📭
-        </h2>
-        <p className="text-gray-500 mt-2">Check back later for new content!</p>
-      </div>
-    );
-  }
-
-  return (
-    <>
-      <Toaster position="top-center" />
-      <div className="max-w-6xl mx-auto px-4 py-10">
-        <h2 className="text-3xl font-bold mb-8 text-gray-800">📚 Lessons</h2>
-
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {contents.map((c) => (
-            <div
-              key={c._id}
-              className="bg-white rounded-2xl shadow-md hover:shadow-xl transition overflow-hidden border group cursor-pointer flex flex-col"
-              onClick={() => openViewer(c)}
-            >
-              <div className="relative w-full h-48 bg-gray-100 flex-shrink-0 overflow-hidden">
-                {c.type === "quiz" ? (
-                  <div className="w-full h-full bg-gradient-to-br from-purple-100 to-purple-200 flex flex-col items-center justify-center">
-                    <FaQuestionCircle className="text-purple-500 text-5xl mb-2" />
-                    <span className="text-purple-700 font-semibold text-sm">Quiz</span>
-                  </div>
-                ) : (
-                  <div className="w-full h-full relative">
-                    <img
-                      src={c.thumbnailUrl || "/placeholder.jpg"}
-                      className="w-full h-full object-contain bg-gray-900 group-hover:scale-105 transition-transform duration-300"
-                      alt={c.title}
-                      onError={(e) => {
-                        e.target.src = "/placeholder.jpg";
-                      }}
-                    />
-                    {c.type === "video" && !c.isPaid && (
-                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                        <FaPlayCircle className="text-white text-5xl opacity-90 drop-shadow-lg" />
-                      </div>
-                    )}
-                    {c.type === "pdf" && !c.isPaid && (
-                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                        <FaFilePdf className="text-red-500 text-5xl drop-shadow-lg" />
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {(lessonQuizzes[c._id] || c.type === "quiz") && (
-                  <div className="absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1 shadow-lg z-10">
-                    📝 {c.type === "quiz" ? "Quiz" : "Quiz Available"}
-                  </div>
-                )}
-
-                <div className="absolute top-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded flex items-center gap-1">
-                  {getTypeLabel(c.type)}
-                </div>
-
-                {c.isPaid && (
-                  <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center text-white z-20">
-                    <FaLock className="text-3xl mb-2" />
-                    <p className="text-sm mb-2">Premium Content</p>
-                    <p className="text-xs mb-2">Price: ₵{c.price}</p>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleUnlock(c);
-                      }}
-                      className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm transition"
-                    >
-                      Unlock Now
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              <div className="p-4 flex-1">
-                <h3 className="font-semibold text-lg group-hover:text-blue-600 transition line-clamp-2">
-                  {c.title}
-                </h3>
-                {(lessonQuizzes[c._id] || c.type === "quiz") && (
-                  <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
-                    <span>✓</span> {c.type === "quiz" ? "Interactive quiz" : "Includes assessment"}
-                  </p>
-                )}
-                {c.isPaid && (
-                  <p className="text-xs text-yellow-600 mt-1">
-                    💰 Premium content
-                  </p>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* MODAL VIEWER FOR VIDEO/IMAGE/PDF */}
-      {viewer.open && (
-        <div 
-          id="secure-viewer" 
-          className="fixed inset-0 bg-black/95 z-50 flex flex-col"
-          onContextMenu={(e) => e.preventDefault()}
-        >
-          <div className="flex justify-between items-center p-4 text-white bg-black/50 flex-shrink-0">
-            <h3 className="font-semibold text-lg truncate flex-1">
-              {viewer.title}
-            </h3>
-            <div className="flex gap-3">
-              {lessonQuizzes[viewer.lessonId] && (
-                <button
-                  onClick={handleTakeQuiz}
-                  className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2"
-                >
-                  📝 Take Quiz
-                </button>
+      <div className="max-w-4xl mx-auto px-4 py-10">
+        <div className={`bg-white rounded-2xl shadow-xl p-8 ${
+          result.passed ? 'border-l-8 border-green-500' : 'border-l-8 border-red-500'
+        }`}>
+          <div className="text-center mb-8">
+            <div className={`inline-flex items-center justify-center w-20 h-20 rounded-full mb-4 ${
+              result.passed ? "bg-green-100" : "bg-red-100"
+            }`}>
+              {result.passed ? (
+                <FaCheck className="text-green-600 text-3xl" />
+              ) : (
+                <FaTimes className="text-red-600 text-3xl" />
               )}
-              <button 
-                onClick={closeViewer} 
-                className="hover:text-gray-300 transition p-2"
-              >
-                <FaTimes size={20} />
-              </button>
             </div>
-          </div>
-
-          <div className="flex-1 flex items-center justify-center p-4 min-h-0">
-            {viewer.type === "video" && (
-              <video
-                src={viewer.url}
-                controls
-                controlsList="nodownload noplaybackrate noremoteplayback nofullscreen"
-                disablePictureInPicture
-                autoPlay
-                onContextMenu={(e) => e.preventDefault()}
-                onDragStart={(e) => e.preventDefault()}
-                className="max-w-full max-h-full rounded-lg shadow-2xl object-contain"
-              />
-            )}
-
-            {viewer.type === "image" && (
-              <img
-                src={viewer.url}
-                alt={viewer.title}
-                draggable={false}
-                onContextMenu={(e) => e.preventDefault()}
-                onDragStart={(e) => e.preventDefault()}
-                className="max-w-full max-h-full rounded-lg select-none shadow-2xl object-contain"
-              />
-            )}
-
-            {viewer.type === "pdf" && (
-              <iframe
-                src={`https://docs.google.com/gview?url=${encodeURIComponent(viewer.url)}&embedded=true`}
-                title={viewer.title}
-                className="w-full h-full rounded-lg shadow-2xl"
-                onContextMenu={(e) => e.preventDefault()}
-                sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
-              />
-            )}
-          </div>
-
-          <div className="absolute inset-0 pointer-events-none select-none">
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <p className="text-white/5 text-4xl font-bold rotate-[-30deg] select-none whitespace-nowrap">
-                PROTECTED • DO NOT RECORD
+            <h2 className="text-2xl font-bold mb-2">
+              {result.passed ? "🎉 Lesson Completed!" : "😔 Keep Learning!"}
+            </h2>
+            <p className="text-gray-600">{result.message}</p>
+            <div className="mt-4 p-4 bg-gray-100 rounded-lg inline-block">
+              <p className="text-lg font-semibold">
+                Score: {result.score} / {result.totalPoints}
+              </p>
+              <p className="text-lg font-semibold text-blue-600">
+                {Math.round(result.percentage)}%
               </p>
             </div>
           </div>
+
+          <div className="mt-8">
+            <h3 className="text-xl font-bold mb-4">Question Review</h3>
+            <div className="space-y-4">
+              {result.questionResults?.map((q, idx) => (
+                <div key={idx} className={`border rounded-lg p-4 ${
+                  q.isCorrect ? 'bg-green-50' : 'bg-red-50'
+                }`}>
+                  <p className="font-semibold mb-2">
+                    {idx + 1}. {q.questionText}
+                  </p>
+                  <p className="text-sm">
+                    Your answer: <span className={q.isCorrect ? 'text-green-700' : 'text-red-700'}>
+                      {q.userAnswerLetter}. {q.userAnswerText || 'No answer'}
+                    </span>
+                  </p>
+                  {!q.isCorrect && (
+                    <p className="text-sm text-green-700 mt-1">
+                      Correct answer: {q.correctAnswer}. {q.correctAnswerText || ''}
+                    </p>
+                  )}
+                  {q.rationale && (
+                    <p className="text-sm text-gray-600 mt-2">
+                      💡 {q.rationale}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex gap-4 mt-8">
+            <button
+              onClick={handleClose}
+              className="flex-1 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition"
+            >
+              Back to Lessons
+            </button>
+            <button
+              onClick={handleRetake}
+              className="flex-1 bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition"
+            >
+              Retake Quiz
+            </button>
+          </div>
         </div>
-      )}
-    </>
+      </div>
+    );
+  }
+
+  if (!currentQuestion) {
+    return (
+      <div className="text-center py-20">
+        <p className="text-gray-600">No questions available for this quiz.</p>
+        <button onClick={handleClose} className="mt-4 bg-blue-600 text-white px-4 py-2 rounded">
+          Go Back
+        </button>
+      </div>
+    );
+  }
+
+  const progress = ((currentIndex + 1) / questions.length) * 100;
+
+  return (
+    <div className="max-w-4xl mx-auto px-4 py-10">
+      <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+        <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-2xl font-bold">Lesson Quiz</h2>
+              <p className="mt-1 opacity-90">Test your knowledge</p>
+            </div>
+            {timeLeft > 0 && !submitted && (
+              <div className={`px-4 py-2 rounded-lg font-mono text-xl font-bold ${
+                timeLeft < 60 ? 'bg-red-500 animate-pulse' : 'bg-white/20'
+              }`}>
+                {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}
+              </div>
+            )}
+            {timeLeft === 0 && !submitted && !isSubmitting && (
+              <div className="bg-red-500 px-4 py-2 rounded-lg font-mono text-xl font-bold animate-pulse">
+                Time's Up!
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="p-6">
+          <div className="mb-6">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-sm text-gray-600">
+                Question {currentIndex + 1} of {questions.length}
+              </span>
+              <span className="text-sm font-semibold text-blue-600">
+                {Math.round(progress)}% Complete
+              </span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div
+                className="bg-blue-600 h-2 rounded-full transition-all"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          </div>
+
+          <div className="mb-8">
+            <h3 className="text-xl font-semibold mb-6">
+              {currentQuestion.question}
+              <span className="text-sm text-gray-500 ml-2">
+                ({currentQuestion.points || 1} point{currentQuestion.points !== 1 ? 's' : ''})
+              </span>
+            </h3>
+            
+            <div className="space-y-3">
+              {currentQuestion.options?.map((option, idx) => {
+                const letter = String.fromCharCode(65 + idx);
+                const isSelected = answers[currentQuestion._id] === letter;
+                return (
+                  <button
+                    key={idx}
+                    onClick={() => handleAnswer(currentQuestion._id, letter)}
+                    disabled={isSubmitting}
+                    className={`w-full text-left p-4 rounded-lg border-2 transition ${
+                      isSelected
+                        ? 'border-blue-600 bg-blue-50 text-blue-700'
+                        : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  >
+                    <span className="font-bold mr-3">{letter}.</span>
+                    {option}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="flex justify-between pt-4 border-t">
+            <button
+              onClick={() => setCurrentIndex(prev => prev - 1)}
+              disabled={currentIndex === 0 || isSubmitting}
+              className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg disabled:opacity-50 hover:bg-gray-300 transition"
+            >
+              ← Previous
+            </button>
+            
+            {currentIndex === questions.length - 1 ? (
+              <button
+                onClick={submitQuiz}
+                disabled={isSubmitting}
+                className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50"
+              >
+                {isSubmitting ? "Submitting..." : "Submit Quiz ✓"}
+              </button>
+            ) : (
+              <button
+                onClick={() => setCurrentIndex(prev => prev + 1)}
+                disabled={isSubmitting}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+              >
+                Next →
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+      <Toaster position="top-center" />
+    </div>
   );
 };
 
-export default StudentLessons;
+export default LessonQuiz;
