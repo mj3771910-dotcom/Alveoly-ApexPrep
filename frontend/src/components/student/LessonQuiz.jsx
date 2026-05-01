@@ -1,5 +1,5 @@
-// components/student/LessonQuiz.jsx - COMPLETE FIXED VERSION
-import { useState, useEffect } from "react";
+// components/student/LessonQuiz.jsx - COMPLETE FIXED VERSION with working auto-submit
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "../../api/axios";
 import toast, { Toaster } from "react-hot-toast";
@@ -18,15 +18,21 @@ const LessonQuiz = () => {
   const [loading, setLoading] = useState(true);
   const [timeLeft, setTimeLeft] = useState(0);
   const [timerActive, setTimerActive] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const autoSubmitTriggered = useRef(false);
 
+  // Timer effect
   useEffect(() => {
     let interval;
-    if (timeLeft > 0 && timerActive && !submitted && !loading) {
+    if (timeLeft > 0 && timerActive && !submitted && !loading && !isSubmitting && !autoSubmitTriggered.current) {
       interval = setInterval(() => {
         setTimeLeft(prev => {
           if (prev <= 1) {
             clearInterval(interval);
-            handleAutoSubmit();
+            if (!autoSubmitTriggered.current && !submitted) {
+              handleAutoSubmit();
+            }
             return 0;
           }
           return prev - 1;
@@ -34,7 +40,7 @@ const LessonQuiz = () => {
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [timeLeft, timerActive, submitted, loading]);
+  }, [timeLeft, timerActive, submitted, loading, isSubmitting]);
 
   useEffect(() => {
     if (lessonId) {
@@ -67,37 +73,51 @@ const LessonQuiz = () => {
     }
   };
 
-  // components/student/LessonQuiz.jsx - Fix auto-submit
-const handleAutoSubmit = async () => {
-  toast.warning("Time's up! Submitting your quiz...");
-  setTimerActive(false);
-  
-  // Even if no answers, submit the quiz
-  try {
-    const res = await axios.post("/lesson-quiz/submit", {
-      attemptId,
-      answers: answers, // Submit whatever answers they have
-    });
-    setSubmitted(true);
-    setResult(res.data);
-    toast.success(res.data.message);
-  } catch (err) {
-    console.error("Auto-submit error:", err);
-    toast.error("Failed to submit quiz. Please contact support.");
-  }
-};
+  const handleAutoSubmit = async () => {
+    // Prevent multiple auto-submit calls
+    if (autoSubmitTriggered.current || isSubmitting || submitted) {
+      return;
+    }
+    
+    autoSubmitTriggered.current = true;
+    setTimerActive(false);
+    setIsSubmitting(true);
+    
+    toast.warning("Time's up! Submitting your quiz...", { duration: 3000 });
+    
+    try {
+      // Submit with whatever answers the student has
+      const res = await axios.post("/lesson-quiz/submit", {
+        attemptId,
+        answers: answers,
+      });
+      
+      setSubmitted(true);
+      setResult(res.data);
+      toast.success(res.data.message);
+    } catch (err) {
+      console.error("Auto-submit error:", err);
+      toast.error("Failed to submit quiz. Please contact support.");
+      autoSubmitTriggered.current = false;
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleAnswer = (questionId, answerLetter) => {
+    if (submitted || isSubmitting) return;
     setAnswers(prev => ({ ...prev, [questionId]: answerLetter }));
   };
 
   const handleSubmit = async () => {
+    if (isSubmitting || submitted) return;
+    
     if (Object.keys(answers).length < questions.length) {
       toast.error(`Please answer all ${questions.length} questions`);
       return;
     }
 
-    setLoading(true);
+    setIsSubmitting(true);
     try {
       const res = await axios.post("/lesson-quiz/submit", {
         attemptId,
@@ -108,13 +128,21 @@ const handleAutoSubmit = async () => {
       toast.success(res.data.message);
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to submit quiz");
-    } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
   const handleClose = () => {
     navigate(-1);
+  };
+
+  const handleRetake = () => {
+    setSubmitted(false);
+    setResult(null);
+    setAnswers({});
+    setCurrentIndex(0);
+    autoSubmitTriggered.current = false;
+    startQuiz();
   };
 
   const currentQuestion = questions[currentIndex];
@@ -195,12 +223,7 @@ const handleAutoSubmit = async () => {
               Back to Lessons
             </button>
             <button
-              onClick={() => {
-                setSubmitted(false);
-                setResult(null);
-                setAnswers({});
-                startQuiz();
-              }}
+              onClick={handleRetake}
               className="flex-1 bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition"
             >
               Retake Quiz
@@ -233,11 +256,16 @@ const handleAutoSubmit = async () => {
               <h2 className="text-2xl font-bold">Lesson Quiz</h2>
               <p className="mt-1 opacity-90">Test your knowledge</p>
             </div>
-            {timeLeft > 0 && (
-              <div className="bg-white/20 px-4 py-2 rounded-lg">
-                <span className="font-mono text-xl">
-                  {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}
-                </span>
+            {timeLeft > 0 && !submitted && (
+              <div className={`px-4 py-2 rounded-lg font-mono text-xl font-bold ${
+                timeLeft < 60 ? 'bg-red-500 animate-pulse' : 'bg-white/20'
+              }`}>
+                {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}
+              </div>
+            )}
+            {timeLeft === 0 && !submitted && (
+              <div className="bg-red-500 px-4 py-2 rounded-lg font-mono text-xl font-bold animate-pulse">
+                Time's Up!
               </div>
             )}
           </div>
@@ -277,11 +305,12 @@ const handleAutoSubmit = async () => {
                   <button
                     key={idx}
                     onClick={() => handleAnswer(currentQuestion._id, letter)}
+                    disabled={isSubmitting}
                     className={`w-full text-left p-4 rounded-lg border-2 transition ${
                       isSelected
                         ? 'border-blue-600 bg-blue-50 text-blue-700'
                         : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'
-                    }`}
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
                   >
                     <span className="font-bold mr-3">{letter}.</span>
                     {option}
@@ -294,7 +323,7 @@ const handleAutoSubmit = async () => {
           <div className="flex justify-between pt-4 border-t">
             <button
               onClick={() => setCurrentIndex(prev => prev - 1)}
-              disabled={currentIndex === 0}
+              disabled={currentIndex === 0 || isSubmitting}
               className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg disabled:opacity-50 hover:bg-gray-300 transition"
             >
               ← Previous
@@ -303,15 +332,16 @@ const handleAutoSubmit = async () => {
             {currentIndex === questions.length - 1 ? (
               <button
                 onClick={handleSubmit}
-                disabled={loading}
+                disabled={isSubmitting}
                 className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50"
               >
-                {loading ? "Submitting..." : "Submit Quiz ✓"}
+                {isSubmitting ? "Submitting..." : "Submit Quiz ✓"}
               </button>
             ) : (
               <button
                 onClick={() => setCurrentIndex(prev => prev + 1)}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                disabled={isSubmitting}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
               >
                 Next →
               </button>
