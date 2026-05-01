@@ -277,3 +277,28 @@ export const updateContent = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
+// Add to your content-payments controller
+export const verifyPayment = async (req, res) => {
+  try {
+    const { reference, contentId } = req.body;
+    
+    // Verify with your payment gateway (Paystack, Flutterwave, etc.)
+    // This is an example for Paystack
+    const response = await axios.get(`https://api.paystack.co/transaction/verify/${reference}`, {
+      headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` }
+    });
+    
+    if (response.data.data.status === 'success') {
+      // Mark content as paid for this user
+      // You'll need a UserContent model or add to user model
+      
+      res.json({ success: true, message: "Payment verified" });
+    } else {
+      res.json({ success: false, message: "Payment verification failed" });
+    }
+  } catch (err) {
+    console.error("Payment verification error:", err);
+    res.status(500).json({ message: err.message });
+  }
+};
