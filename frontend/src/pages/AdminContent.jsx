@@ -479,11 +479,11 @@ const AdminContent = () => {
           headers: { "Content-Type": "multipart/form-data" },
         });
         setContents((prev) => prev.map((c) => (c._id === editingId ? res.data : c)));
-        toast.success("✅ Content updated");
+        toast.success("Content updated");
       } else {
         res = await axios.post("/content/upload", formData);
         setContents((prev) => [res.data, ...prev]);
-        toast.success("✅ Uploaded successfully");
+        toast.success("Uploaded successfully");
       }
 
       if (form.type === "quiz" && res.data) {
@@ -514,7 +514,7 @@ const AdminContent = () => {
     try {
       await axios.delete(`/content/${id}`);
       setContents((prev) => prev.filter((c) => c._id !== id));
-      toast.success("✅ Deleted successfully");
+      toast.success("Deleted successfully");
     } catch (err) {
       console.error(err);
       toast.error("Delete failed");
