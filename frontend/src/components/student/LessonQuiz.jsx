@@ -67,13 +67,25 @@ const LessonQuiz = () => {
     }
   };
 
-  const handleAutoSubmit = async () => {
-    toast.warning("Time's up! Submitting your quiz...");
-    setTimerActive(false);
-    if (Object.keys(answers).length > 0) {
-      await handleSubmit();
-    }
-  };
+  // components/student/LessonQuiz.jsx - Fix auto-submit
+const handleAutoSubmit = async () => {
+  toast.warning("Time's up! Submitting your quiz...");
+  setTimerActive(false);
+  
+  // Even if no answers, submit the quiz
+  try {
+    const res = await axios.post("/lesson-quiz/submit", {
+      attemptId,
+      answers: answers, // Submit whatever answers they have
+    });
+    setSubmitted(true);
+    setResult(res.data);
+    toast.success(res.data.message);
+  } catch (err) {
+    console.error("Auto-submit error:", err);
+    toast.error("Failed to submit quiz. Please contact support.");
+  }
+};
 
   const handleAnswer = (questionId, answerLetter) => {
     setAnswers(prev => ({ ...prev, [questionId]: answerLetter }));

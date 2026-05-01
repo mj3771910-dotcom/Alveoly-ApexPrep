@@ -1,7 +1,8 @@
-// StudentLessons.jsx - COMPLETE FIXED VERSION with Quiz support
+// StudentLessons.jsx - COMPLETE FIXED VERSION
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "../api/axios";
+import toast, { Toaster } from "react-hot-toast";
 import { FaLock, FaFilePdf, FaPlayCircle, FaTimes, FaQuestionCircle } from "react-icons/fa";
 
 const StudentLessons = () => {
@@ -20,9 +21,7 @@ const StudentLessons = () => {
     lessonId: null,
   });
 
-  // In StudentLessons.jsx, update the fetchContentsAndQuizzes function:
-// In StudentLessons.jsx - Fix the useEffect to properly handle both quiz types
-useEffect(() => {
+  // Fetch contents and check for quizzes
   const fetchContentsAndQuizzes = async () => {
     try {
       setLoading(true);
@@ -36,15 +35,13 @@ useEffect(() => {
       const contentsData = res.data;
       setContents(contentsData);
       
-      // Check which lessons have quizzes (for video/pdf/image content)
+      // Check which lessons have quizzes
       const quizStatus = {};
       for (const lesson of contentsData) {
-        // For quiz type content, it IS the quiz - mark as having quiz
         if (lesson.type === "quiz") {
           quizStatus[lesson._id] = true;
           console.log(`Standalone quiz: ${lesson.title}`);
         } else {
-          // For other content types, check if they have associated quiz questions
           try {
             const quizRes = await axios.get(`/lesson-quiz/lesson/${lesson._id}`);
             const hasQuiz = quizRes.data && quizRes.data.length > 0;
@@ -67,14 +64,15 @@ useEffect(() => {
       setLoading(false);
     }
   };
-  
-  if (subjectId) {
-    fetchContentsAndQuizzes();
-  } else {
-    setError("No subject selected");
-    setLoading(false);
-  }
-}, [subjectId]);
+
+  useEffect(() => {
+    if (subjectId) {
+      fetchContentsAndQuizzes();
+    } else {
+      setError("No subject selected");
+      setLoading(false);
+    }
+  }, [subjectId]);
 
   // Content protection effects
   useEffect(() => {
@@ -157,28 +155,55 @@ useEffect(() => {
     };
   }, [viewer.open]);
 
+  // Handle payment unlock
   const handleUnlock = async (c) => {
     try {
       const res = await axios.post("/content-payments/pay", {
         contentId: c._id,
       });
-      window.location.href = res.data.authorizationUrl;
+      
+      if (res.data.authorizationUrl) {
+        window.location.href = res.data.authorizationUrl;
+      }
     } catch (err) {
       console.error(err);
-      alert("Payment failed");
+      toast.error("Payment failed: " + (err.response?.data?.message || "Please try again"));
     }
   };
+
+  // Check payment status when returning from payment
+  const checkPaymentStatus = async (contentId) => {
+    try {
+      const res = await axios.get(`/content-payments/status/${contentId}`);
+      if (res.data.isPaid) {
+        await fetchContentsAndQuizzes();
+        toast.success("Payment successful! Content unlocked.");
+      }
+    } catch (err) {
+      console.error("Error checking payment status:", err);
+    }
+  };
+
+  // Check for payment return
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const paymentSuccess = urlParams.get('payment_success');
+    const contentId = urlParams.get('content_id');
+    
+    if (paymentSuccess === 'true' && contentId) {
+      checkPaymentStatus(contentId);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
 
   const openViewer = (c) => {
     if (c.isPaid) return;
     
-    // For quiz content, navigate directly to quiz page
     if (c.type === "quiz") {
       navigate(`/student/lessons/${c._id}/quiz`);
       return;
     }
     
-    // For video/image/pdf, open viewer
     setViewer({
       open: true,
       type: c.type,
@@ -201,19 +226,6 @@ useEffect(() => {
   const handleTakeQuiz = () => {
     closeViewer();
     navigate(`/student/lessons/${viewer.lessonId}/quiz`);
-  };
-
-  const getContentIcon = (content) => {
-    if (content.type === "quiz") {
-      return <FaQuestionCircle className="text-5xl text-purple-500" />;
-    }
-    if (content.type === "video") {
-      return <FaPlayCircle className="text-5xl text-white opacity-90" />;
-    }
-    if (content.type === "pdf") {
-      return <FaFilePdf className="text-5xl text-red-600" />;
-    }
-    return null;
   };
 
   const getTypeLabel = (type) => {
@@ -261,6 +273,7 @@ useEffect(() => {
 
   return (
     <>
+      <Toaster position="top-center" />
       <div className="max-w-6xl mx-auto px-4 py-10">
         <h2 className="text-3xl font-bold mb-8 text-gray-800">📚 Lessons</h2>
 
@@ -268,23 +281,21 @@ useEffect(() => {
           {contents.map((c) => (
             <div
               key={c._id}
-              className="bg-white rounded-2xl shadow-md hover:shadow-xl transition overflow-hidden border group cursor-pointer"
+              className="bg-white rounded-2xl shadow-md hover:shadow-xl transition overflow-hidden border group cursor-pointer flex flex-col"
               onClick={() => openViewer(c)}
             >
-              {/* THUMBNAIL / PREVIEW AREA */}
-              <div className="relative w-full h-48 bg-gray-100">
+              {/* THUMBNAIL / PREVIEW AREA - FIXED HEIGHT */}
+              <div className="relative w-full h-48 bg-gray-100 flex-shrink-0 overflow-hidden">
                 {c.type === "quiz" ? (
-                  // Quiz content display
                   <div className="w-full h-full bg-gradient-to-br from-purple-100 to-purple-200 flex flex-col items-center justify-center">
-                    <FaQuestionCircle className="text-purple-500 text-6xl mb-2" />
-                    <span className="text-purple-700 font-semibold">Quiz</span>
+                    <FaQuestionCircle className="text-purple-500 text-5xl mb-2" />
+                    <span className="text-purple-700 font-semibold text-sm">Quiz</span>
                   </div>
                 ) : (
-                  // Regular content display
-                  <>
+                  <div className="w-full h-full relative">
                     <img
                       src={c.thumbnailUrl || "/placeholder.jpg"}
-                      className="w-full h-full object-cover group-hover:scale-105 transition"
+                      className="w-full h-full object-contain bg-gray-900 group-hover:scale-105 transition-transform duration-300"
                       alt={c.title}
                       onError={(e) => {
                         e.target.src = "/placeholder.jpg";
@@ -292,16 +303,20 @@ useEffect(() => {
                     />
                     {/* Play button overlay for video */}
                     {c.type === "video" && !c.isPaid && (
-                      <FaPlayCircle className="absolute inset-0 m-auto text-white text-6xl opacity-90" />
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <FaPlayCircle className="text-white text-5xl opacity-90 drop-shadow-lg" />
+                      </div>
                     )}
                     {/* PDF icon overlay */}
                     {c.type === "pdf" && !c.isPaid && (
-                      <FaFilePdf className="absolute inset-0 m-auto text-red-600 text-5xl" />
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <FaFilePdf className="text-red-500 text-5xl drop-shadow-lg" />
+                      </div>
                     )}
-                  </>
+                  </div>
                 )}
 
-                {/* QUIZ BADGE - shows if content has quiz (for video/pdf/image) OR is quiz type */}
+                {/* QUIZ BADGE */}
                 {(lessonQuizzes[c._id] || c.type === "quiz") && (
                   <div className="absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1 shadow-lg z-10">
                     📝 {c.type === "quiz" ? "Quiz" : "Quiz Available"}
@@ -332,8 +347,8 @@ useEffect(() => {
               </div>
 
               {/* INFO */}
-              <div className="p-4">
-                <h3 className="font-semibold text-lg group-hover:text-blue-600 transition">
+              <div className="p-4 flex-1">
+                <h3 className="font-semibold text-lg group-hover:text-blue-600 transition line-clamp-2">
                   {c.title}
                 </h3>
                 {(lessonQuizzes[c._id] || c.type === "quiz") && (
@@ -355,7 +370,7 @@ useEffect(() => {
           onContextMenu={(e) => e.preventDefault()}
         >
           {/* HEADER */}
-          <div className="flex justify-between items-center p-4 text-white bg-black/50">
+          <div className="flex justify-between items-center p-4 text-white bg-black/50 flex-shrink-0">
             <h3 className="font-semibold text-lg truncate flex-1">
               {viewer.title}
             </h3>
@@ -377,8 +392,8 @@ useEffect(() => {
             </div>
           </div>
 
-          {/* CONTENT AREA */}
-          <div className="flex-1 flex items-center justify-center p-4">
+          {/* CONTENT AREA - FIXED with proper sizing */}
+          <div className="flex-1 flex items-center justify-center p-4 min-h-0">
             {viewer.type === "video" && (
               <video
                 src={viewer.url}
@@ -388,7 +403,7 @@ useEffect(() => {
                 autoPlay
                 onContextMenu={(e) => e.preventDefault()}
                 onDragStart={(e) => e.preventDefault()}
-                className="max-h-full max-w-full rounded-lg shadow-2xl"
+                className="max-w-full max-h-full rounded-lg shadow-2xl object-contain"
               />
             )}
 
@@ -399,7 +414,7 @@ useEffect(() => {
                 draggable={false}
                 onContextMenu={(e) => e.preventDefault()}
                 onDragStart={(e) => e.preventDefault()}
-                className="max-h-full max-w-full rounded-lg select-none shadow-2xl"
+                className="max-w-full max-h-full rounded-lg select-none shadow-2xl object-contain"
               />
             )}
 
