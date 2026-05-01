@@ -4,10 +4,14 @@ import Content from "../models/Content.js";
 import ContentPayment from "../models/ContentPayment.js";
 
 // Initiate content payment
+// controllers/contentPaymentController.js - Updated
 export const initiateContentPayment = async (req, res) => {
   try {
     const { contentId } = req.body;
     const user = req.user;
+
+    console.log("Initiate payment for content:", contentId);
+    console.log("User:", user.email);
 
     const content = await Content.findById(contentId);
     if (!content) {
@@ -40,17 +44,23 @@ export const initiateContentPayment = async (req, res) => {
       status: "pending",
     });
 
+    // Construct callback URL
+    const callbackUrl = `${process.env.CLIENT_URL}/content-payment-success?contentId=${contentId}&reference=${reference}`;
+    
+    console.log("Callback URL:", callbackUrl);
+    console.log("Amount:", content.price * 100);
+
     // Initialize Paystack transaction
     const response = await axios.post(
       "https://api.paystack.co/transaction/initialize",
       {
         email: user.email,
-        amount: content.price * 100,
-        reference,
-        callback_url: `${process.env.CLIENT_URL}/content-payment-success?contentId=${contentId}`,
+        amount: Math.round(content.price * 100), // Ensure it's an integer
+        reference: reference,
+        callback_url: callbackUrl,
         metadata: {
-          contentId: content._id,
-          userId: user._id,
+          contentId: content._id.toString(),
+          userId: user._id.toString(),
           type: "content",
         },
       },
@@ -62,13 +72,21 @@ export const initiateContentPayment = async (req, res) => {
       }
     );
 
+    console.log("Paystack response:", response.data);
+
+    if (!response.data.status) {
+      throw new Error(response.data.message || "Paystack initialization failed");
+    }
+
     res.json({
       authorizationUrl: response.data.data.authorization_url,
       reference: reference,
     });
   } catch (err) {
     console.error("Content payment initiation error:", err.response?.data || err.message);
-    res.status(500).json({ message: "Payment initiation failed" });
+    res.status(500).json({ 
+      message: "Payment initiation failed: " + (err.response?.data?.message || err.message) 
+    });
   }
 };
 
