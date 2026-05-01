@@ -1,32 +1,17 @@
 // models/ContentPayment.js
 import mongoose from "mongoose";
 
-const contentPaymentSchema = new mongoose.Schema(
-  {
-    userId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-    },
+const contentPaymentSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
+  contentId: { type: mongoose.Schema.Types.ObjectId, ref: "Content", required: true, index: true },
+  amount: { type: Number, required: true },
+  reference: { type: String, unique: true, index: true },
+  status: { type: String, enum: ["pending", "success", "failed"], default: "pending" },
+  paidAt: { type: Date },
+  createdAt: { type: Date, default: Date.now },
+});
 
-    contentId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Content",
-    },
+// Compound index to prevent duplicate purchases
+contentPaymentSchema.index({ userId: 1, contentId: 1, status: 1 });
 
-    amount: Number,
-
-    reference: String, // Paystack ref
-
-    status: {
-      type: String,
-      enum: ["pending", "success", "failed"],
-      default: "pending",
-    },
-  },
-  { timestamps: true }
-);
-
-export default mongoose.model(
-  "ContentPayment",
-  contentPaymentSchema
-);
+export default mongoose.model("ContentPayment", contentPaymentSchema);

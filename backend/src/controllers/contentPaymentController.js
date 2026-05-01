@@ -3,35 +3,87 @@ import axios from "axios";
 import Content from "../models/Content.js";
 import ContentPayment from "../models/ContentPayment.js";
 
+// Initiate content payment
 export const initiateContentPayment = async (req, res) => {
   try {
     const { contentId } = req.body;
     const user = req.user;
 
     const content = await Content.findById(contentId);
-
     if (!content) {
       return res.status(404).json({ message: "Content not found" });
     }
 
-    const payment = await ContentPayment.create({
+    if (!content.isPaid) {
+      return res.status(400).json({ message: "This content is free" });
+    }
+
+    // Check if already purchased
+    const existingPayment = await ContentPayment.findOne({
+      userId: user._id,
+      contentId,
+      status: "success",
+    });
+
+    if (existingPayment) {
+      return res.status(400).json({ message: "You already own this content" });
+    }
+
+    const reference = `content_${Date.now()}_${user._id}_${contentId}`;
+
+    // Create pending payment record
+    await ContentPayment.create({
       userId: user._id,
       contentId,
       amount: content.price,
+      reference,
       status: "pending",
     });
 
-    // PAYSTACK INIT
+    // Initialize Paystack transaction
     const response = await axios.post(
       "https://api.paystack.co/transaction/initialize",
       {
         email: user.email,
         amount: content.price * 100,
+        reference,
+        callback_url: `${process.env.CLIENT_URL}/content-payment-success?contentId=${contentId}`,
         metadata: {
-          contentId,
-          paymentId: payment._id,
+          contentId: content._id,
+          userId: user._id,
+          type: "content",
         },
       },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    res.json({
+      authorizationUrl: response.data.data.authorization_url,
+      reference: reference,
+    });
+  } catch (err) {
+    console.error("Content payment initiation error:", err.response?.data || err.message);
+    res.status(500).json({ message: "Payment initiation failed" });
+  }
+};
+
+// Verify content payment
+export const verifyContentPayment = async (req, res) => {
+  try {
+    const { reference, contentId } = req.body;
+
+    if (!reference) {
+      return res.status(400).json({ message: "Reference is required" });
+    }
+
+    // Verify with Paystack
+    const response = await axios.get(
+      `https://api.paystack.co/transaction/verify/${reference}`,
       {
         headers: {
           Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
@@ -39,14 +91,85 @@ export const initiateContentPayment = async (req, res) => {
       }
     );
 
-    payment.reference = response.data.data.reference;
+    const paymentData = response.data.data;
+
+    if (paymentData.status !== "success") {
+      return res.status(400).json({ success: false, message: "Payment not successful" });
+    }
+
+    // Find the payment record
+    let payment = await ContentPayment.findOne({ reference });
+    
+    if (!payment) {
+      return res.status(404).json({ success: false, message: "Payment record not found" });
+    }
+
+    if (payment.status === "success") {
+      return res.json({ success: true, message: "Already verified", alreadyVerified: true });
+    }
+
+    // Update payment status
+    payment.status = "success";
+    payment.paidAt = new Date();
     await payment.save();
 
-    res.json({
-      authorizationUrl: response.data.data.authorization_url,
+    res.json({ 
+      success: true, 
+      message: "Payment verified successfully",
+      contentId: payment.contentId
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Payment error" });
+    console.error("Content payment verification error:", err.response?.data || err.message);
+    res.status(500).json({ success: false, message: "Verification failed" });
+  }
+};
+
+// Check if user has purchased a specific content
+export const checkContentAccess = async (req, res) => {
+  try {
+    const { contentId } = req.params;
+    const user = req.user;
+
+    const content = await Content.findById(contentId);
+    if (!content) {
+      return res.status(404).json({ message: "Content not found" });
+    }
+
+    // Free content is always accessible
+    if (!content.isPaid) {
+      return res.json({ hasAccess: true, isPaid: false });
+    }
+
+    // Check if user has paid for this content
+    const payment = await ContentPayment.findOne({
+      userId: user._id,
+      contentId,
+      status: "success",
+    });
+
+    res.json({ 
+      hasAccess: !!payment, 
+      isPaid: true,
+      isUnlocked: !!payment
+    });
+  } catch (err) {
+    console.error("Check content access error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// Get user's purchased content
+export const getUserPurchasedContent = async (req, res) => {
+  try {
+    const payments = await ContentPayment.find({ 
+      userId: req.user._id, 
+      status: "success" 
+    }).populate("contentId", "title type thumbnailUrl");
+
+    const purchasedContent = payments.map(p => p.contentId);
+    res.json(purchasedContent);
+  } catch (err) {
+    console.error("Get purchased content error:", err);
+    res.status(500).json({ message: "Server error" });
   }
 };
