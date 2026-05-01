@@ -1,4 +1,4 @@
-// components/student/LessonQuiz.jsx - COMPLETE FIXED VERSION with working auto-submit
+// components/student/LessonQuiz.jsx - COMPLETE FIXED VERSION
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "../../api/axios";
@@ -17,21 +17,31 @@ const LessonQuiz = () => {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(true);
   const [timeLeft, setTimeLeft] = useState(0);
-  const [timerActive, setTimerActive] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const autoSubmitTriggered = useRef(false);
+  const answersRef = useRef(answers);
+  const attemptIdRef = useRef(attemptId);
+
+  // Keep refs updated
+  useEffect(() => {
+    answersRef.current = answers;
+  }, [answers]);
+
+  useEffect(() => {
+    attemptIdRef.current = attemptId;
+  }, [attemptId]);
 
   // Timer effect
   useEffect(() => {
     let interval;
-    if (timeLeft > 0 && timerActive && !submitted && !loading && !isSubmitting && !autoSubmitTriggered.current) {
+    if (timeLeft > 0 && !submitted && !loading && !isSubmitting && !autoSubmitTriggered.current) {
       interval = setInterval(() => {
         setTimeLeft(prev => {
           if (prev <= 1) {
             clearInterval(interval);
             if (!autoSubmitTriggered.current && !submitted) {
-              handleAutoSubmit();
+              performAutoSubmit();
             }
             return 0;
           }
@@ -40,7 +50,7 @@ const LessonQuiz = () => {
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [timeLeft, timerActive, submitted, loading, isSubmitting]);
+  }, [timeLeft, submitted, loading, isSubmitting]);
 
   useEffect(() => {
     if (lessonId) {
@@ -73,31 +83,35 @@ const LessonQuiz = () => {
     }
   };
 
-  const handleAutoSubmit = async () => {
-    // Prevent multiple auto-submit calls
+  const performAutoSubmit = async () => {
     if (autoSubmitTriggered.current || isSubmitting || submitted) {
       return;
     }
     
     autoSubmitTriggered.current = true;
-    setTimerActive(false);
     setIsSubmitting(true);
     
-    toast.warning("Time's up! Submitting your quiz...", { duration: 3000 });
+    toast.loading("Time's up! Submitting your quiz...", { id: "auto-submit" });
     
     try {
-      // Submit with whatever answers the student has
+      const currentAnswers = answersRef.current;
+      const currentAttemptId = attemptIdRef.current;
+      
+      console.log("Auto-submitting with answers:", currentAnswers);
+      
       const res = await axios.post("/lesson-quiz/submit", {
-        attemptId,
-        answers: answers,
+        attemptId: currentAttemptId,
+        answers: currentAnswers,
       });
       
+      toast.dismiss("auto-submit");
       setSubmitted(true);
       setResult(res.data);
       toast.success(res.data.message);
     } catch (err) {
       console.error("Auto-submit error:", err);
-      toast.error("Failed to submit quiz. Please contact support.");
+      toast.dismiss("auto-submit");
+      toast.error(err.response?.data?.message || "Failed to submit quiz. Please contact support.");
       autoSubmitTriggered.current = false;
     } finally {
       setIsSubmitting(false);
@@ -109,7 +123,7 @@ const LessonQuiz = () => {
     setAnswers(prev => ({ ...prev, [questionId]: answerLetter }));
   };
 
-  const handleSubmit = async () => {
+  const submitQuiz = async () => {
     if (isSubmitting || submitted) return;
     
     if (Object.keys(answers).length < questions.length) {
@@ -118,15 +132,21 @@ const LessonQuiz = () => {
     }
 
     setIsSubmitting(true);
+    toast.loading("Submitting your quiz...", { id: "submit" });
+    
     try {
       const res = await axios.post("/lesson-quiz/submit", {
         attemptId,
         answers,
       });
+      
+      toast.dismiss("submit");
       setSubmitted(true);
       setResult(res.data);
       toast.success(res.data.message);
     } catch (err) {
+      console.error("Submit error:", err);
+      toast.dismiss("submit");
       toast.error(err.response?.data?.message || "Failed to submit quiz");
       setIsSubmitting(false);
     }
@@ -136,13 +156,15 @@ const LessonQuiz = () => {
     navigate(-1);
   };
 
-  const handleRetake = () => {
+  const handleRetake = async () => {
     setSubmitted(false);
     setResult(null);
     setAnswers({});
     setCurrentIndex(0);
     autoSubmitTriggered.current = false;
-    startQuiz();
+    setIsSubmitting(false);
+    
+    await startQuiz();
   };
 
   const currentQuestion = questions[currentIndex];
@@ -263,7 +285,7 @@ const LessonQuiz = () => {
                 {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}
               </div>
             )}
-            {timeLeft === 0 && !submitted && (
+            {timeLeft === 0 && !submitted && !isSubmitting && (
               <div className="bg-red-500 px-4 py-2 rounded-lg font-mono text-xl font-bold animate-pulse">
                 Time's Up!
               </div>
@@ -331,7 +353,7 @@ const LessonQuiz = () => {
             
             {currentIndex === questions.length - 1 ? (
               <button
-                onClick={handleSubmit}
+                onClick={submitQuiz}
                 disabled={isSubmitting}
                 className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50"
               >
