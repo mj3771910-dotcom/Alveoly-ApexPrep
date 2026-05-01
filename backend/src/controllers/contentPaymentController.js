@@ -91,6 +91,7 @@ export const initiateContentPayment = async (req, res) => {
 };
 
 // Verify content payment
+// controllers/contentPaymentController.js - Update verifyContentPayment
 export const verifyContentPayment = async (req, res) => {
   try {
     const { reference, contentId } = req.body;
@@ -131,9 +132,22 @@ export const verifyContentPayment = async (req, res) => {
     payment.paidAt = new Date();
     await payment.save();
 
+    // IMPORTANT: Mark the content as unlocked for this user
+    const content = await Content.findById(payment.contentId);
+    if (content) {
+      if (!content.unlockedBy) {
+        content.unlockedBy = [];
+      }
+      if (!content.unlockedBy.includes(payment.userId)) {
+        content.unlockedBy.push(payment.userId);
+        await content.save();
+        console.log(`Content ${content.title} unlocked for user ${payment.userId}`);
+      }
+    }
+
     res.json({ 
       success: true, 
-      message: "Payment verified successfully",
+      message: "Payment verified successfully. Content unlocked!",
       contentId: payment.contentId
     });
   } catch (err) {
@@ -143,6 +157,7 @@ export const verifyContentPayment = async (req, res) => {
 };
 
 // Check if user has purchased a specific content
+// controllers/contentPaymentController.js - Update checkContentAccess
 export const checkContentAccess = async (req, res) => {
   try {
     const { contentId } = req.params;
@@ -158,17 +173,24 @@ export const checkContentAccess = async (req, res) => {
       return res.json({ hasAccess: true, isPaid: false });
     }
 
-    // Check if user has paid for this content
+    // Check if user is in the unlockedBy array
+    const hasAccess = content.unlockedBy && content.unlockedBy.some(
+      id => id.toString() === user._id.toString()
+    );
+    
+    // Also check payment record as backup
     const payment = await ContentPayment.findOne({
       userId: user._id,
       contentId,
       status: "success",
     });
 
+    const isUnlocked = hasAccess || !!payment;
+
     res.json({ 
-      hasAccess: !!payment, 
+      hasAccess: isUnlocked, 
       isPaid: true,
-      isUnlocked: !!payment
+      isUnlocked: isUnlocked
     });
   } catch (err) {
     console.error("Check content access error:", err);

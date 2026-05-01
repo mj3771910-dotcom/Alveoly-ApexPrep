@@ -55,6 +55,10 @@ const contentSchema = new mongoose.Schema(
       type: Number,
       default: 70,
     },
+    unlockedBy: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+  }],
   },
   { timestamps: true }
 );
