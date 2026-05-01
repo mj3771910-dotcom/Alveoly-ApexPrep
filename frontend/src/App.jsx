@@ -54,6 +54,7 @@ import AdminContent from "./pages/AdminContent";
 import StudentLessons from "./pages/StudentLessons";
 import LessonQuiz from "./components/student/LessonQuiz";
 import PerformanceDashboard from "./pages/admin/PerformanceDashboard";
+import ContentPaymentSuccess from "./pages/ContentPaymentSuccess";
 
 
 function App() {
@@ -70,6 +71,7 @@ function App() {
         <Route path="/about" element={<AboutPage />} />
         <Route path="/contact" element={<ContactPage />} />
         <Route path="/payment-success" element={<PaymentSuccess />} />
+        <Route path="/content-payment-success" element={<ContentPaymentSuccess />} />
 
         {/* AUTH */}
         <Route path="/signup" element={<SignUpPage />} />

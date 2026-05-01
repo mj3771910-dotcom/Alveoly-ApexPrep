@@ -214,28 +214,27 @@ const StudentLessons = () => {
   }, [viewer.open]);
 
   // Handle payment unlock
-  const handleUnlock = async (c) => {
-    try {
-      // Store content ID for callback
-      localStorage.setItem('payment_session_id', c._id);
-      
-      const res = await axios.post("/content-payments/pay", {
-        contentId: c._id,
-      });
-      
-      if (res.data.authorizationUrl) {
-        // Redirect to payment gateway
-        window.location.href = res.data.authorizationUrl;
-      } else if (res.data.reference) {
-        // If using paystack or similar that needs reference, redirect to payment page
-        window.location.href = `/payment/process?reference=${res.data.reference}&contentId=${c._id}`;
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error("Payment failed: " + (err.response?.data?.message || "Please try again"));
-      localStorage.removeItem('payment_session_id');
+  // In StudentLessons.jsx - Update handleUnlock
+const handleUnlock = async (c) => {
+  try {
+    // Store current subject ID for return navigation
+    localStorage.setItem('current_subject_id', subjectId);
+    localStorage.setItem('payment_session_id', c._id);
+    
+    const res = await axios.post("/content-payments/initiate", {
+      contentId: c._id,
+    });
+    
+    if (res.data.authorizationUrl) {
+      window.location.href = res.data.authorizationUrl;
     }
-  };
+  } catch (err) {
+    console.error(err);
+    toast.error("Payment failed: " + (err.response?.data?.message || "Please try again"));
+    localStorage.removeItem('payment_session_id');
+    localStorage.removeItem('current_subject_id');
+  }
+};
 
   const openViewer = (c) => {
     if (c.isPaid) {
