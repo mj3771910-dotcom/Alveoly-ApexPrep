@@ -1,9 +1,9 @@
-// StudentLessons.jsx - FIXED payment handling
+// StudentLessons.jsx - COMPLETE FIXED VERSION
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "../api/axios";
 import toast, { Toaster } from "react-hot-toast";
-import { FaLock, FaFilePdf, FaPlayCircle, FaTimes, FaQuestionCircle } from "react-icons/fa";
+import { FaLock, FaFilePdf, FaPlayCircle, FaTimes, FaQuestionCircle, FaCheckCircle } from "react-icons/fa";
 
 const StudentLessons = () => {
   const { subjectId } = useParams();
@@ -13,6 +13,7 @@ const StudentLessons = () => {
   const [lessonQuizzes, setLessonQuizzes] = useState({});
   const [error, setError] = useState(null);
   const [processingPayment, setProcessingPayment] = useState(false);
+  const [unlockedContents, setUnlockedContents] = useState([]);
 
   const [viewer, setViewer] = useState({
     open: false,
@@ -34,11 +35,34 @@ const StudentLessons = () => {
       console.log("Contents fetched:", res.data);
       
       const contentsData = res.data;
-      setContents(contentsData);
+      
+      // Check which contents are unlocked
+      const unlockedIds = [];
+      for (const content of contentsData) {
+        if (content.isPaid) {
+          try {
+            const accessRes = await axios.get(`/content-payments/check/${content._id}`);
+            if (accessRes.data.hasAccess) {
+              unlockedIds.push(content._id);
+            }
+          } catch (err) {
+            console.error(`Error checking access for ${content.title}:`, err);
+          }
+        }
+      }
+      setUnlockedContents(unlockedIds);
+      
+      // Add unlocked status to content objects
+      const contentsWithUnlockStatus = contentsData.map(content => ({
+        ...content,
+        isUnlocked: !content.isPaid || unlockedIds.includes(content._id)
+      }));
+      
+      setContents(contentsWithUnlockStatus);
       
       // Check which lessons have quizzes
       const quizStatus = {};
-      for (const lesson of contentsData) {
+      for (const lesson of contentsWithUnlockStatus) {
         if (lesson.type === "quiz") {
           quizStatus[lesson._id] = true;
           console.log(`Standalone quiz: ${lesson.title}`);
@@ -78,41 +102,25 @@ const StudentLessons = () => {
   // Check for payment callback on page load
   useEffect(() => {
     const checkPaymentCallback = async () => {
-      // Get all URL parameters
       const urlParams = new URLSearchParams(window.location.search);
-      
-      // Check for common payment gateway parameters
       const reference = urlParams.get('reference');
-      const transactionId = urlParams.get('transaction_id');
-      const status = urlParams.get('status');
-      const paymentStatus = urlParams.get('payment_status');
-      const contentId = urlParams.get('content_id');
+      const contentId = urlParams.get('contentId');
       const sessionId = localStorage.getItem('payment_session_id');
       
-      console.log("Payment callback detected - Params:", {
-        reference,
-        transactionId,
-        status,
-        paymentStatus,
-        contentId,
-        sessionId
-      });
+      console.log("Payment callback detected - Reference:", reference, "ContentId:", contentId);
       
-      // If we have a reference or transaction ID, verify payment
-      if (reference || transactionId) {
+      if (reference) {
         setProcessingPayment(true);
         toast.loading("Verifying payment...", { id: "payment-verification" });
         
         try {
-          // Call your backend to verify payment
           const verifyRes = await axios.post("/content-payments/verify", {
-            reference: reference || transactionId,
+            reference: reference,
             contentId: contentId || sessionId,
           });
           
           if (verifyRes.data.success) {
             toast.success("Payment verified! Content unlocked.", { id: "payment-verification" });
-            // Refresh content to show unlocked status
             await fetchContentsAndQuizzes();
           } else {
             toast.error("Payment verification failed. Please contact support.", { id: "payment-verification" });
@@ -122,9 +130,9 @@ const StudentLessons = () => {
           toast.error("Failed to verify payment. Please contact support.", { id: "payment-verification" });
         } finally {
           setProcessingPayment(false);
-          // Clean up URL parameters
           window.history.replaceState({}, document.title, window.location.pathname);
           localStorage.removeItem('payment_session_id');
+          localStorage.removeItem('current_subject_id');
         }
       }
     };
@@ -214,30 +222,30 @@ const StudentLessons = () => {
   }, [viewer.open]);
 
   // Handle payment unlock
-  // In StudentLessons.jsx - Update handleUnlock
-const handleUnlock = async (c) => {
-  try {
-    // Store current subject ID for return navigation
-    localStorage.setItem('current_subject_id', subjectId);
-    localStorage.setItem('payment_session_id', c._id);
-    
-    const res = await axios.post("/content-payments/initiate", {
-      contentId: c._id,
-    });
-    
-    if (res.data.authorizationUrl) {
-      window.location.href = res.data.authorizationUrl;
+  const handleUnlock = async (c) => {
+    try {
+      localStorage.setItem('current_subject_id', subjectId);
+      localStorage.setItem('payment_session_id', c._id);
+      
+      const res = await axios.post("/content-payments/initiate", {
+        contentId: c._id,
+      });
+      
+      if (res.data.authorizationUrl) {
+        window.location.href = res.data.authorizationUrl;
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Payment failed: " + (err.response?.data?.message || "Please try again"));
+      localStorage.removeItem('payment_session_id');
+      localStorage.removeItem('current_subject_id');
     }
-  } catch (err) {
-    console.error(err);
-    toast.error("Payment failed: " + (err.response?.data?.message || "Please try again"));
-    localStorage.removeItem('payment_session_id');
-    localStorage.removeItem('current_subject_id');
-  }
-};
+  };
 
-  const openViewer = (c) => {
-    if (c.isPaid) {
+  // Open viewer with access check
+  const openViewer = async (c) => {
+    // Check if content is paid and unlocked
+    if (c.isPaid && !c.isUnlocked) {
       toast.error("This content is locked. Please purchase to unlock.");
       return;
     }
@@ -366,20 +374,33 @@ const handleUnlock = async (c) => {
                   {getTypeLabel(c.type)}
                 </div>
 
+                {/* LOCK OVERLAY FOR PAID CONTENT */}
                 {c.isPaid && (
                   <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center text-white z-20">
-                    <FaLock className="text-3xl mb-2" />
-                    <p className="text-sm mb-2">Premium Content</p>
-                    <p className="text-xs mb-2">Price: ₵{c.price}</p>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleUnlock(c);
-                      }}
-                      className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm transition"
-                    >
-                      Unlock Now
-                    </button>
+                    {c.isUnlocked ? (
+                      // Unlocked state
+                      <>
+                        <FaCheckCircle className="text-3xl mb-2 text-green-400" />
+                        <p className="text-sm mb-2 font-semibold">Unlocked!</p>
+                        <p className="text-xs">Click to view content</p>
+                      </>
+                    ) : (
+                      // Locked state with unlock button
+                      <>
+                        <FaLock className="text-3xl mb-2" />
+                        <p className="text-sm mb-2">Premium Content</p>
+                        <p className="text-xs mb-2">Price: ₵{c.price}</p>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleUnlock(c);
+                          }}
+                          className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm transition"
+                        >
+                          Unlock Now
+                        </button>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
@@ -393,9 +414,14 @@ const handleUnlock = async (c) => {
                     <span>✓</span> {c.type === "quiz" ? "Interactive quiz" : "Includes assessment"}
                   </p>
                 )}
-                {c.isPaid && (
+                {c.isPaid && !c.isUnlocked && (
                   <p className="text-xs text-yellow-600 mt-1">
-                    💰 Premium content
+                    💰 Premium content - ₵{c.price}
+                  </p>
+                )}
+                {c.isPaid && c.isUnlocked && (
+                  <p className="text-xs text-green-600 mt-1">
+                    🔓 Unlocked - Click to view
                   </p>
                 )}
               </div>
